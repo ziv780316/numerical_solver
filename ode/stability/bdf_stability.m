@@ -25,4 +25,6 @@ bdf4_stability=f_bdf4(w);
 plot(bdf4_stability,'r-+'); 
 hold on;
 
+axis equal;
+
 saveas(1,'figure/bdf.jpg');

@@ -14,7 +14,7 @@ double g_initial_solution = 1.0;
 
 double diff ( double yn, double xn )
 {
-	if ( 0.0 == yn )
+	if ( 0.0 == xn )
 	{
 		return -1.0;
 	}

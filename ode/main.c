@@ -4,6 +4,7 @@
 #include "opts.h"
 
 opt_t g_opts;
+int g_total_iteration = 0;
 
 int main( int argc, char **argv ) 
 {
@@ -58,7 +59,7 @@ int main( int argc, char **argv )
 			printf( "%.10e %.10e\n", xn_1, yn_1 );
 		}
 
-		// shift solution states
+		// shift solution states, ylist[0] will be update in interation function
 		for ( int i = maxord; i > 0; --i )
 		{
 			ylist[i] = ylist[i - 1];
@@ -67,6 +68,7 @@ int main( int argc, char **argv )
 		switch ( method )
 		{
 			case AM:
+			yn = adams_moulton ( order, xn_1, yn_1, h, ylist );
 			break;
 
 			case AB:
@@ -92,6 +94,11 @@ int main( int argc, char **argv )
 		{
 			++order;
 		}
+	}
+
+	if ( debug )
+	{
+		printf( "[Summary]\nTotal iterations = %d\nTotal timepoints = %d\n", g_total_iteration, total_points );
 	}
 
 	return 0;

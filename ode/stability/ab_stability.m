@@ -19,4 +19,6 @@ ab3_stability=f_ab3(w);
 plot(ab3_stability,'k-+'); % - means line mark
 hold on;
 
+axis equal;
+
 saveas(1,'figure/ab.jpg');

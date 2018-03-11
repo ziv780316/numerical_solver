@@ -14,7 +14,6 @@ typedef enum
 
 typedef enum
 {
-	PREDICTOR_CORRECTOR,
 	NEWTON
 } SOLVER_TYPE;
 
@@ -26,9 +25,11 @@ typedef struct
 	double tstop;	
 	int iteraton_limit;
 	int maxord;
+	bool use_predictor;
 	bool debug;
 } opt_t;
 
 extern void parse_cmd_options ( int argc, char **argv );
+extern opt_t g_opts;
 
 #endif

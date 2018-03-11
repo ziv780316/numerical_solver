@@ -17,6 +17,7 @@ opt_t g_opts = {
 	.tstop = 100,
 	.iteraton_limit = -1, // unlimit
 	.maxord = 1,
+	.use_predictor = false,
 	.debug = false
 };
 
@@ -29,7 +30,7 @@ void show_help ()
 		"  -h  =>  show help\n"
 		"  -d  =>  enable debug infomation\n"
 		"  -t | --tstep [num]  =>  specify integration size\n"
-		"  -p | --tstop [num]  =>  specify stop time\n"
+		"  -e | --tstop [num]  =>  specify stop time\n"
 		"  -m | --method \"[name]\"  =>  specify integration method\n"
 		"  -s | --solver \"[name]\"  =>  specify solver type\n"
 		"  -o | --order \"[num]\"  =>  specify integration order\n"
@@ -67,10 +68,11 @@ void parse_cmd_options ( int argc, char **argv )
 			// flag options
 			{"help", no_argument, 0, 'h'},
 			{"debug", no_argument, 0, 'd'},
+			{"predictor", no_argument, 0, 'p'},
 
 			// setting options
 			{"tstep", required_argument, 0, 't'},
-			{"tstop", required_argument, 0, 'p'},
+			{"tstop", required_argument, 0, 'e'},
 			{"method", required_argument, 0, 'm'},
 			{"solver", required_argument, 0, 's'},
 			{"order", required_argument, 0, 'o'},
@@ -81,7 +83,7 @@ void parse_cmd_options ( int argc, char **argv )
 		// getopt_long stores the option index here
 		int option_index = 0;
 
-		c = getopt_long( argc, argv, "hdm:s:o:t:p:i:", long_options, &option_index );
+		c = getopt_long( argc, argv, "hdm:s:o:t:e:i:p", long_options, &option_index );
 
 		// detect the end of the options
 		if ( -1 == c )
@@ -100,11 +102,15 @@ void parse_cmd_options ( int argc, char **argv )
 				g_opts.debug = true;
 				break;
 
+			case 'p':
+				g_opts.use_predictor = true;
+				break;
+
 			case 't':
 				g_opts.tstep = atof( optarg );
 				break;
 
-			case 'p':
+			case 'e':
 				g_opts.tstop = atof( optarg );
 				break;
 				
@@ -112,10 +118,6 @@ void parse_cmd_options ( int argc, char **argv )
 				if ( is_str_nocase_match( optarg, "newton" ) )
 				{
 					g_opts.method = NEWTON;
-				}
-				else if ( is_str_nocase_match( optarg, "predictor_corrector" ) )
-				{
-					g_opts.method = PREDICTOR_CORRECTOR;
 				}
 				else
 				{

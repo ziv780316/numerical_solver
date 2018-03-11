@@ -26,5 +26,6 @@ extern double diff_exact ( double yn, double xn );
 extern double exact ( double xn );
 
 extern double g_initial_solution;
+extern int g_total_iteration;
 
 #endif
