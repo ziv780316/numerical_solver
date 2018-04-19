@@ -90,6 +90,7 @@ int main( int argc, char **argv )
 		// go next time
 		xn_1 += h;
 		++total_points;
+		//if ( order < maxord && total_points > 1 ) // SPICE start up
 		if ( order < maxord )
 		{
 			++order;

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 
+#ifdef IVP1
 /*
 stiff ODE problem:
 	y' = -y
@@ -12,51 +13,59 @@ exact solution:
 */
 double g_initial_solution = 1.0;
 
-double diff ( double yn, double xn )
+double diff ( double y, double x )
 {
-	if ( 0.0 == xn )
-	{
-		return -1.0;
-	}
-	return -yn;
+	return -y;
 }
 
-double diff2 ( double yn, double xn )
+double exact ( double x )
 {
-	return -1.0;
+	return exp(-x);
 }
 
-double diff_exact ( double yn, double xn )
-{
-	return -exp( -xn );
-}
-
-
-double exact ( double xn )
-{
-	return exp( -xn );
-}
-
+#elif IVP2
 /*
 ODE:
-	(vo - vi) / R = C * (dvo / dt)
+	(vo - vi)/R = C*(dvo/dt)
 
-	y' = -(y - vi) / (R * C)
+	y' = -(y - vi)/(R*C)
 	y(0) = 0
 
 exact solution:
 	y = 1 - exp(-x)
 */
-//double g_initial_solution = 0;
-//
-//double diff ( double yn, double xn )
-//{
-//	double vi = 1.0;
-//	double r  = 1.0;
-//	double c  = 1.0;
-//	return -(yn - vi) / (r * c);
-//}
-//double exact ( double xn )
-//{
-//	return 1 - exp( -xn );
-//}
+double g_initial_solution = 0;
+
+double diff ( double y, double x )
+{
+	double vi = 1.0;
+	double r  = 1.0;
+	double c  = 1.0;
+	return -(y - vi)/(r*c);
+}
+double exact ( double x )
+{
+	return 1 - exp(-x);
+}
+
+#elif IVP3
+/*
+stiff ODE problem:
+	y' = -5*(x+1)*y^2 + 5/(x+1) - 1/((x+1)^2)
+	y(0) = 1
+
+exact solution:
+	y = 1/(x+1)
+*/
+double g_initial_solution = 1.0;
+
+double diff ( double y, double x )
+{
+	return -5.0*(x+1.0)*(y*y) + 5.0/(x+1.0) - 1.0/((x+1.0)*(x+1.0));
+}
+
+double exact ( double x )
+{
+	return 1.0/(x+1.0);
+}
+#endif

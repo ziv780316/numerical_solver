@@ -19,8 +19,9 @@ FLEX      = flex
 FLEX_FLAG = 
 BISON     = bison 
 LINKER    = ${CXX}
-CFLAGS    = -g3 -Wfatal-errors -Wall -std=gnu99 ${DEFINES} -fPIC
-CXXFLAGS  = -g3 -Wfatal-errors -Wall -std=c++11 ${DEFINES} -fPIC
+DEFINES   = -DIVP3
+CFLAGS    = -O2 -Wfatal-errors -Wall -std=gnu99 ${DEFINES} -fPIC 
+CXXFLAGS  = -O2 -Wfatal-errors -Wall -std=c++11 ${DEFINES} -fPIC
 LIBS      = -lm -L/usr/lib/x86_64-linux-gnu -lfl -lreadline
 INCLUDE   = -I./include
 MOVE      = mv -f
