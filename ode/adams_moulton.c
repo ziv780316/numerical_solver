@@ -97,9 +97,9 @@ double adams_moulton ( int order, double xn_1, double yn_1, double hn_1, double 
 		g_diff = (g_delta - g) / delta; // forward difference
 		yn_next = yn - (g / g_diff);
 		nr_diff = fabs(yn_next - yn);
-		yn = yn_next;
 		++iterno;
 		//printf( "%d: yn_next=%.10e yn=%.10e yn_1=%.10e yn_k=%.10e yn_predictor=%.10e diff_0=%.10e g=%.10e, g_delta=%.10e, g_diff=%.10e\n", iterno, yn_next, yn, yn_1, yn_k, yn_predictor, diff_0, g, g_delta, g_diff );
+		yn = yn_next;
 
 		if ( nr_diff > (reltol * fmax(fabs(yn), fabs(yn_next))) + abstol )
 		{

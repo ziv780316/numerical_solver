@@ -34,6 +34,27 @@ int main( int argc, char **argv )
 	// imediately flush stream into termial
 	setbuf( stdout, 0 );
 
+	// start-up
+	switch ( method )
+	{
+		case AM:
+		case AB:
+			ylist[0] = diff(y0, 0); 
+			break;
+
+		case BDF:
+			ylist[0] = y0;
+			break;
+
+		case SIMPSON:
+			// not implement yet...
+			break;
+
+		case RK:
+			// not implement yet...
+			break;
+	}
+
 	if ( debug )
 	{
 		printf( "x\ty\ty_exact\tlte\tlte(%%)\tdiff\n" );
@@ -76,6 +97,7 @@ int main( int argc, char **argv )
 			break;
 
 			case BDF:
+			yn = bdf ( order, xn_1, yn_1, h, ylist );
 			break;
 
 			case SIMPSON:
