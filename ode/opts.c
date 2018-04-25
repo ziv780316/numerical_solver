@@ -18,7 +18,8 @@ opt_t g_opts = {
 	.iteraton_limit = -1, // unlimit
 	.maxord = 1,
 	.use_predictor = false,
-	.debug = false
+	.debug = false,
+	.analysis_file = NULL
 };
 
 void show_help ()
@@ -35,6 +36,7 @@ void show_help ()
 		"  -s | --solver \"[name]\"  =>  specify solver type\n"
 		"  -o | --order \"[num]\"  =>  specify integration order\n"
 		"  -i | --iteration \"[num]\"  =>  specify iteration limit each time\n"
+		"  -a | --analysis  =>  output local linearize results for eigenvalue analysis\n"
 		);
 }
 
@@ -77,13 +79,14 @@ void parse_cmd_options ( int argc, char **argv )
 			{"solver", required_argument, 0, 's'},
 			{"order", required_argument, 0, 'o'},
 			{"iteration_limit", required_argument, 0, 'i'},
+			{"analysis", required_argument, 0, 'a'},
 			{0, 0, 0, 0}
 		};
 
 		// getopt_long stores the option index here
 		int option_index = 0;
 
-		c = getopt_long( argc, argv, "hdm:s:o:t:e:i:p", long_options, &option_index );
+		c = getopt_long( argc, argv, "hdm:s:o:t:e:i:pa:", long_options, &option_index );
 
 		// detect the end of the options
 		if ( -1 == c )
@@ -104,6 +107,10 @@ void parse_cmd_options ( int argc, char **argv )
 
 			case 'p':
 				g_opts.use_predictor = true;
+				break;
+
+			case 'a':
+				g_opts.analysis_file = optarg;
 				break;
 
 			case 't':

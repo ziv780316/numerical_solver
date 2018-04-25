@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <string.h>
 #include "methods.h"
 #include "opts.h"
 
@@ -22,14 +24,27 @@ int main( int argc, char **argv )
 
 	// time zone setting
 	double h = g_opts.tstep;
-	double xn_1 = 0;
+	double tn_1 = 0;
 	double yn_1 = y0;
 	double yn = y0;
-	double xstop = g_opts.tstop;
+	double tstop = g_opts.tstop;
 	
 	// benchmark summary
 	int total_points = 0;
 	double lte;
+
+	// linearize solution at each time point
+	FILE *fout_local_solution;
+	if ( g_opts.analysis_file )
+	{
+		fout_local_solution = fopen( g_opts.analysis_file, "w" );
+		if ( !fout_local_solution )
+		{
+			fprintf( stderr, "[Error] open output file %s error --> %s\n", g_opts.analysis_file, strerror( errno ) );
+			abort();
+		}
+		fprintf( fout_local_solution, "step(t,a) = (t >= a) ? 1 : 1/0\n" );
+	}
 
 	// imediately flush stream into termial
 	setbuf( stdout, 0 );
@@ -57,27 +72,37 @@ int main( int argc, char **argv )
 
 	if ( debug )
 	{
-		printf( "x\ty\ty_exact\tlte\tlte(%%)\tdiff\n" );
+		printf( "t\ty\ty_exact\tlte\tlte(%%)\tdiff\n" );
 	}
-	while ( xn_1 <= xstop )
+	while ( tn_1 <= tstop )
 	{
 		yn_1 = yn;
+
+		// local analysis for eigenvalue estimation
+		if ( g_opts.analysis_file )
+		{
+			double lamda = jacobian( yn_1, tn_1 );
+			double q_over_lamda = diff( yn_1, tn_1 ) / lamda;
+
+			fprintf( fout_local_solution, "t=%.10e lamda=%.10e\n", tn_1, lamda );
+			fprintf( fout_local_solution, "f%d(t)=((%.10e)*exp(%.10e*(t - %.10e)) - %.10e + %.10e)*step(t,%.10e)\n", total_points, q_over_lamda, lamda, tn_1, q_over_lamda, yn_1, tn_1 );
+		}
 
 		if ( debug )
 		{
 			if ( 0 == total_points )
 			{	
-				printf( "%.10e %.10e %.10e %.10e %.10e %.10e\n", xn_1, yn_1, y0, 0.0, 0.0, diff(yn_1, xn_1) );
+				printf( "%.10e %.10e %.10e %.10e %.10e %.10e\n", tn_1, yn_1, y0, 0.0, 0.0, diff(yn_1, tn_1) );
 			}
 			else
 			{
-				lte = exact(xn_1) - yn_1;
-				printf( "%.10e %.10e %.10e %.10e %.10e %.10e\n", xn_1, yn_1, exact(xn_1), lte, 100.0 * (lte / exact(xn_1)), diff(yn_1, xn_1) );
+				lte = exact(tn_1) - yn_1;
+				printf( "%.10e %.10e %.10e %.10e %.10e %.10e\n", tn_1, yn_1, exact(tn_1), lte, 100.0 * (lte / exact(tn_1)), diff(yn_1, tn_1) );
 			}
 		}
 		else
 		{
-			printf( "%.10e %.10e\n", xn_1, yn_1 );
+			printf( "%.10e %.10e\n", tn_1, yn_1 );
 		}
 
 		// shift solution states, ylist[0] will be update in interation function
@@ -89,15 +114,15 @@ int main( int argc, char **argv )
 		switch ( method )
 		{
 			case AM:
-			yn = adams_moulton ( order, xn_1, yn_1, h, ylist );
+			yn = adams_moulton ( order, tn_1, yn_1, h, ylist );
 			break;
 
 			case AB:
-			yn = adams_bashforth ( order, xn_1, yn_1, h, ylist );
+			yn = adams_bashforth ( order, tn_1, yn_1, h, ylist );
 			break;
 
 			case BDF:
-			yn = bdf ( order, xn_1, yn_1, h, ylist );
+			yn = bdf ( order, tn_1, yn_1, h, ylist );
 			break;
 
 			case SIMPSON:
@@ -110,7 +135,7 @@ int main( int argc, char **argv )
 		}
 
 		// go next time
-		xn_1 += h;
+		tn_1 += h;
 		++total_points;
 		//if ( order < maxord && total_points > 1 ) // SPICE start up
 		if ( order < maxord )

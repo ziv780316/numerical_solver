@@ -6,12 +6,12 @@
 #include "opts.h"
 #include "methods.h"
 
-double bdf ( int order, double xn_1, double yn_1, double hn_1, double *ylist )
+double bdf ( int order, double tn_1, double yn_1, double hn_1, double *ylist )
 {
 	double yn;
 	double yn_2 = ylist[2];
 	double yn_3 = ylist[3];
-	double xn = xn_1 + hn_1;
+	double tn = tn_1 + hn_1;
 	double yn_predictor;
 	double yn_k;
 	double yn_k_delta;
@@ -44,8 +44,8 @@ double bdf ( int order, double xn_1, double yn_1, double hn_1, double *ylist )
 
 	do 
 	{
-		diff_0       = diff(yn, xn);
-		diff_0_delta = diff(yn + delta, xn); // forward difference
+		diff_0       = diff(yn, tn);
+		diff_0_delta = diff(yn + delta, tn); // forward difference
 
 		switch ( order )
 		{

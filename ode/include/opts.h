@@ -27,6 +27,7 @@ typedef struct
 	int maxord;
 	bool use_predictor;
 	bool debug;
+	char *analysis_file;
 } opt_t;
 
 extern void parse_cmd_options ( int argc, char **argv );

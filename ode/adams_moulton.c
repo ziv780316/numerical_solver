@@ -6,9 +6,9 @@
 #include "opts.h"
 #include "methods.h"
 
-double adams_moulton ( int order, double xn_1, double yn_1, double hn_1, double *ylist )
+double adams_moulton ( int order, double tn_1, double yn_1, double hn_1, double *ylist )
 {
-	double xn = xn_1 + hn_1;
+	double tn = tn_1 + hn_1;
 	double yn;
 	double yn_predictor;
 	double yn_k;
@@ -35,7 +35,7 @@ double adams_moulton ( int order, double xn_1, double yn_1, double hn_1, double 
 
 	if ( g_opts.use_predictor )
 	{
-		yn_predictor = adams_bashforth( order, xn_1, yn_1, hn_1, ylist_predictor );
+		yn_predictor = adams_bashforth( order, tn_1, yn_1, hn_1, ylist_predictor );
 		yn = yn_predictor; // NR initial value with predictor
 	}
 	else
@@ -45,8 +45,8 @@ double adams_moulton ( int order, double xn_1, double yn_1, double hn_1, double 
 
 	do 
 	{
-		diff_0       = diff(yn, xn);
-		diff_0_delta = diff(yn + delta, xn); // forward difference
+		diff_0       = diff(yn, tn);
+		diff_0_delta = diff(yn + delta, tn); // forward difference
 
 		switch ( order )
 		{

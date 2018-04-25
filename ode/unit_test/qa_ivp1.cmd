@@ -35,6 +35,7 @@ predictor="-p"
 ../bin/ode_solver -m bdf -o 1 -t 0.1 ${debug} ${predictor} > output_ivp1_bdf1_t0p1
 ../bin/ode_solver -m bdf -o 2 -t 0.1 ${debug} ${predictor} > output_ivp1_bdf2_t0p1
 ../bin/ode_solver -m bdf -o 3 -t 0.1 ${debug} ${predictor} > output_ivp1_bdf3_t0p1
+../bin/ode_solver -m bdf -o 2 -t 1 ${debug} ${predictor} > output_ivp1_bdf2_t1
 
 # stiff test
 ../bin/ode_solver -m bdf -o 1 -t 10 ${debug} ${predictor} > output_ivp1_bdf1_t10

@@ -2,10 +2,10 @@
 #include <stdlib.h>
 #include "methods.h"
 
-double adams_bashforth ( int order, double xn_1, double yn_1, double hn_1, double *ylist )
+double adams_bashforth ( int order, double tn_1, double yn_1, double hn_1, double *ylist )
 {
 	double yn;
-	double diff_1 = diff(yn_1, xn_1);
+	double diff_1 = diff(yn_1, tn_1);
 	double diff_2 = ylist[1];
 	double diff_3 = ylist[2];
 	double diff_4 = ylist[3];
