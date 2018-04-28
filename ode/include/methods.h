@@ -26,5 +26,7 @@ double jacobian ( double y, double t );
 
 extern double g_initial_solution;
 extern int g_total_iteration;
+extern int g_total_points;
+extern FILE *g_fout_local_solution;
 
 #endif

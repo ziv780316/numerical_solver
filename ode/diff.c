@@ -23,6 +23,11 @@ double exact ( double t )
 	return exp(-t);
 }
 
+double jacobian ( double y, double t )
+{
+	return -1.0;
+}
+
 #elif IVP2
 /*
 ODE:

@@ -11,11 +11,14 @@ double bdf ( int order, double tn_1, double yn_1, double hn_1, double *ylist )
 	double yn;
 	double yn_2 = ylist[2];
 	double yn_3 = ylist[3];
+	double yn_4 = ylist[4];
 	double tn = tn_1 + hn_1;
 	double yn_predictor;
 	double yn_k;
 	double yn_k_delta;
 	double diff_0;
+	double diff_1;
+	double diff_2;
 	double diff_0_delta;
 
 	// Newton-Raphoson method
@@ -32,10 +35,56 @@ double bdf ( int order, double tn_1, double yn_1, double hn_1, double *ylist )
 	double *ylist_predictor = (double *) calloc ( order + 1, sizeof(double) );
 	memcpy( ylist_predictor, ylist, sizeof(double) * (order + 1) );
 
-	if ( g_opts.use_predictor )
+	if ( g_opts.use_predictor && g_total_points > g_opts.maxord )
 	{
-		// not implement yet
-		yn = yn_1;
+		// polynomial extrapolation
+		switch ( order )
+		{
+			case 1:
+				yn_predictor = 2.0 * yn_1 - yn_2;
+				break;
+
+			case 2:
+				yn_predictor = 3.0 * yn_1 - 3.0 * yn_2 + yn_3; 
+				break;
+
+			case 3:
+				yn_predictor = 4.0 * yn_1 - 6.0 * yn_2 + 4.0 * yn_3 - yn_4; 
+				break;
+
+			default:
+				fprintf( stderr, "[Error] cannot support polynomial extrapolation of order=%d\n", order );
+				abort();
+				break;
+		}
+
+		// Adams-Bashforth 
+		//switch ( order )
+		//{
+		//	case 1:
+		//		diff_1 = (yn_1 - yn_2) / hn_1;
+		//		yn_predictor = yn_1 + diff_1 * hn_1;
+		//		break;
+
+		//	case 2:
+		//		diff_1 = (1.5 * yn_1 - 2.0 * yn_2 + 0.5 * yn_3 ) / hn_1;
+		//		diff_2= (1.5 * yn_2 - 2.0 * yn_3 + 0.5 * yn_4 ) / hn_1;
+		//		yn = yn_1 + hn_1 * (
+		//				(3.0/2.0) * diff_1
+		//				- (1.0/2.0) * diff_2 
+		//				);
+		//		break;
+
+		//	case 3:
+		//		break;
+
+		//	default:
+		//		fprintf( stderr, "[Error] cannot support Adams-Bashforth of order=%d\n", order );
+		//		abort();
+		//		break;
+		//}
+
+		yn = yn_predictor;
 	}
 	else
 	{
@@ -87,6 +136,11 @@ double bdf ( int order, double tn_1, double yn_1, double hn_1, double *ylist )
 			converge = true;
 		}
 	} while ( !converge );
+
+	if ( g_opts.analysis_file && g_opts.use_predictor && g_total_points > g_opts.maxord )
+	{
+		fprintf( g_fout_local_solution, "time:%.10e yc=%.10e yp=%.10e yn_1=%.10e e=%.10e (predictor=%.2lf%% last=%.2lf%%)\n", tn, yn, yn_predictor, yn_1, yn - yn_predictor, fabs(yn - yn_predictor) / yn * 100.0, fabs(yn - yn_1) / yn * 100.0 );
+	}
 
 	free( ylist_predictor );
 
