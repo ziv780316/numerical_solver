@@ -19,6 +19,9 @@ double adams_bashforth ( int order, double tn_1, double yn_1, double hn_1, doubl
 // P(t) is interpolation polynomil of f(t,y(t)) from tn, tn_1, ...
 double bdf ( int order, double tn_1, double yn_1, double hn_1, double *ylist );
 
+// Runge-Kutta
+double rk ( int order, double tn_1, double yn_1, double hn_1, double *ylist );
+
 // other...
 extern double diff  ( double yn, double tn );
 extern double exact ( double tn );

@@ -130,7 +130,7 @@ int main( int argc, char **argv )
 			break;
 
 			case RK:
-			// not implement yet...
+			yn = rk ( maxord, tn_1, yn_1, h, ylist );
 			break;
 		}
 

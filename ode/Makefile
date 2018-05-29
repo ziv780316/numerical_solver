@@ -21,7 +21,7 @@ FLEX_FLAG  =
 BISON      = bison 
 LINKER     = $(CXX)
 DEFINES    = 
-IVP        = IVP1
+IVP        = IVP4
 BUILD_TYPE = -O3
 CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -std=gnu99 -D$(IVP) -fPIC 
 CXXFLAGS   = $(BUILD_TYPE) -Wfatal-errors -Wall -std=c++11 -D$(IVP) -fPIC
@@ -35,7 +35,7 @@ MOVE       = mv -f
 BIN_DIR           := bin
 UNIT_TEST_DIR     := unit_test
 LIBRARY_DIR       := library
-ODE_SOLVER_OBJ    := adams_bashforth.o adams_moulton.o bdf.o opts.o diff.o main.o
+ODE_SOLVER_OBJ    := rk.o adams_bashforth.o adams_moulton.o bdf.o opts.o diff.o main.o
 LEX_YACC_TARGET   := 
 UNIT_TEST_OBJ     := 
 SO_TARGET         :=

@@ -1,7 +1,10 @@
 #!/bin/bash
 
-debug="-d"
+#debug="-d"
 predictor="-p"
+
+# principle test of RK
+../bin/ode_solver -m rk -o 4 -t 0.1 ${debug} ${predictor} > output_ivp1_rk4
 
 # principle test of AB
 ../bin/ode_solver -m ab -o 1 -t 0.1 ${debug} ${predictor} > output_ivp1_ab1

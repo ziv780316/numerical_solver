@@ -1,7 +1,10 @@
 #!/bin/bash
 
-debug="-d"
+#debug="-d"
 predictor="-p"
+
+# principle test of RK
+../bin/ode_solver -m rk -o 4 -t 0.1 ${debug} ${predictor} > output_ivp4_rk4_t0p1
 
 # stability test of AB
 ../bin/ode_solver -m ab -o 1 -t 0.001 ${predictor} > output_ivp4_ab1_t0p001
