@@ -40,7 +40,7 @@ LIBRARY_DIR       := library
 MATRIX_SOLVER_OBJ := matrix_solver.o 
 LEX_YACC_TARGET   := 
 UNIT_TEST_OBJ     := dense_matrix_vector_multiply.o
-MATRIX_SOLVER_TARGET := libmatrix_solver.a
+MATRIX_SOLVER_TARGET := libmatrix_solver.so
 BLAS_TARGET := libblas.a
 
 #=================================================
@@ -101,6 +101,7 @@ $(MATRIX_SOLVER_TARGET): verbose_info create_dir $(BLAS_TARGET) $(MATRIX_SOLVER_
 	cd $(LIBRARY_DIR);\
 	$(ARCH) $(ARCHFLAGS) $@ $(MATRIX_SOLVER_OBJ);\
 	$(MOVE) $@ ../$(BIN_DIR)
+	#$(LINKER) -o $@ -shared $(MATRIX_SOLVER_OBJ);\
 
 ut: 
 	cd $(UNIT_TEST_DIR); make
