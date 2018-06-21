@@ -25,14 +25,7 @@ int main ( int argc, char **argv )
 	beta = 1.0;
 	dense_matrix_matrix_multiply ( m, n, k, alpha, A, B, beta, C, a_transpose, b_transpose );
 	printf( "1.5*A*B\n" );
-	for ( int i = 0; i < m; ++i )
-	{
-		for ( int j = 0; j < n; ++j )
-		{
-			printf( "%.10e ", *(C + j*m + i) );
-		}
-		printf( "\n" );
-	}
+	dense_print_matrix( m, n, C );
 
 	return EXIT_SUCCESS;
 }

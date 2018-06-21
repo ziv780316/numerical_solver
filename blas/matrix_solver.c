@@ -43,3 +43,41 @@ int dense_matrix_matrix_multiply ( int m, int n, int k, double alpha, double *A,
 
 	return true;
 }
+
+/* DTRSV
+	solves one of the systems of equations
+	A*x = b, or A**T*x = b,
+	where b and x are n element vectors and A is an n by n unit,
+	or non-unit, upper or lower triangular matrix.
+	No test for singularity or near-singularity is included in this routine. 
+	Such tests must be performed before calling this routine.
+*/
+void dtrsv_( char *triangulr_type, char *trans, char *is_unit_triangular, int *n, double *A, int *lda, double *x, int *incx );
+
+int dense_triangular_solve ( int n, double *A, double *x, bool is_lower_triangular, bool transpose, bool is_unit_triangular )
+{
+	char type = is_lower_triangular ? 'L' : 'U'; // if is L, will ignore strictly upper triangular part, otherwise
+	char tran = transpose ? 'T' : 'N';
+	char is_unit = is_unit_triangular ? 'U' : 'N'; // if is U, will regard diagonal element as 1
+	int lda = n;
+	int incx = 1;
+
+	dtrsv_( &type, &tran, &is_unit, &n, A, &lda, x, &incx );
+
+	return true;
+}
+
+int dense_print_matrix ( int m, int n, double *A )
+{
+	for ( int i = 0; i < m; ++i )
+	{
+		for ( int j = 0; j < n; ++j )
+		{
+			printf( "%.10e ", *(A + j*m + i) );
+		}
+		printf( "\n" );
+	}
+
+	return true;
+}
+
