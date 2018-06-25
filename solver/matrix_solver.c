@@ -83,17 +83,81 @@ int dense_swap_vector ( int n, double *x, double *y )
 	return true;
 }
 
+/* DGETRF DGETRF computes an LU factorization of a general M-by-N matrix A 
+	using partial pivoting with row interchanges.
+	The factorization has the form
+	A = P * L * U
+	where P is a permutation matrix, 
+	L is lower triangular with unit diagonal elements (lower trapezoidal if m > n),
+	and U is upper triangular (upper trapezoidal if m < n).
+*/
+void dgetrf_ ( int *m, int *n, double *A, int *lda, int*ipiv, int *info );
+
+int dense_lu_factor ( int n, double *A, int *p )
+{
+	int lda = n;
+	int info;
+	dgetrf_( &n, &n, A, &lda, p, &info );
+
+	return (0 == info); // info = 0 means success
+}
+
 /* DGETRS 
 	solves a system of linear equations
 	A * X = B  or  A**T * X = B
 	with a general N-by-N matrix A using the LU factorization computed by DGETRF
 */
+void dgetrs_( char *trans, int *n, int *nrhs, double *A, int *lda, int *ipiv, double *x, int *ldb, int *info );
+
+int dense_solve ( int n, double *A, double *x, int *ipiv, bool transpose )
+{
+	char tran = transpose ? 'T' : 'N';
+	int nrhs = 1;
+	int lda = n;
+	int ldb = n;
+	int info;
+
+	dgetrs_( &tran, &n, &nrhs, A, &lda, ipiv, x, &ldb, &info );
+	
+	return (0 == info); // info = 0 means success
+}
+
+int dense_factor_and_solve ( int n, double *A, double *x, bool transpose )
+{
+	int *p = (int *) malloc( sizeof(int) * n );
+	int success;
+
+	success = dense_lu_factor( n, A, p );
+	if ( !success )
+	{
+		return 0;
+	}
+	success = dense_solve( n, A, x, p, transpose );
+	if ( !success )
+	{
+		return 0;
+	}
+
+	free(p);
+
+	return true;
+}
 
 int dense_print_vector ( int n, double *x )
 {
 	for ( int i = 0; i < n; ++i )
 	{
 		printf( "%.10e\n", x[i] );
+	}
+
+	return true;
+}
+
+int dense_print_vector_i ( int n, int *x )
+{
+	for ( int i = 0; i < n; ++i )
+	{
+		printf( "%d\n", x[i] );
 	}
 
 	return true;
@@ -107,6 +171,38 @@ int dense_print_matrix ( int m, int n, double *A )
 		for ( int j = 0; j < n; ++j )
 		{
 			printf( "%.10e ", *(A + j*m + i) );
+		}
+		printf( "\n" );
+	}
+
+	return true;
+}
+
+int dense_print_matrix_LU ( int n, double *A )
+{
+	printf( "L=\n" ); // assume L is unit lower triangular
+	for ( int i = 0; i < n; ++i )
+	{
+		for ( int j = 0; j <= i; ++j )
+		{
+			if ( i == j )
+			{
+				printf( "%.10e", 1.0 );
+			}
+			else
+			{
+				printf( "%.10e ", *(A + j*n + i) );
+			}
+		}
+		printf( "\n" );
+	}
+
+	printf( "U=\n" );
+	for ( int i = 0; i < n; ++i )
+	{
+		for ( int j = i; j < n; ++j )
+		{
+			printf( "%.10e ", *(A + j*n + i) );
 		}
 		printf( "\n" );
 	}

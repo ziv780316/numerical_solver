@@ -17,7 +17,7 @@ LINKER     = $(CC)
 DEFINES    = 
 BUILD_TYPE = -O3
 CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -std=gnu99 -fPIC 
-LIBS       = -L../lib -lmatrix_solver -lblas -lgfortran
+LIBS       = -L../lib -lmatrix_solver -lblas -llapack -lgfortran
 INCLUDE    = -I.. -I.
 MOVE       = mv -f
 
@@ -25,7 +25,7 @@ MOVE       = mv -f
 # Build target
 #=================================================
 LIBRARY_DIR       := library
-UNIT_TEST_OBJ     := dense_matrix_vector_multiply.o dense_matrix_matrix_multiply.o dense_triangular_solve.o dense_swap_vector.o
+UNIT_TEST_OBJ     := dense_matrix_vector_multiply.o dense_matrix_matrix_multiply.o dense_triangular_solve.o dense_swap_vector.o dense_lu_factor.o dense_factor_and_solve.o
 
 #=================================================
 # Compile implicit rules

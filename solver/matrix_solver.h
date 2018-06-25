@@ -13,12 +13,21 @@ int dense_triangular_solve ( int n, double *A, double *x, bool is_lower_triangul
 // swap vector x and y
 int dense_swap_vector ( int n, double *x, double *y );
 
+// LU factorization A = P * L * U
+int dense_lu_factor ( int n, double *A, int *p );
+
 // solve A*x = b 
+int dense_solve ( int n, double *A, double *x, int *p, bool transpose );
+
+// solve A*x = b with LU factorization
+int dense_factor_and_solve ( int n, double *A, double *x, bool transpose );
 
 
 // print matrix
 int dense_print_vector ( int n, double *x );
+int dense_print_vector_i ( int n, int *x );
 int dense_print_matrix ( int m, int n, double *A );
+int dense_print_matrix_LU ( int n, double *A );
 
 #endif
 
