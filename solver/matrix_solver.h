@@ -10,7 +10,14 @@ int dense_matrix_matrix_multiply ( int m, int n, int k, double alpha, double *A,
 // solve A*x = b, or (A**T)*x = b where A is triangular matrix, x is RHS and result will overwrite in x after solve
 int dense_triangular_solve ( int n, double *A, double *x, bool is_lower_triangular, bool transpose, bool is_unit_triangular );
 
+// swap vector x and y
+int dense_swap_vector ( int n, double *x, double *y );
+
+// solve A*x = b 
+
+
 // print matrix
+int dense_print_vector ( int n, double *x );
 int dense_print_matrix ( int m, int n, double *A );
 
 #endif

@@ -67,6 +67,39 @@ int dense_triangular_solve ( int n, double *A, double *x, bool is_lower_triangul
 	return true;
 }
 
+/* DSWAP
+	interchanges two vectors.
+	uses unrolled loops for increments equal to 1.
+*/
+void dswap_( int *n, double *x, int *incx, double *y, int *incy );
+
+int dense_swap_vector ( int n, double *x, double *y )
+{
+	int incx = 1;
+	int incy = 1;
+
+	dswap_( &n, x, &incx, y, &incy );
+	
+	return true;
+}
+
+/* DGETRS 
+	solves a system of linear equations
+	A * X = B  or  A**T * X = B
+	with a general N-by-N matrix A using the LU factorization computed by DGETRF
+*/
+
+int dense_print_vector ( int n, double *x )
+{
+	for ( int i = 0; i < n; ++i )
+	{
+		printf( "%.10e\n", x[i] );
+	}
+
+	return true;
+}
+
+
 int dense_print_matrix ( int m, int n, double *A )
 {
 	for ( int i = 0; i < m; ++i )
