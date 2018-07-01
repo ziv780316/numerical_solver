@@ -97,12 +97,12 @@ verbose_info:
 	@echo "*****************************"
 
 $(BLAS_TARGET): 
-	cd $(BLAS_VERSION); make OPTS=$(BUILD_TYPE) double
+	make -s -C $(BLAS_VERSION) OPTS=$(BUILD_TYPE) double
 	cd lib; ln -sf ../$(BLAS_VERSION)/$(BLAS_TARGET) $(BLAS_TARGET)
 
 $(LAPACK_TARGET): 
-	cd $(LAPACK_VERSION)/INSTALL; make 
-	cd $(LAPACK_VERSION)/src; make -j4 OPTS=$(BUILD_TYPE) double
+	make -s -C $(LAPACK_VERSION)/INSTALL
+	make -s -C $(LAPACK_VERSION)/src -j4 OPTS=$(BUILD_TYPE) double
 	cd lib; ln -sf ../$(LAPACK_VERSION)/src/$(LAPACK_TARGET) $(LAPACK_TARGET)
 
 $(MATRIX_SOLVER_TARGET): verbose_info create_dir $(BLAS_TARGET) $(LAPACK_TARGET) $(MATRIX_SOLVER_OBJ)

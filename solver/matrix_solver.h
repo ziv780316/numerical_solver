@@ -22,6 +22,11 @@ int dense_solve ( int n, double *A, double *x, int *p, bool transpose );
 // solve A*x = b with LU factorization
 int dense_factor_and_solve ( int n, double *A, double *x, bool transpose );
 
+// main diagonal scaling, aii = aii + alpha
+int dense_diagonal_addition ( int n, double *A, double alpha );
+
+// main diagonal scaling, aij = aii * alpha
+int dense_matrix_scale ( int m, int n, double *A, double alpha );
 
 // print matrix
 int dense_print_vector ( int n, double *x );

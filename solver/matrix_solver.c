@@ -143,6 +143,26 @@ int dense_factor_and_solve ( int n, double *A, double *x, bool transpose )
 	return true;
 }
 
+int dense_diagonal_addition ( int n, double *A, double alpha )
+{
+	for ( int i = 0; i < n; ++i )
+	{
+		*(A + i*n + i) += alpha; 
+	}
+	return true;
+}
+
+int dense_matrix_scale ( int m, int n, double *A, double alpha )
+{
+	for ( int j = 0; j < n; ++j )
+	{
+		for ( int i = 0; i < m; ++i )
+		{
+			*(A + j*m + i) *= alpha; 
+		}
+	}
+}
+
 int dense_print_vector ( int n, double *x )
 {
 	for ( int i = 0; i < n; ++i )
