@@ -26,7 +26,7 @@ BLAS_VERSION = BLAS-3.8.0
 LAPACK_VERSION = lapack-3.8.0
 CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -std=gnu99 -fPIC 
 CXXFLAGS   = $(BUILD_TYPE) -Wfatal-errors -Wall -std=c++11 -fPIC
-LIBS       = -Llib -lmatrix_solver -lblas -lgfortran
+LIBS       = -Llib -lmatrix_solver -lblas -lgfortran -lm
 INCLUDE    = -I./include -I.
 MOVE       = mv -f
 ARCH       = ar

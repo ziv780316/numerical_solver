@@ -1,6 +1,142 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <math.h>
+
+// x := alpha*x
+int dense_vector_scale ( int n, double *x, double alpha )
+{
+	for ( int i = 0; i < n; ++i )
+	{
+		x[i] *= alpha;
+	}
+
+	return true;
+}
+
+// aij = aii * alpha
+int dense_matrix_scale ( int m, int n, double *A, double alpha )
+{
+	for ( int j = 0; j < n; ++j )
+	{
+		for ( int i = 0; i < m; ++i )
+		{
+			*(A + j*m + i) *= alpha; 
+		}
+	}
+	return true;
+}
+
+// main diagonal addition, aii = aii + alpha
+int dense_diagonal_addition ( int n, double *A, double alpha )
+{
+	for ( int i = 0; i < n; ++i )
+	{
+		*(A + i*n + i) += alpha; 
+	}
+	return true;
+}
+
+// val = x . y
+int dense_vector_inner_product ( int n, double *x, double *y, double *val )
+{
+	double sum = 0.0;
+	for ( int i = 0; i < n; ++i )
+	{
+		sum += x[i] * y[i];
+	}
+	*val = sum;
+	return true;
+}
+
+// A = x . yT
+int dense_vector_outer_product ( int n, double *x, double *y, double *A )
+{
+	for ( int j = 0; j < n; ++j )
+	{
+		for ( int i = 0; i < n; ++i )
+		{
+			*(A + j*n + i) = x[i] * y[j];
+		}
+	}
+	return true;
+}
+
+// vector norm |x|p = (sum |xi|^p)^(1.0/p)
+int dense_vector_norm ( int p_norm, int n, double *x, double *val )
+{
+	switch ( p_norm )
+	{
+		case -1:
+		{
+			double max = 0;
+			for ( int i = 0; i < n; ++i )
+			{
+				if ( x[i] > max )
+				{
+					max = x[i];
+				}
+			}
+			*val = max;
+			break;
+		}
+
+		case 1:
+		{
+			double sum = 0.0;
+			for ( int i = 0; i < n; ++i )
+			{
+				sum += x[i];
+			}
+			*val = sum;
+			break;
+		}
+
+		case 2:
+		{
+			double sum = 0.0;
+			for ( int i = 0; i < n; ++i )
+			{
+				sum += x[i] * x[i];
+			}
+			sum = sqrt( sum );
+			break;
+		}
+
+		default:
+		{
+			double sum = 0.0;
+			for ( int i = 0; i < n; ++i )
+			{
+				sum += pow( x[i], p_norm ); 
+			}
+			if ( 0.0 == sum )
+			{
+				*val = 0;
+			}
+			else
+			{
+				*val = exp( (1.0 / p_norm) * log(sum) );
+			}
+
+			break;
+		}
+	}
+	return true;
+}
+
+// A = A + alpha * (x . yT)
+int dense_maxtrix_rank_1_update ( int n, double *A, double alpha, double *x, double *y )
+{
+	for ( int j = 0; j < n; ++j )
+	{
+		for ( int i = 0; i < n; ++i )
+		{
+			*(A + j*n + i) += alpha * (x[i] * y[j]);
+		}
+	}
+	return true;
+}
 
 // ============== BLAS Fortran API (column-major array) ============== 
 /* DGEMV
@@ -143,24 +279,33 @@ int dense_factor_and_solve ( int n, double *A, double *x, bool transpose )
 	return true;
 }
 
-int dense_diagonal_addition ( int n, double *A, double alpha )
-{
-	for ( int i = 0; i < n; ++i )
-	{
-		*(A + i*n + i) += alpha; 
-	}
-	return true;
-}
+/* DGETRI computes the inverse of a matrix using the LU factorization computed by DGETRF.
+   This method inverts U and then computes inv(A) by solving the system inv(A)*L = inv(U) for inv(A).
+*/
+void dgetri_ ( int *n, double *A, int *lda, int *ipiv, double *work, int *lwork, int *info );
 
-int dense_matrix_scale ( int m, int n, double *A, double alpha )
+int dense_matrix_inverse ( int n, double *A, int *p )
 {
-	for ( int j = 0; j < n; ++j )
-	{
-		for ( int i = 0; i < m; ++i )
-		{
-			*(A + j*m + i) *= alpha; 
-		}
-	}
+	int lda = n;
+	int lwork = -1;
+	int info;
+	double optima_lwork;
+	double *work;
+
+	// query suitable worksapce size first
+	dgetri_( &n, A, &lda, p, &optima_lwork, &lwork, &info );
+
+	// allocate temperal memory for optimizing performance
+	lwork = (int) optima_lwork;
+	work = (double *) malloc (sizeof(double) * lwork);
+	//fprintf( stderr, "[matrix info] %s: n=%d optimized_lwork=%d\n", __func__, n, lwork );
+
+	// inverse A
+	dgetri_( &n, A, &lda, p, work, &lwork, &info );
+
+	free( work );
+	
+	return (0 == info); // info = 0 means success, info=i > 0 means singular and A(i,i) is 0 (singular node)
 }
 
 int dense_print_vector ( int n, double *x )

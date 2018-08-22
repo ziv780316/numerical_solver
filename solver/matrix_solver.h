@@ -1,6 +1,27 @@
 #ifndef MATRIX_SOLVER_H
 #define MATRIX_SOLVER_H
 
+// x := alpha*x
+int dense_vector_scale ( int n, double *x, double alpha );
+
+// aij = aii * alpha
+int dense_matrix_scale ( int m, int n, double *A, double alpha );
+
+// main diagonal addition, aii = aii + alpha
+int dense_diagonal_addition ( int n, double *A, double alpha );
+
+// val = x . y
+int dense_vector_inner_product ( int n, double *x, double *y, double *val );
+
+// A = x . yT
+int dense_vector_outer_product ( int n, double *x, double *y, double *A );
+
+// A = A + alpha * (x . yT)
+int dense_maxtrix_rank_1_update ( int n, double *A, double alpha, double *x, double *y );
+
+// vector norm |x|p = (sum |xi|^p)^(1.0/p)
+int dense_vector_norm ( int p_norm, int n, double *x, double *val );
+
 // y := alpha*A*x + beta*y, or y := alpha*A*x + beta*y if transpose
 int dense_matrix_vector_multiply ( int m, int n, double alpha, double *A, double *x, double beta, double *y, bool transpose );
 
@@ -22,11 +43,8 @@ int dense_solve ( int n, double *A, double *x, int *p, bool transpose );
 // solve A*x = b with LU factorization
 int dense_factor_and_solve ( int n, double *A, double *x, bool transpose );
 
-// main diagonal scaling, aii = aii + alpha
-int dense_diagonal_addition ( int n, double *A, double alpha );
-
-// main diagonal scaling, aij = aii * alpha
-int dense_matrix_scale ( int m, int n, double *A, double alpha );
+// A := A^-1, computes inv(A) by solving the system inv(A)*L = inv(U) for inv(A).
+int dense_matrix_inverse ( int n, double *A, int *p );
 
 // print matrix
 int dense_print_vector ( int n, double *x );
