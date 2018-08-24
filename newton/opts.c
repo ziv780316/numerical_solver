@@ -7,9 +7,8 @@
 #include <errno.h>
 #include "opts.h"
 
-void show_help ();
-void str_to_lower ( char *str );
-int is_str_nocase_match ( const char *str_a, const char *str_b );
+static void str_to_lower ( char *str );
+static int is_str_nocase_match ( const char *str_a, const char *str_b );
 
 opt_t g_opts = {
 	.iterative_type = NEWTON_NORMAL,
@@ -20,7 +19,9 @@ opt_t g_opts = {
 	.residual_tol = 1e-9,
 	.random_initial = false,
 	.debug = false,
-	.output_file = NULL
+	.output_file = NULL,
+	.problem_so = NULL,
+	.initial_x0_file = NULL
 };
 
 void show_help ()
@@ -39,10 +40,12 @@ void show_help ()
 		"  -a | --atol  =>  specify atol\n"
 		"  -u | --residual  =>  specify residual tol\n"
 		"  -o | --output  =>  specify output file name\n"
+		"  -p | --problem_so  =>  specify problem file (*.so)\n"
+		"  -x | --initial_x0_file  =>  specify initializing file of x0\n"
 		);
 }
 
-void str_to_lower ( char *str )
+static void str_to_lower ( char *str )
 {
 	for ( int i = 0; '\0' != str[i]; ++i )
 	{
@@ -50,7 +53,7 @@ void str_to_lower ( char *str )
 	}
 }
 
-int is_str_nocase_match ( const char *str_a, const char *str_b )
+static int is_str_nocase_match ( const char *str_a, const char *str_b )
 {
 	char *a = (char *) calloc ( strlen(str_a) + 1, sizeof(char) );
 	char *b = (char *) calloc ( strlen(str_b) + 1, sizeof(char) );
@@ -82,13 +85,15 @@ void parse_cmd_options ( int argc, char **argv )
 			{"residual", required_argument, 0, 'u'},
 			{"output", required_argument, 0, 'o'},
 			{"maxiter", required_argument, 0, 'm'},
+			{"problem_so", required_argument, 0, 'p'},
+			{"initial_x0_file", required_argument, 0, 'x'},
 			{0, 0, 0, 0}
 		};
 
 		// getopt_long stores the option index here
 		int option_index = 0;
 
-		c = getopt_long( argc, argv, "hdzi:e:r:a:t:o:m:u:", long_options, &option_index );
+		c = getopt_long( argc, argv, "hdzi:e:r:a:t:o:m:u:p:x:", long_options, &option_index );
 
 		// detect the end of the options
 		if ( -1 == c )
@@ -136,6 +141,10 @@ void parse_cmd_options ( int argc, char **argv )
 				else if ( is_str_nocase_match( "broyden_inverted", optarg ) )
 				{
 					g_opts.iterative_type = NEWTON_BROYDEN_INVERTED;
+				}
+				else if ( is_str_nocase_match( "broyden_inverted_bad", optarg ) )
+				{
+					g_opts.iterative_type = NEWTON_BROYDEN_INVERTED_BAD;
 				}
 				else if ( is_str_nocase_match( "damped", optarg ) )
 				{
@@ -187,6 +196,13 @@ void parse_cmd_options ( int argc, char **argv )
 			case 'm':
 				g_opts.maxiter = atof( optarg );
 				break;
+
+			case 'p':
+				g_opts.problem_so = optarg;
+				break;
+
+			case 'x':
+				g_opts.initial_x0_file = optarg;
 
 			case '?':
 				/* getopt_long already printed an error message. */

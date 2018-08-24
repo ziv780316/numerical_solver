@@ -16,9 +16,18 @@ typedef struct
 	bool random_initial;
 	bool debug;
 	char *output_file;
+	char *problem_so;
+	char *initial_x0_file;
 } opt_t;
 
+extern void show_help ();
 extern void parse_cmd_options ( int argc, char **argv );
 extern opt_t g_opts;
+
+// user defined function
+extern int nf;
+extern double x0[];
+extern void load_f ( double *x, double *y );
+extern void load_jacobian ( double *x, double *J );
 
 #endif

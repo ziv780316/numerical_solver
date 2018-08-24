@@ -22,7 +22,7 @@ int dense_maxtrix_rank_1_update ( int n, double *A, double alpha, double *x, dou
 // vector norm |x|p = (sum |xi|^p)^(1.0/p)
 int dense_vector_norm ( int p_norm, int n, double *x, double *val );
 
-// y := alpha*A*x + beta*y, or y := alpha*A*x + beta*y if transpose
+// y := alpha*A*x + beta*y, or y := alpha*AT*x + beta*y if transpose
 int dense_matrix_vector_multiply ( int m, int n, double alpha, double *A, double *x, double beta, double *y, bool transpose );
 
 // C := alpha*A*B + beta*C,

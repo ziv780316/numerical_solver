@@ -9,8 +9,15 @@
 #include "matrix_solver.h"
 
 
-static void check_user_define_function_exist ()
+static void check_user_define_args ( double *x0, 
+				     void (load_f) (double *x, double*f),
+				     void (load_jacobian) (double *x, double*J) )
 {
+	if ( !x0 )
+	{
+		printf( "[Error] x0 is undefined\n" );
+		abort();
+	}
 	if ( !load_f )
 	{
 		printf( "[Error] cannot find F(x)\n" );
@@ -22,7 +29,7 @@ static void check_user_define_function_exist ()
 	}
 }
 
-static void newton_initialize ( double *x, int n, bool random_initial )
+static void newton_initialize ( int n, double *x, double *x0, bool random_initial )
 {
 	memcpy( x, x0, sizeof(double) * n );	
 }
@@ -31,44 +38,97 @@ static void newton_initialize ( double *x, int n, bool random_initial )
 static void broyden_update ( int n, double *J, double *df, double *dx, bool debug )
 {
 	double dx_square;
+	double *work = (double *) malloc ( sizeof(double) * n );
+	memcpy( work, df, sizeof(double) * n );
+
+	// |dx|^2
 	dense_vector_inner_product ( n, dx, dx, &dx_square );
 
-	// df = df - (J * dx)
-	dense_matrix_vector_multiply ( n, n, -1.0, J, dx, 1.0, df, false );
+	// work = df - (J * dx)
+	dense_matrix_vector_multiply ( n, n, -1.0, J, dx, 1.0, work, false );
 
 	// J = J + (x . yT) / |dx|^2
-	dense_maxtrix_rank_1_update ( n, J, 1.0/dx_square, df, dx );
+	dense_maxtrix_rank_1_update ( n, J, 1.0/dx_square, work, dx );
+
+	free( work );
 }
 
-bool newton_solve ( newton_iterative_type iterative_type, newton_derivative_type diff_type, int maxiter, double rtol, double atol, double residual_tol, bool random_initial, bool debug )
+// J = J + (dx - J*df)*dxT*J / (dxT*J*df)
+static void broyden_update_sherman_morrison ( int n, double *J, double *df, double *dx, bool debug )
+{
+	double dx_square;
+	double *work1 = (double *) malloc ( sizeof(double) * n );
+	double *work2 = (double *) malloc ( sizeof(double) * n );
+
+	// work = dx - (J * df)
+	memcpy( work1, dx, sizeof(double) * n );
+	dense_matrix_vector_multiply ( n, n, -1.0, J, df, 1.0, work1, false );
+
+	// dxT*J = JT*dx
+	dense_matrix_vector_multiply ( n, n, 1.0, J, dx, 0.0, work2, true );
+
+	// (dxT*J) * df
+	dense_vector_inner_product ( n, work2, df, &dx_square );
+
+	// J = J + (x . yT) / |dx|^2
+	dense_maxtrix_rank_1_update ( n, J, 1.0/dx_square, work1, work2 );
+
+	free( work1 );
+	free( work2 );
+}
+
+bool newton_solve ( newton_iterative_type iterative_type, 
+		    newton_derivative_type diff_type,
+		    int n,
+		    double *x0,
+		    double *x_result,
+		    double *f_result,
+		    void (load_f) (double *x, double*f),
+		    void (load_jacobian) (double *x, double*J),
+		    int maxiter,
+		    int *total_iter,
+		    double rtol,
+		    double atol,
+		    double residual_tol,
+		    bool random_initial,
+		    bool debug )
 {
 	// check load_f exist or not
-	check_user_define_function_exist();
+	check_user_define_args( x0, load_f, load_jacobian );
 
 	// initialize first solution
-	int n = n_f;
 	int J_size = n * n;
 	int *perm = (int *) malloc ( sizeof(int) * n ); // use in lapack LU factorization
 	double *x = (double *) malloc ( sizeof(double) * n );
 	double *dx = (double *) malloc ( sizeof(double) * n );
 	double *f = (double *) malloc ( sizeof(double) * n );
 	double *df = NULL;
-	double *f_delta_forward  = (double *) malloc ( sizeof(double) * n );
-	double *f_delta_backward = (double *) malloc ( sizeof(double) * n );
+	double *f_delta_forward = NULL;
+	double *f_delta_backward = NULL;
 	double *rhs = (double *) malloc ( sizeof(double) * n );
 	double *J = (double *) malloc ( sizeof(double) * J_size );
 	double *J_old = NULL;
+
+	if ( diff_type != NEWTON_DIFF_JACOBIAN )
+	{
+		f_delta_forward  = (double *) malloc ( sizeof(double) * n );
+		if ( diff_type == NEWTON_DIFF_CENTRAL )
+		{
+			f_delta_backward = (double *) malloc ( sizeof(double) * n );
+		}
+	}
 	if ( NEWTON_BROYDEN == iterative_type )
 	{
 		df = (double *) malloc ( sizeof(double) * n );
 		J_old = (double *) malloc ( sizeof(double) * J_size );
 	}
-	else if ( NEWTON_BROYDEN_INVERTED == iterative_type )
+	else if ( (NEWTON_BROYDEN_INVERTED == iterative_type) || 
+		  (NEWTON_BROYDEN_INVERTED_BAD == iterative_type) )
 	{
 		df = (double *) malloc ( sizeof(double) * n );
 	}
 
-	newton_initialize( x, n, random_initial );
+	newton_initialize( n, x, x0, random_initial );
 
 	// iterative procedure
 	int iter = 1;
@@ -86,14 +146,16 @@ bool newton_solve ( newton_iterative_type iterative_type, newton_derivative_type
 
 		// load RHS
 		if ( (NEWTON_BROYDEN == iterative_type) ||
-		     (NEWTON_BROYDEN_INVERTED == iterative_type) )
+		     (NEWTON_BROYDEN_INVERTED == iterative_type) || 
+		     (NEWTON_BROYDEN_INVERTED_BAD == iterative_type) )
 		{
 			memcpy( df, f, sizeof(double) * n );	
 		}
 		load_f( x, f );
 		memcpy( rhs, f, sizeof(double) * n );	
 		if ( (NEWTON_BROYDEN == iterative_type) ||
-		     (NEWTON_BROYDEN_INVERTED == iterative_type) )
+		     (NEWTON_BROYDEN_INVERTED == iterative_type) || 
+		     (NEWTON_BROYDEN_INVERTED_BAD == iterative_type) )
 		{
 			for ( int i = 0; i < n; ++i )
 			{
@@ -113,7 +175,8 @@ bool newton_solve ( newton_iterative_type iterative_type, newton_derivative_type
 		if ( (NEWTON_NORMAL == iterative_type) || 
 		     ((NEWTON_CHORD == iterative_type) && (1 == iter)) ||
 		     ((NEWTON_BROYDEN == iterative_type) && (1 == iter)) ||
-		     ((NEWTON_BROYDEN_INVERTED == iterative_type) && (1 == iter)) 
+		     ((NEWTON_BROYDEN_INVERTED == iterative_type) && (1 == iter)) ||
+		     ((NEWTON_BROYDEN_INVERTED_BAD == iterative_type) && (1 == iter)) 
 		   )
 		{
 			if ( (NEWTON_DIFF_JACOBIAN  == diff_type) && load_jacobian )
@@ -158,7 +221,6 @@ bool newton_solve ( newton_iterative_type iterative_type, newton_derivative_type
 								*(J + n*i + k) = (f_delta_forward[k] - f_delta_backward[k]) * delta_inv;
 							}
 						}
-
 					}
 					else
 					{
@@ -186,7 +248,8 @@ bool newton_solve ( newton_iterative_type iterative_type, newton_derivative_type
 
 		if ( debug )
 		{
-			if ( NEWTON_BROYDEN_INVERTED != iterative_type )
+			if ( (NEWTON_BROYDEN_INVERTED != iterative_type) &&  
+			     (NEWTON_BROYDEN_INVERTED_BAD != iterative_type) )
 			{
 				printf( "J = \n" );
 				dense_print_matrix ( n, n, J );
@@ -196,7 +259,8 @@ bool newton_solve ( newton_iterative_type iterative_type, newton_derivative_type
 		// matrix factorization A = PLU
 		int matrix_ok;
 		if ( !((NEWTON_CHORD == iterative_type) && (iter > 1)) &&
-		     !(NEWTON_BROYDEN_INVERTED == iterative_type && (iter > 1)) )
+		     !((NEWTON_BROYDEN_INVERTED == iterative_type) && (iter > 1)) &&
+		     !((NEWTON_BROYDEN_INVERTED_BAD == iterative_type) && (iter > 1)) )
 		{
 			matrix_ok = dense_lu_factor ( n, J, perm );
 			if ( !matrix_ok )
@@ -211,7 +275,8 @@ bool newton_solve ( newton_iterative_type iterative_type, newton_derivative_type
 		{
 			rhs[i] *= -1.0;
 		}
-		if ( NEWTON_BROYDEN_INVERTED == iterative_type )
+		if ( (NEWTON_BROYDEN_INVERTED == iterative_type) || 
+		     (NEWTON_BROYDEN_INVERTED_BAD == iterative_type) )
 		{
 			if ( 1 == iter )
 			{
@@ -224,8 +289,17 @@ bool newton_solve ( newton_iterative_type iterative_type, newton_derivative_type
 			}
 			else 
 			{
-				// bad Broyden update
-				broyden_update( n, J, dx, df, debug );
+				
+				if ( NEWTON_BROYDEN_INVERTED == iterative_type )
+				{
+					// Sherman-Morrison Broyden update, the same of bad Broyden but with better numerical stability
+					broyden_update_sherman_morrison( n, J, df, dx, debug );
+				}
+				else if ( NEWTON_BROYDEN_INVERTED_BAD == iterative_type )
+				{
+					// bad Broyden update, more efficient but not numerical stable 
+					broyden_update( n, J, dx, df, debug );
+				}
 			}
 
 			if ( debug )
@@ -302,7 +376,12 @@ bool newton_solve ( newton_iterative_type iterative_type, newton_derivative_type
 			x[i] += dx[i];
 		}
 		++iter;
+		++(*total_iter);
 	}
+
+	// store final results
+	memcpy( x_result, x, sizeof(double) * n );	
+	memcpy( f_result, f, sizeof(double) * n );	
 
 	// show newton results
 	if ( debug )
@@ -319,14 +398,25 @@ bool newton_solve ( newton_iterative_type iterative_type, newton_derivative_type
 	free( x );
 	free( dx );
 	free( f );
-	free( f_delta_forward  );
-	free( f_delta_backward );
 	free( rhs );
 	free( J );
+	if ( diff_type != NEWTON_DIFF_JACOBIAN )
+	{
+		free( f_delta_forward  );
+		if ( diff_type == NEWTON_DIFF_CENTRAL )
+		{
+			free( f_delta_backward );
+		}
+	}
 	if ( NEWTON_BROYDEN == iterative_type )
 	{
 		free( df );
 		free( J_old );
+	}
+	else if ( (NEWTON_BROYDEN_INVERTED == iterative_type) || 
+		  (NEWTON_BROYDEN_INVERTED_BAD == iterative_type) )
+	{
+		free( df );
 	}
 
 	return converge;

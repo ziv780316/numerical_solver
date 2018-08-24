@@ -18,7 +18,7 @@ DEFINES    =
 BUILD_TYPE = -O3
 CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -std=gnu99 -fPIC 
 MAT_SOLVER_PATH = /home/lintu/baba/numerical/solver/lib
-LIBS       = -L$(MAT_SOLVER_PATH) -lmatrix_solver -lblas -llapack -lgfortran -lm
+LIBS       = -L$(MAT_SOLVER_PATH) -lmatrix_solver -lblas -llapack -lgfortran -lm -ldl
 INCLUDE    = -I../solver -I. 
 MOVE       = mv -f
 
@@ -26,8 +26,9 @@ MOVE       = mv -f
 # Build target
 #=================================================
 LIBRARY_DIR       := library
+TEST_FUNCTION_DIR := test_functions
 BIN_DIR       	  := bin
-OBJS              := newton.o f.o main.o opts.o
+OBJS              := newton.o main.o opts.o
 TARGET            := newton_solver
 
 #=================================================
@@ -50,16 +51,18 @@ TARGET            := newton_solver
 	@$(MOVE) $@ $(LIBRARY_DIR)
 
 
-
 #=================================================
 # Target rules
 #=================================================
 default: $(TARGET)
 
-newton_solver: create_dir $(OBJS)
+newton_solver: create_dir $(OBJS) make_test_functions
 	cd $(LIBRARY_DIR);\
 	$(LINKER) -o $@ $(OBJS) $(LIBS);\
 	$(MOVE) $@ ../$(BIN_DIR)
+
+make_test_functions: 
+	make -C $(TEST_FUNCTION_DIR) OPTS=$(BUILD_TYPE) 
 
 debug: BUILD_TYPE:=-g3 
 debug: default
