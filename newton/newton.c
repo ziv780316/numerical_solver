@@ -78,6 +78,7 @@ static void broyden_update_sherman_morrison ( int n, double *J, double *df, doub
 }
 
 bool newton_solve ( newton_iterative_type iterative_type, 
+		    newton_modified_type modified_type,
 		    newton_derivative_type diff_type,
 		    int n,
 		    double *x0,
@@ -86,6 +87,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		    void (load_f) (double *x, double*f),
 		    void (load_jacobian) (double *x, double*J),
 		    int maxiter,
+		    int miniter,
 		    int *total_iter,
 		    double rtol,
 		    double atol,
@@ -139,7 +141,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	double x_tmp;
 	while ( !converge )
 	{
-		if ( (iter > maxiter) && (-1 != maxiter) )
+		if ( (iter > maxiter) && (-1 != maxiter) && (iter >= miniter) )
 		{
 			break;
 		}
@@ -370,11 +372,20 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			}
 		}
 
+		// modified newton for better performance or prevent too large step
+
 		// next iteration
 		for ( int i = 0; i < n; ++i )
 		{
 			x[i] += dx[i];
 		}
+
+		// for benchmark performance
+		if ( iter < miniter )
+		{
+			converge = false;
+		}
+
 		++iter;
 		++(*total_iter);
 	}

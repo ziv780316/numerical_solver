@@ -96,8 +96,10 @@ int main ( int argc, char **argv )
 		}
 
 		newton_iterative_type iterative_type = g_opts.iterative_type;
+		newton_modified_type modified_type = g_opts.modified_type;
 		newton_derivative_type derivative_type = g_opts.diff_type;
 		int maxiter = g_opts.maxiter;
+		int miniter = g_opts.miniter;
 		int total_iter = 0;
 		double *x_result = (double *) malloc ( sizeof(double) * n );
 		double *f_result = (double *) malloc ( sizeof(double) * n );
@@ -109,6 +111,7 @@ int main ( int argc, char **argv )
 		bool converge;
 
 		converge = newton_solve ( iterative_type, 
+			       		  modified_type,
 			       		  derivative_type,
 					  n,
 			       		  x_init,
@@ -117,6 +120,7 @@ int main ( int argc, char **argv )
 			       		  p_load_f,
 			       		  p_load_jacobian,
 			       		  maxiter,
+			       		  miniter,
 					  &total_iter,
 			       		  rtol,
 			       		  atol,

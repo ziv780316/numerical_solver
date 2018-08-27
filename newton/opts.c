@@ -12,8 +12,10 @@ static int is_str_nocase_match ( const char *str_a, const char *str_b );
 
 opt_t g_opts = {
 	.iterative_type = NEWTON_NORMAL,
+	.modified_type = MODIFIED_NONE,
 	.diff_type = NEWTON_DIFF_FORWARD,		
 	.maxiter = -1, 	
+	.miniter = 0, 	
 	.rtol = 1e-3,	
 	.atol = 1e-6,
 	.residual_tol = 1e-9,
@@ -34,8 +36,10 @@ void show_help ()
 		"  -d  =>  enable debug infomation\n"
 		"  -z -->  randomize x0\n"
 		"  -i | --iterative  =>  specify iterative method\n"
+		"  -f | --modified  =>  specify modified method\n"
 		"  -e | --derivative  =>  specify derivative type\n"
 		"  -m | --maxiter  =>  specify maximum iterations\n"
+		"  -n | --miniter  =>  specify minimum iterations\n"
 		"  -r | --rtol  =>  specify rtol\n"
 		"  -a | --atol  =>  specify atol\n"
 		"  -u | --residual  =>  specify residual tol\n"
@@ -79,12 +83,14 @@ void parse_cmd_options ( int argc, char **argv )
 
 			// setting options
 			{"iterative", required_argument, 0, 'i'},
+			{"modified", required_argument, 0, 'f'},
 			{"derivative", required_argument, 0, 'e'},
 			{"rtol", required_argument, 0, 'r'},
 			{"atol", required_argument, 0, 'a'},
 			{"residual", required_argument, 0, 'u'},
 			{"output", required_argument, 0, 'o'},
 			{"maxiter", required_argument, 0, 'm'},
+			{"miniter", required_argument, 0, 'n'},
 			{"problem_so", required_argument, 0, 'p'},
 			{"initial_x0_file", required_argument, 0, 'x'},
 			{0, 0, 0, 0}
@@ -93,7 +99,7 @@ void parse_cmd_options ( int argc, char **argv )
 		// getopt_long stores the option index here
 		int option_index = 0;
 
-		c = getopt_long( argc, argv, "hdzi:e:r:a:t:o:m:u:p:x:", long_options, &option_index );
+		c = getopt_long( argc, argv, "hdzi:f:e:r:a:t:o:m:n:u:p:x:", long_options, &option_index );
 
 		// detect the end of the options
 		if ( -1 == c )
@@ -148,15 +154,31 @@ void parse_cmd_options ( int argc, char **argv )
 				}
 				else if ( is_str_nocase_match( "damped", optarg ) )
 				{
-					g_opts.iterative_type = NEWTON_DAMPED;
+					g_opts.iterative_type = MODIFIED_DAMPED;
 				}
 				else if ( is_str_nocase_match( "line_search", optarg ) )
 				{
-					g_opts.iterative_type = NEWTON_LINE_SEARCH;
+					g_opts.iterative_type = MODIFIED_LINE_SEARCH;
 				}
 				else
 				{
 					fprintf( stderr, "[Error] unknown newton iterative type %s\n", optarg );
+					abort();
+				}
+				break;
+
+			case 'f':
+				if ( is_str_nocase_match( "damped", optarg ) )
+				{
+					g_opts.iterative_type = MODIFIED_DAMPED;
+				}
+				else if ( is_str_nocase_match( "line_search", optarg ) )
+				{
+					g_opts.iterative_type = MODIFIED_LINE_SEARCH;
+				}
+				else
+				{
+					fprintf( stderr, "[Error] unknown modified type %s\n", optarg );
 					abort();
 				}
 				break;
@@ -194,7 +216,11 @@ void parse_cmd_options ( int argc, char **argv )
 				break;
 
 			case 'm':
-				g_opts.maxiter = atof( optarg );
+				g_opts.maxiter = atoi( optarg );
+				break;
+
+			case 'n':
+				g_opts.miniter = atoi( optarg );
 				break;
 
 			case 'p':

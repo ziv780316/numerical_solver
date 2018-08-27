@@ -7,9 +7,13 @@ typedef enum {
 	NEWTON_BROYDEN,
 	NEWTON_BROYDEN_INVERTED,
 	NEWTON_BROYDEN_INVERTED_BAD,
-	NEWTON_DAMPED,
-	NEWTON_LINE_SEARCH
 } newton_iterative_type;
+
+typedef enum {
+	MODIFIED_NONE,
+	MODIFIED_DAMPED,
+	MODIFIED_LINE_SEARCH
+} newton_modified_type;
 
 typedef enum {
 	NEWTON_DIFF_JACOBIAN,
@@ -17,12 +21,9 @@ typedef enum {
 	NEWTON_DIFF_CENTRAL
 } newton_derivative_type;
 
-#define NEWTON_DIFF_FORWARD 0
-#define NEWTON_DIFF_CENTRAL 1
-#define NEWTON_DIFF_JACOBIAN 2
-
 // perform newton iterations 
 bool newton_solve ( newton_iterative_type iterative_type, 
+		    newton_modified_type modified_type,
 		    newton_derivative_type diff_type,
 		    int n,
 		    double *x0, // initial x
@@ -31,6 +32,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		    void (load_f) (double *x, double*f),
 		    void (load_jacobian) (double *x, double*J),
 		    int maxiter,
+		    int miniter,
 		    int *total_iter,
 		    double rtol,
 		    double atol,

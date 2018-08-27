@@ -8,8 +8,10 @@
 typedef struct
 {
 	newton_iterative_type iterative_type;		
+	newton_modified_type modified_type;		
 	newton_derivative_type diff_type;		
 	int maxiter;	
+	int miniter;	
 	double rtol;	
 	double atol;	
 	double residual_tol;	
