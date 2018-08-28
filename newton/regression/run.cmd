@@ -1,6 +1,7 @@
 #!/bin/bash
 
-all_case="f1 f2 f3"
+all_case="f1 f2 f3 f4"
+#all_case="f4"
 for case in ${all_case}; do
 	./newton_solver -i normal -e jacobian -m 100 -r 1e-3 -a 1e-6 -u 1e-9 -d -o ${case}_jacobian -p ../test_functions/${case}.so
 	./newton_solver -i normal -e forward -m 100 -r 1e-3 -a 1e-6 -u 1e-9 -d -o ${case}_forward -p ../test_functions/${case}.so

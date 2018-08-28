@@ -24,7 +24,7 @@ MOVE       = mv -f
 #=================================================
 # Build target
 #=================================================
-TEST_FUNCTION_OBJ := f1.so f2.so f3.so
+TEST_FUNCTION_OBJ := f1.so f2.so f3.so f4.so
 
 #=================================================
 # Compile implicit rules
