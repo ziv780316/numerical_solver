@@ -103,8 +103,10 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	int *perm = (int *) malloc ( sizeof(int) * n ); // use in lapack LU factorization
 	double *x = (double *) malloc ( sizeof(double) * n );
 	double *dx = (double *) malloc ( sizeof(double) * n );
+	double *x_candidate = NULL;
 	double *f = (double *) malloc ( sizeof(double) * n );
 	double *df = NULL;
+	double *f_candidate = NULL;
 	double *f_delta_forward = NULL;
 	double *f_delta_backward = NULL;
 	double *rhs = (double *) malloc ( sizeof(double) * n );
@@ -128,6 +130,11 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		  (NEWTON_BROYDEN_INVERTED_BAD == iterative_type) )
 	{
 		df = (double *) malloc ( sizeof(double) * n );
+	}
+	if ( modified_type != MODIFIED_NONE )
+	{
+		x_candidate = (double *) malloc ( sizeof(double) * n );
+		f_candidate = (double *) malloc ( sizeof(double) * n );
 	}
 
 	newton_initialize( n, x, x0, random_initial );
@@ -373,6 +380,9 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		}
 
 		// modified newton for better performance or prevent too large step
+		if ( MODIFIED_LINE_SEARCH == modified_type )
+		{
+		}
 
 		// next iteration
 		for ( int i = 0; i < n; ++i )
@@ -428,6 +438,11 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		  (NEWTON_BROYDEN_INVERTED_BAD == iterative_type) )
 	{
 		free( df );
+	}
+	if ( modified_type != MODIFIED_NONE )
+	{
+		free( x_candidate );
+		free( f_candidate );
 	}
 
 	return converge;

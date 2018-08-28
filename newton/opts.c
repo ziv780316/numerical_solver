@@ -61,11 +61,15 @@ static int is_str_nocase_match ( const char *str_a, const char *str_b )
 {
 	char *a = (char *) calloc ( strlen(str_a) + 1, sizeof(char) );
 	char *b = (char *) calloc ( strlen(str_b) + 1, sizeof(char) );
+	bool is_same;
 	strcpy( a, str_a );
 	strcpy( b, str_b );
 	str_to_lower( a );
 	str_to_lower( b );
-	return (0 == strcmp( a, b ));
+	is_same = (0 == strcmp( a, b ));
+	free( a );
+	free( b );
+	return is_same;
 }
 
 void parse_cmd_options ( int argc, char **argv )
