@@ -16,14 +16,20 @@ typedef enum {
 } newton_modified_type;
 
 typedef enum {
+	RESCUE_NONE,
+	RESCUE_DIAGONAL
+} newton_rescue_type;
+
+typedef enum {
 	NEWTON_DIFF_JACOBIAN,
 	NEWTON_DIFF_FORWARD,
 	NEWTON_DIFF_CENTRAL
 } newton_derivative_type;
 
-// perform newton iterations 
+// perform Newton-Raphson iterations 
 bool newton_solve ( newton_iterative_type iterative_type, 
 		    newton_modified_type modified_type,
+		    newton_rescue_type rescue_type,
 		    newton_derivative_type diff_type,
 		    int n,
 		    double *x0, // initial x
@@ -37,6 +43,8 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		    double rtol,
 		    double atol,
 		    double residual_tol,
+		    double max_dx,
+		    double jmin,
 		    bool random_initial,
 		    bool debug );
 

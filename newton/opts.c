@@ -13,11 +13,14 @@ static int is_str_nocase_match ( const char *str_a, const char *str_b );
 opt_t g_opts = {
 	.iterative_type = NEWTON_NORMAL,
 	.modified_type = MODIFIED_NONE,
+	.rescue_type = RESCUE_NONE,
 	.diff_type = NEWTON_DIFF_FORWARD,		
 	.maxiter = -1, 	
 	.miniter = 0, 	
 	.rtol = 1e-3,	
 	.atol = 1e-6,
+	.max_dx = 10,
+	.jmin = 0.0,
 	.residual_tol = 1e-9,
 	.random_initial = false,
 	.debug = false,
@@ -37,12 +40,15 @@ void show_help ()
 		"  -z -->  randomize x0\n"
 		"  -i | --iterative  =>  specify iterative method\n"
 		"  -f | --modified  =>  specify modified method\n"
+		"  -c | --rescue  =>  specify rescue method\n"
 		"  -e | --derivative  =>  specify derivative type\n"
 		"  -m | --maxiter  =>  specify maximum iterations\n"
 		"  -n | --miniter  =>  specify minimum iterations\n"
 		"  -r | --rtol  =>  specify rtol\n"
 		"  -a | --atol  =>  specify atol\n"
 		"  -u | --residual  =>  specify residual tol\n"
+		"  -b | --max_dx  =>  maximum dx in damped newton\n"
+		"  -j | --jmin  =>  specify minimum diagonal value of jacobian\n"
 		"  -o | --output  =>  specify output file name\n"
 		"  -p | --problem_so  =>  specify problem file (*.so)\n"
 		"  -x | --initial_x0_file  =>  specify initializing file of x0\n"
@@ -88,10 +94,13 @@ void parse_cmd_options ( int argc, char **argv )
 			// setting options
 			{"iterative", required_argument, 0, 'i'},
 			{"modified", required_argument, 0, 'f'},
+			{"rescue", required_argument, 0, 'c'},
 			{"derivative", required_argument, 0, 'e'},
 			{"rtol", required_argument, 0, 'r'},
 			{"atol", required_argument, 0, 'a'},
 			{"residual", required_argument, 0, 'u'},
+			{"max_dx", required_argument, 0, 'b'},
+			{"jmin", required_argument, 0, 'j'},
 			{"output", required_argument, 0, 'o'},
 			{"maxiter", required_argument, 0, 'm'},
 			{"miniter", required_argument, 0, 'n'},
@@ -103,7 +112,7 @@ void parse_cmd_options ( int argc, char **argv )
 		// getopt_long stores the option index here
 		int option_index = 0;
 
-		c = getopt_long( argc, argv, "hdzi:f:e:r:a:t:o:m:n:u:p:x:", long_options, &option_index );
+		c = getopt_long( argc, argv, "hdzi:f:c:e:r:a:t:o:m:n:u:b:j:p:x:", long_options, &option_index );
 
 		// detect the end of the options
 		if ( -1 == c )
@@ -174,11 +183,23 @@ void parse_cmd_options ( int argc, char **argv )
 			case 'f':
 				if ( is_str_nocase_match( "damped", optarg ) )
 				{
-					g_opts.iterative_type = MODIFIED_DAMPED;
+					g_opts.modified_type = MODIFIED_DAMPED;
 				}
 				else if ( is_str_nocase_match( "line_search", optarg ) )
 				{
-					g_opts.iterative_type = MODIFIED_LINE_SEARCH;
+					g_opts.modified_type = MODIFIED_LINE_SEARCH;
+				}
+				else
+				{
+					fprintf( stderr, "[Error] unknown modified type %s\n", optarg );
+					abort();
+				}
+				break;
+
+			case 'c':
+				if ( is_str_nocase_match( "diagonal", optarg ) )
+				{
+					g_opts.rescue_type = RESCUE_DIAGONAL;
 				}
 				else
 				{
@@ -217,6 +238,14 @@ void parse_cmd_options ( int argc, char **argv )
 
 			case 'u':
 				g_opts.residual_tol = atof( optarg );
+				break;
+
+			case 'b':
+				g_opts.max_dx = atof( optarg );
+				break;
+
+			case 'j':
+				g_opts.jmin = atof( optarg );
 				break;
 
 			case 'm':

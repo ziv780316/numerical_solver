@@ -24,6 +24,7 @@ MOVE       = mv -f
 #=================================================
 # Build target
 #=================================================
+BIN_DIR       	  := bin
 LIBRARY_DIR       := library
 UNIT_TEST_OBJ     := dense_matrix_vector_multiply.o dense_matrix_matrix_multiply.o dense_triangular_solve.o dense_swap_vector.o dense_lu_factor.o dense_factor_and_solve.o dense_matrix_scale.o dense_matrix_rank_1_update.o dense_matrix_inverse.o
 
@@ -32,8 +33,9 @@ UNIT_TEST_OBJ     := dense_matrix_vector_multiply.o dense_matrix_matrix_multiply
 #=================================================
 %.o:%.c
 	$(CC) -c $< -o $@ $(CFLAGS) $(INCLUDE) 
-	$(LINKER) $@ -o $(@:.o=) $(LIBS)
+	$(LINKER) $@ -o $(@:.o=) $(LIBS) 
 	@$(MOVE) $@ $(LIBRARY_DIR) # @ means do not echo command
+	@$(MOVE) $(@:.o=) $(BIN_DIR)
 
 
 #=================================================
@@ -47,11 +49,13 @@ debug: BUILD_TYPE:=-g3
 debug: default
 
 create_dir:
+	@mkdir -p $(BIN_DIR) 
 	@mkdir -p $(LIBRARY_DIR) 
 
 unit_test: create_dir $(UNIT_TEST_OBJ)
 
 clean:
+	rm -rf $(BIN_DIR)/*
 	rm -rf $(LIBRARY_DIR)/*
 
 

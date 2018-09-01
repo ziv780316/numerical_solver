@@ -13,11 +13,17 @@ int main ( int argc, char **argv )
 	int n = 3;
 
 	printf( "before swap\n" );
+	printf( "x=\n" );
 	dense_print_vector( n, x );
+	printf( "\ny=\n" );
 	dense_print_vector( n, y );
+
 	dense_swap_vector( n, x, y );
+
 	printf( "\nafter swap\n" );
+	printf( "x=\n" );
 	dense_print_vector( n, x );
+	printf( "\ny=\n" );
 	dense_print_vector( n, y );
 
 	return EXIT_SUCCESS;

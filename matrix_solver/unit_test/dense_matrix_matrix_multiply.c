@@ -19,12 +19,18 @@ int main ( int argc, char **argv )
 	double alpha;
 	double beta;
 
+	printf( "A\n" );
+	dense_print_matrix( m, n, A );
+
+	printf( "\nB\n" );
+	dense_print_matrix( n, k, B );
+
 	a_transpose = false;
 	b_transpose = false;
 	alpha = 1.5;
 	beta = 1.0;
 	dense_matrix_matrix_multiply ( m, n, k, alpha, A, B, beta, C, a_transpose, b_transpose );
-	printf( "1.5*A*B\n" );
+	printf( "\nC = 1.5*A*B\n" );
 	dense_print_matrix( m, n, C );
 
 	return EXIT_SUCCESS;

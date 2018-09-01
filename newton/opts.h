@@ -9,12 +9,15 @@ typedef struct
 {
 	newton_iterative_type iterative_type;		
 	newton_modified_type modified_type;		
+	newton_rescue_type rescue_type;		
 	newton_derivative_type diff_type;		
 	int maxiter;	
 	int miniter;	
 	double rtol;	
 	double atol;	
 	double residual_tol;	
+	double max_dx;
+	double jmin;
 	bool random_initial;
 	bool debug;
 	char *output_file;

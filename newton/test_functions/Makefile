@@ -16,7 +16,7 @@ CC         = gcc
 LINKER     = $(CC)
 DEFINES    = 
 BUILD_TYPE = -O3
-CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -std=gnu99 -fPIC 
+CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -Wextra -std=gnu99 -fPIC 
 LIBS       = -lm
 INCLUDE    = -I.
 MOVE       = mv -f
@@ -24,7 +24,7 @@ MOVE       = mv -f
 #=================================================
 # Build target
 #=================================================
-TEST_FUNCTION_OBJ := f1.so f2.so f3.so f4.so
+TEST_FUNCTION_OBJ := f1.so f2.so f3.so f4.so f5.so f6.so 
 
 #=================================================
 # Compile implicit rules
@@ -37,6 +37,9 @@ TEST_FUNCTION_OBJ := f1.so f2.so f3.so f4.so
 # Target rules
 #=================================================
 default: $(TEST_FUNCTION_OBJ)
+
+debug: BUILD_TYPE:=-g3 
+debug: default
 
 clean:
 	rm -rf $(TEST_FUNCTION_OBJ)

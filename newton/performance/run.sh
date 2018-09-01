@@ -9,7 +9,7 @@ else
 fi
 bench="perf stat --event=${perf_hw_event},${perf_sw_evnet}"
 
-all_case="f1 f2 f3 "
+all_case="f1 f2 f3 f4"
 for case in ${all_case}; do
 	${bench} ./newton_solver -i normal -e jacobian -m 100 -r 1e-3 -a 1e-6 -u 1e-9 -d -o ${case}_jacobian -p ../test_functions/${case}.so >& ${case}_jacobian.perf
 	${bench} ./newton_solver -i normal -e forward -m 100 -r 1e-3 -a 1e-6 -u 1e-9 -d -o ${case}_forward -p ../test_functions/${case}.so >& ${case}_forward.perf

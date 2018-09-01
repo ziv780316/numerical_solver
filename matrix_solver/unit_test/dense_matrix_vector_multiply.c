@@ -18,36 +18,33 @@ int main ( int argc, char **argv )
 	double alpha;
 	double beta;
 
+	printf( "A=\n" );
+	dense_print_matrix ( m, n, A );
+
+	printf( "x=\n" );
+	dense_print_vector ( n, x );
+
 	transpose = false;
 	alpha = 1.0;
 	beta = 0.0;
 	dense_matrix_vector_multiply ( m, n, alpha, A, x, beta, y, transpose );
-	printf( "A*x\n" );
-	for ( int i = 0; i < m; ++i )
-	{
-		printf( "y%d = %.10e\n", i, y[i] );
-	}
+	printf( "\nA*x=\n" );
+	dense_print_vector ( m, y );
 
 	transpose = true;
 	alpha = 1.0;
 	beta = 0.0;
 	dense_matrix_vector_multiply ( m, n, alpha, A, x, beta, y, transpose );
-	printf( "(A**T)*x\n" );
-	for ( int i = 0; i < m; ++i )
-	{
-		printf( "y%d = %.10e\n", i, y[i] );
-	}
+	printf( "\n(A^T)*x=\n" );
+	dense_print_vector ( m, y );
 
 	memcpy( y, y_buf, sizeof(double) * m );
 	transpose = false;
 	alpha = 1.3;
 	beta = 1.5;
 	dense_matrix_vector_multiply ( m, n, alpha, A, x, beta, y, transpose );
-	printf( "(1.3*A**T)*x + 1.5*y\n" );
-	for ( int i = 0; i < m; ++i )
-	{
-		printf( "y%d = %.10e\n", i, y[i] );
-	}
+	printf( "\n1.3*(A^T)*x + 1.5*y\n" );
+	dense_print_vector ( m, y );
 
 	return EXIT_SUCCESS;
 }

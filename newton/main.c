@@ -97,6 +97,7 @@ int main ( int argc, char **argv )
 
 		newton_iterative_type iterative_type = g_opts.iterative_type;
 		newton_modified_type modified_type = g_opts.modified_type;
+		newton_rescue_type rescue_type = g_opts.rescue_type;
 		newton_derivative_type derivative_type = g_opts.diff_type;
 		int maxiter = g_opts.maxiter;
 		int miniter = g_opts.miniter;
@@ -106,12 +107,15 @@ int main ( int argc, char **argv )
 		double rtol = g_opts.rtol;
 		double atol = g_opts.atol;
 		double residual_tol = g_opts.residual_tol;
+		double max_dx = g_opts.max_dx;
+		double jmin = g_opts.jmin;
 		bool random_initial = g_opts.random_initial;
 		bool debug = g_opts.debug;
 		bool converge;
 
 		converge = newton_solve ( iterative_type, 
 			       		  modified_type,
+			       		  rescue_type,
 			       		  derivative_type,
 					  n,
 			       		  x_init,
@@ -125,6 +129,8 @@ int main ( int argc, char **argv )
 			       		  rtol,
 			       		  atol,
 			       		  residual_tol,
+					  max_dx,
+					  jmin,
 			       		  random_initial,
 			       		  debug );
 

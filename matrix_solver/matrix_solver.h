@@ -1,11 +1,18 @@
 #ifndef MATRIX_SOLVER_H
 #define MATRIX_SOLVER_H
 
+// ----------------------------------------
+//		real-number
+// ----------------------------------------
+
 // x := alpha*x
 int dense_vector_scale ( int n, double *x, double alpha );
 
 // aij = aii * alpha
 int dense_matrix_scale ( int m, int n, double *A, double alpha );
+
+// obtain D of A=L+D+U 
+int dense_matrix_get_diagonal ( int n, double *A, double *D );
 
 // main diagonal addition, aii = aii + alpha
 int dense_diagonal_addition ( int n, double *A, double alpha );
@@ -51,6 +58,14 @@ int dense_print_vector ( int n, double *x );
 int dense_print_vector_i ( int n, int *x );
 int dense_print_matrix ( int m, int n, double *A );
 int dense_print_matrix_LU ( int n, double *A );
+
+// ----------------------------------------
+//		complex-number
+// ----------------------------------------
+
+// x := alpha*x
+int complex_dense_vector_scale ( int n, double *x, double alpha );
+int complex_dense_vector_scale_complex ( int n, double *x, double alpha );
 
 #endif
 

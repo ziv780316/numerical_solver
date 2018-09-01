@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <math.h>
 
+// ----------------------------------------
+//		real-number
+// ----------------------------------------
+
 // x := alpha*x
 int dense_vector_scale ( int n, double *x, double alpha )
 {
@@ -23,6 +27,16 @@ int dense_matrix_scale ( int m, int n, double *A, double alpha )
 		{
 			*(A + j*m + i) *= alpha; 
 		}
+	}
+	return true;
+}
+
+// obtain D of A=L+D+U 
+int dense_matrix_get_diagonal ( int n, double *A, double *D )
+{
+	for ( int i = 0; i < n; ++i )
+	{
+		D[i] = *(A + i*n + i); 
 	}
 	return true;
 }
@@ -291,6 +305,14 @@ int dense_matrix_inverse ( int n, double *A, int *p )
 	int info;
 	double optima_lwork;
 	double *work;
+	bool success;
+
+	// need LU factor before invese
+	success = dense_lu_factor( n, A, p );
+	if ( !success )
+	{
+		return 0;
+	}
 
 	// query suitable worksapce size first
 	dgetri_( &n, A, &lda, p, &optima_lwork, &lwork, &info );
