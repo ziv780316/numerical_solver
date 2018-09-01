@@ -63,9 +63,14 @@ int dense_print_matrix_LU ( int n, double *A );
 //		complex-number
 // ----------------------------------------
 
-// x := alpha*x
+// x := alpha*x where alpha is real number
 int complex_dense_vector_scale ( int n, double *x, double alpha );
-int complex_dense_vector_scale_complex ( int n, double *x, double alpha );
+
+// x := alpha*x where alpha is complex number
+int complex_dense_vector_scale_complex ( int n, double *x, double alpha_real, double alpha_imag );
+
+// print complex matrix
+int complex_dense_print_vector ( int n, double *x );
 
 #endif
 

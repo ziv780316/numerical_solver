@@ -26,7 +26,16 @@ MOVE       = mv -f
 #=================================================
 BIN_DIR       	  := bin
 LIBRARY_DIR       := library
-UNIT_TEST_OBJ     := dense_matrix_vector_multiply.o dense_matrix_matrix_multiply.o dense_triangular_solve.o dense_swap_vector.o dense_lu_factor.o dense_factor_and_solve.o dense_matrix_scale.o dense_matrix_rank_1_update.o dense_matrix_inverse.o
+UNIT_TEST_OBJ     := dense_matrix_vector_multiply.o\
+		     dense_matrix_matrix_multiply.o\
+		     dense_triangular_solve.o\
+		     dense_swap_vector.o\
+		     dense_lu_factor.o\
+		     dense_factor_and_solve.o\
+		     dense_matrix_scale.o\
+		     dense_matrix_rank_1_update.o\
+		     dense_matrix_inverse.o\
+		     complex_dense_vector_scale.o
 
 #=================================================
 # Compile implicit rules

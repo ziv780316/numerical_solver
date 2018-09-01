@@ -397,3 +397,43 @@ int dense_print_matrix_LU ( int n, double *A )
 	return true;
 }
 
+// ----------------------------------------
+//		complex-number
+// ----------------------------------------
+
+int complex_dense_vector_scale ( int n, double *x, double alpha )
+{
+	for ( int i = 0; i < 2 * n; ++i )
+	{
+		x[i] *= alpha;
+	}
+
+	return true;
+}
+
+
+/* ZSSCAL
+	scales a vector by a complex number
+*/
+void zscal_( int *n, double *alpha, double *x, int *incx );
+
+// x := alpha*x where alpha is complex number
+int complex_dense_vector_scale_complex ( int n, double *x, double alpha_real, double alpha_imag )
+{
+	int incx = 1;
+	double z[2] = { alpha_real, alpha_imag };
+	zscal_( &n, z, x, &incx );
+
+	return true;
+}
+
+
+int complex_dense_print_vector ( int n, double *x )
+{
+	for ( int i = 0; i < 2 * n; i += 2 )
+	{
+		printf( "%.10e + i*%.10e\n", x[i], x[i + 1] );
+	}
+
+	return true;
+}
