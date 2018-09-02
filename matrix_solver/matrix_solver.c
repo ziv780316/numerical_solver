@@ -6,6 +6,7 @@
 #include "matrix_solver.h"
 
 // ============== BLAS Fortran API (column-major array) ============== 
+
 /* ZSSCAL
 	scales a vector by a complex number
 */
@@ -34,12 +35,24 @@ int dense_vector_scale ( int n, double *x, double *alpha, number_type type )
 // aij = aii * alpha
 int dense_matrix_scale ( int m, int n, double *A, double *alpha, number_type type )
 {
-	double r = *alpha;
-	for ( int j = 0; j < n; ++j )
+	if ( REAL_NUMBER == type )
 	{
-		for ( int i = 0; i < m; ++i )
+		double r = *alpha;
+		for ( int j = 0; j < n; ++j )
 		{
-			*(A + j*m + i) *= r; 
+			for ( int i = 0; i < m; ++i )
+			{
+				*(A + j*m + i) *= r; 
+			}
+		}
+	}
+	else
+	{
+		int incx = 1;
+		int col_incr = 2 * m;
+		for ( int j = 0; j < n; ++j )
+		{
+			zscal_( &n, alpha, (A + j*col_incr), &incx );
 		}
 	}
 	return true;
@@ -378,14 +391,30 @@ int dense_print_vector_i ( int n, int *x, number_type type )
 
 int dense_print_matrix ( int m, int n, double *A, number_type type )
 {
-	for ( int i = 0; i < m; ++i )
+	if ( REAL_NUMBER == type )
 	{
-		for ( int j = 0; j < n; ++j )
+		for ( int i = 0; i < m; ++i )
 		{
-			printf( "%.10e ", *(A + j*m + i) );
+			for ( int j = 0; j < n; ++j )
+			{
+				printf( "%.10e ", *(A + j*m + i) );
+			}
+			printf( "\n" );
 		}
-		printf( "\n" );
 	}
+	else
+	{
+		int col_incr = 2 * m;
+		for ( int i = 0; i < col_incr; i += 2 )
+		{
+			for ( int j = 0; j < n; ++j )
+			{
+				printf( "%.10e+i*%.10e ", *(A + j*col_incr + i), *(A + j*col_incr + i + 1) );
+			}
+			printf( "\n" );
+		}
+	}
+
 
 	return true;
 }

@@ -11,6 +11,7 @@ dense_matrix_vector_multiply \
 dense_swap_vector \
 dense_triangular_solve \
 complex_dense_vector_scale \
+complex_dense_matrix_scale \
 "
  
 # execute each unit function
