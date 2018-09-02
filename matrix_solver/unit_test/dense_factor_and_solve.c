@@ -7,25 +7,26 @@
 
 int main ( int argc, char **argv )
 {
+	number_type type = REAL_NUMBER;
 	double A[9] = {1, 2, 3, 4, 5, 6, 7, 8, 10}; 
 	double x[3] = {2, 1, 3};
 	int n = 3;
 
 	printf( "A=\n" );
-	dense_print_matrix( n, n, A );
+	dense_print_matrix( n, n, A, type );
 	printf( "\nx=\n" );
-	dense_print_vector( n, x );
+	dense_print_vector( n, x, type );
 
-	if ( !dense_factor_and_solve( n, A, x, false ) )
+	if ( !dense_factor_and_solve( n, A, x, false, type ) )
 	{
 		fprintf( stderr, "[Error] LU factorization fail\n" );
 		abort();
 	}
 
 	printf( "\nLU=\n" );
-	dense_print_matrix_LU( n, A );
+	dense_print_matrix_LU( n, A, type );
 	printf( "\nsolve result=\n" );
-	dense_print_vector( n, x );
+	dense_print_vector( n, x, type );
 
 	return EXIT_SUCCESS;
 }

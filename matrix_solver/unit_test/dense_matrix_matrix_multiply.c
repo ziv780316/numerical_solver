@@ -7,6 +7,7 @@
 
 int main ( int argc, char **argv )
 {
+	number_type type = REAL_NUMBER;
 	double A[6] = {1, 3, 5, 2, 4, 6}; // column-major in Fortran, row based is [1 2; 3 4; 5 6]
 	double B[4] = {2, 1, 3, 4}; // column-major in Fortran, row based is [2 3; 1 4]
 	double C[6] = {0.1, 0.3, 0.5, 0.2, 0.4, 0.6};
@@ -20,18 +21,18 @@ int main ( int argc, char **argv )
 	double beta;
 
 	printf( "A\n" );
-	dense_print_matrix( m, n, A );
+	dense_print_matrix( m, n, A, type );
 
 	printf( "\nB\n" );
-	dense_print_matrix( n, k, B );
+	dense_print_matrix( n, k, B, type );
 
 	a_transpose = false;
 	b_transpose = false;
 	alpha = 1.5;
 	beta = 1.0;
-	dense_matrix_matrix_multiply ( m, n, k, alpha, A, B, beta, C, a_transpose, b_transpose );
+	dense_matrix_matrix_multiply ( m, n, k, &alpha, A, B, &beta, C, a_transpose, b_transpose, type );
 	printf( "\nC = 1.5*A*B\n" );
-	dense_print_matrix( m, n, C );
+	dense_print_matrix( m, n, C, type );
 
 	return EXIT_SUCCESS;
 }

@@ -7,6 +7,7 @@
 
 int main ( int argc, char **argv )
 {
+	number_type type = REAL_NUMBER;
 	double A[9] = {1, 2, 3, 0, 4, 5, 0, 0, 6}; // column-major in Fortran, row based is [1; 2 4; 3 5 6]
 	double B[9] = {1, 0, 0, 2, 4, 0, 3, 5, 6}; 
 	double b[3] = {3, 2, 1}; 
@@ -20,9 +21,9 @@ int main ( int argc, char **argv )
 	is_lower_triangular = true;
 	transpose = false;
 	is_unit_triangular = false;
-	dense_triangular_solve( n, A, b, is_lower_triangular, transpose, is_unit_triangular );
+	dense_triangular_solve( n, A, b, is_lower_triangular, transpose, is_unit_triangular, type );
 	printf( "A=\n" );
-	dense_print_matrix( n, n, A );
+	dense_print_matrix( n, n, A, type );
 	for ( int i = 0; i < n; ++i )
 	{
 		printf( "x%d = %.10e\n", i, b[i] );
@@ -30,7 +31,7 @@ int main ( int argc, char **argv )
 
 	memcpy( b, b_buf, sizeof(double) * n );
 	is_lower_triangular = false;
-	dense_triangular_solve( n, B, b, is_lower_triangular, transpose, is_unit_triangular );
+	dense_triangular_solve( n, B, b, is_lower_triangular, transpose, is_unit_triangular, type );
 	for ( int i = 0; i < n; ++i )
 	{
 		printf( "x%d = %.10e\n", i, b[i] );
@@ -39,7 +40,7 @@ int main ( int argc, char **argv )
 	memcpy( b, b_buf, sizeof(double) * n );
 	is_lower_triangular = true;
 	is_unit_triangular = true;
-	dense_triangular_solve( n, A, b, is_lower_triangular, transpose, is_unit_triangular );
+	dense_triangular_solve( n, A, b, is_lower_triangular, transpose, is_unit_triangular, type );
 	for ( int i = 0; i < n; ++i )
 	{
 		printf( "x%d = %.10e\n", i, b[i] );

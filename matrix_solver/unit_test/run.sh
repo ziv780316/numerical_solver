@@ -22,3 +22,9 @@ done
 for f in $functions; do
 	diff -q ${f}.log golden/${f}.log
 done
+
+# memory test
+#dynamic_analyis="valgrind --leak-check=full --show-leak-kinds=all -v"
+#for f in $functions; do
+#	$dynamic_analyis ./bin/$f >& ${f}.valgrind
+#done

@@ -7,19 +7,23 @@
 
 int main ( int argc, char **argv )
 {
+	number_type type = REAL_NUMBER;
 	double A[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9}; 
+	double alpha;
 	int n = 3;
 
 	printf( "A=\n" );
-	dense_print_matrix( n, n, A );
+	dense_print_matrix( n, n, A, type );
 
 	printf( "\nA + 0.5*I=\n" );
-	dense_diagonal_addition( n, A, 0.5 );
-	dense_print_matrix( n, n, A );
+	alpha = 0.5;
+	dense_diagonal_addition( n, A, &alpha, type );
+	dense_print_matrix( n, n, A, type );
 
 	printf( "\n2*(A + 0.5*I)=\n" );
-	dense_matrix_scale( n, n, A, 2.0 );
-	dense_print_matrix( n, n, A );
+	alpha = 2.0;
+	dense_matrix_scale( n, n, A, &alpha, type );
+	dense_print_matrix( n, n, A, type );
 
 	return EXIT_SUCCESS;
 }

@@ -7,6 +7,7 @@
 
 int main ( int argc, char **argv )
 {
+	number_type type = REAL_NUMBER;
 	double x[3] = {1, 2, 3};
 	double y[3] = {0.5, 0.3, 0.1};
 
@@ -14,17 +15,17 @@ int main ( int argc, char **argv )
 
 	printf( "before swap\n" );
 	printf( "x=\n" );
-	dense_print_vector( n, x );
+	dense_print_vector( n, x, type );
 	printf( "\ny=\n" );
-	dense_print_vector( n, y );
+	dense_print_vector( n, y, type );
 
-	dense_swap_vector( n, x, y );
+	dense_swap_vector( n, x, y, type );
 
 	printf( "\nafter swap\n" );
 	printf( "x=\n" );
-	dense_print_vector( n, x );
+	dense_print_vector( n, x, type );
 	printf( "\ny=\n" );
-	dense_print_vector( n, y );
+	dense_print_vector( n, y, type );
 
 	return EXIT_SUCCESS;
 }

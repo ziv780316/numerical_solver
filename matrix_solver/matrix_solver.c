@@ -3,36 +3,50 @@
 #include <stdlib.h>
 #include <math.h>
 
-// ----------------------------------------
-//		real-number
-// ----------------------------------------
+#include "matrix_solver.h"
+
+// ============== BLAS Fortran API (column-major array) ============== 
+/* ZSSCAL
+	scales a vector by a complex number
+*/
+void zscal_( int *n, double *alpha, double *x, int *incx );
 
 // x := alpha*x
-int dense_vector_scale ( int n, double *x, double alpha )
+int dense_vector_scale ( int n, double *x, double *alpha, number_type type )
 {
-	for ( int i = 0; i < n; ++i )
+	if ( REAL_NUMBER == type )
 	{
-		x[i] *= alpha;
+		double r = *alpha;
+		for ( int i = 0; i < n; ++i )
+		{
+			x[i] *= r;
+		}
+	}
+	else
+	{
+		int incx = 1;
+		zscal_( &n, alpha, x, &incx );
 	}
 
 	return true;
 }
 
 // aij = aii * alpha
-int dense_matrix_scale ( int m, int n, double *A, double alpha )
+int dense_matrix_scale ( int m, int n, double *A, double *alpha, number_type type )
 {
+	double r = *alpha;
 	for ( int j = 0; j < n; ++j )
 	{
 		for ( int i = 0; i < m; ++i )
 		{
-			*(A + j*m + i) *= alpha; 
+			*(A + j*m + i) *= r; 
 		}
 	}
 	return true;
 }
 
 // obtain D of A=L+D+U 
-int dense_matrix_get_diagonal ( int n, double *A, double *D )
+int dense_matrix_get_diagonal ( int n, double *A, double *D, number_type type )
 {
 	for ( int i = 0; i < n; ++i )
 	{
@@ -42,17 +56,18 @@ int dense_matrix_get_diagonal ( int n, double *A, double *D )
 }
 
 // main diagonal addition, aii = aii + alpha
-int dense_diagonal_addition ( int n, double *A, double alpha )
+int dense_diagonal_addition ( int n, double *A, double *alpha, number_type type )
 {
+	double r = *alpha;
 	for ( int i = 0; i < n; ++i )
 	{
-		*(A + i*n + i) += alpha; 
+		*(A + i*n + i) += r; 
 	}
 	return true;
 }
 
 // val = x . y
-int dense_vector_inner_product ( int n, double *x, double *y, double *val )
+int dense_vector_inner_product ( int n, double *x, double *y, double *val, number_type type )
 {
 	double sum = 0.0;
 	for ( int i = 0; i < n; ++i )
@@ -64,7 +79,7 @@ int dense_vector_inner_product ( int n, double *x, double *y, double *val )
 }
 
 // A = x . yT
-int dense_vector_outer_product ( int n, double *x, double *y, double *A )
+int dense_vector_outer_product ( int n, double *x, double *y, double *A, number_type type )
 {
 	for ( int j = 0; j < n; ++j )
 	{
@@ -77,7 +92,7 @@ int dense_vector_outer_product ( int n, double *x, double *y, double *A )
 }
 
 // vector norm |x|p = (sum |xi|^p)^(1.0/p)
-int dense_vector_norm ( int p_norm, int n, double *x, double *val )
+int dense_vector_norm ( int p_norm, int n, double *x, double *val, number_type type )
 {
 	switch ( p_norm )
 	{
@@ -140,19 +155,19 @@ int dense_vector_norm ( int p_norm, int n, double *x, double *val )
 }
 
 // A = A + alpha * (x . yT)
-int dense_maxtrix_rank_1_update ( int n, double *A, double alpha, double *x, double *y )
+int dense_maxtrix_rank_1_update ( int n, double *A, double *alpha, double *x, double *y, number_type type )
 {
+	double r = *alpha;
 	for ( int j = 0; j < n; ++j )
 	{
 		for ( int i = 0; i < n; ++i )
 		{
-			*(A + j*n + i) += alpha * (x[i] * y[j]);
+			*(A + j*n + i) += r * (x[i] * y[j]);
 		}
 	}
 	return true;
 }
 
-// ============== BLAS Fortran API (column-major array) ============== 
 /* DGEMV
 	performs one of the matrix-vector operations
 	y := alpha*A*x + beta*y, or y := alpha*A**T*x + beta*y,
@@ -160,14 +175,14 @@ int dense_maxtrix_rank_1_update ( int n, double *A, double alpha, double *x, dou
 */
 void dgemv_( char *trans, int *m, int *n, double *alpha, double *A, int *lda, double *x, int *incx, double *beta, double *y, int *incy );
 
-int dense_matrix_vector_multiply ( int m, int n, double alpha, double *A, double *x, double beta, double *y, bool transpose )
+int dense_matrix_vector_multiply ( int m, int n, double *alpha, double *A, double *x, double *beta, double *y, bool transpose, number_type type )
 {
 	char tran = transpose ? 'T' : 'N';
 	int lda = m;
 	int incx = 1;
 	int incy = 1;
 
-	dgemv_( &tran, &m, &n, &alpha, A, &lda, x, &incx, &beta, y, &incy );
+	dgemv_( &tran, &m, &n, alpha, A, &lda, x, &incx, beta, y, &incy );
 
 	return true;
 }
@@ -181,7 +196,7 @@ int dense_matrix_vector_multiply ( int m, int n, double alpha, double *A, double
 */
 void dgemm_( char *a_transpose, char *b_transpose, int *m, int *n, int *k, double *alpha, double *A, int *lda, double *B, int *ldb, double *beta, double *C, int *ldc );
 
-int dense_matrix_matrix_multiply ( int m, int n, int k, double alpha, double *A, double *B, double beta, double *C, bool a_transpose, bool b_transpose )
+int dense_matrix_matrix_multiply ( int m, int n, int k, double *alpha, double *A, double *B, double *beta, double *C, bool a_transpose, bool b_transpose, number_type type )
 {
 	char tran_a = a_transpose ? 'T' : 'N';
 	char tran_b = b_transpose ? 'T' : 'N';
@@ -189,7 +204,7 @@ int dense_matrix_matrix_multiply ( int m, int n, int k, double alpha, double *A,
 	int ldb = b_transpose ? n : k; 
 	int ldc = m; 
 
-	dgemm_( &tran_a, &tran_b, &m, &n, &k, &alpha, A, &lda, B, &ldb, &beta, C, &ldc );
+	dgemm_( &tran_a, &tran_b, &m, &n, &k, alpha, A, &lda, B, &ldb, beta, C, &ldc );
 
 	return true;
 }
@@ -204,15 +219,15 @@ int dense_matrix_matrix_multiply ( int m, int n, int k, double alpha, double *A,
 */
 void dtrsv_( char *triangulr_type, char *trans, char *is_unit_triangular, int *n, double *A, int *lda, double *x, int *incx );
 
-int dense_triangular_solve ( int n, double *A, double *x, bool is_lower_triangular, bool transpose, bool is_unit_triangular )
+int dense_triangular_solve ( int n, double *A, double *x, bool is_lower_triangular, bool transpose, bool is_unit_triangular, number_type type )
 {
-	char type = is_lower_triangular ? 'L' : 'U'; // if is L, will ignore strictly upper triangular part, otherwise
+	char triangle_type = is_lower_triangular ? 'L' : 'U'; // if is L, will ignore strictly upper triangular part, otherwise
 	char tran = transpose ? 'T' : 'N';
 	char is_unit = is_unit_triangular ? 'U' : 'N'; // if is U, will regard diagonal element as 1
 	int lda = n;
 	int incx = 1;
 
-	dtrsv_( &type, &tran, &is_unit, &n, A, &lda, x, &incx );
+	dtrsv_( &triangle_type, &tran, &is_unit, &n, A, &lda, x, &incx );
 
 	return true;
 }
@@ -223,7 +238,7 @@ int dense_triangular_solve ( int n, double *A, double *x, bool is_lower_triangul
 */
 void dswap_( int *n, double *x, int *incx, double *y, int *incy );
 
-int dense_swap_vector ( int n, double *x, double *y )
+int dense_swap_vector ( int n, double *x, double *y, number_type type )
 {
 	int incx = 1;
 	int incy = 1;
@@ -243,7 +258,7 @@ int dense_swap_vector ( int n, double *x, double *y )
 */
 void dgetrf_ ( int *m, int *n, double *A, int *lda, int*ipiv, int *info );
 
-int dense_lu_factor ( int n, double *A, int *p )
+int dense_lu_factor ( int n, double *A, int *p, number_type type )
 {
 	int lda = n;
 	int info;
@@ -259,7 +274,7 @@ int dense_lu_factor ( int n, double *A, int *p )
 */
 void dgetrs_( char *trans, int *n, int *nrhs, double *A, int *lda, int *ipiv, double *x, int *ldb, int *info );
 
-int dense_solve ( int n, double *A, double *x, int *ipiv, bool transpose )
+int dense_solve ( int n, double *A, double *x, int *ipiv, bool transpose, number_type type )
 {
 	char tran = transpose ? 'T' : 'N';
 	int nrhs = 1;
@@ -272,17 +287,17 @@ int dense_solve ( int n, double *A, double *x, int *ipiv, bool transpose )
 	return (0 == info); // info = 0 means success
 }
 
-int dense_factor_and_solve ( int n, double *A, double *x, bool transpose )
+int dense_factor_and_solve ( int n, double *A, double *x, bool transpose, number_type type )
 {
 	int *p = (int *) malloc( sizeof(int) * n );
 	int success;
 
-	success = dense_lu_factor( n, A, p );
+	success = dense_lu_factor( n, A, p, type );
 	if ( !success )
 	{
 		return 0;
 	}
-	success = dense_solve( n, A, x, p, transpose );
+	success = dense_solve( n, A, x, p, transpose, type );
 	if ( !success )
 	{
 		return 0;
@@ -298,7 +313,7 @@ int dense_factor_and_solve ( int n, double *A, double *x, bool transpose )
 */
 void dgetri_ ( int *n, double *A, int *lda, int *ipiv, double *work, int *lwork, int *info );
 
-int dense_matrix_inverse ( int n, double *A, int *p )
+int dense_matrix_inverse ( int n, double *A, int *p, number_type type )
 {
 	int lda = n;
 	int lwork = -1;
@@ -308,7 +323,7 @@ int dense_matrix_inverse ( int n, double *A, int *p )
 	bool success;
 
 	// need LU factor before invese
-	success = dense_lu_factor( n, A, p );
+	success = dense_lu_factor( n, A, p, type );
 	if ( !success )
 	{
 		return 0;
@@ -330,17 +345,27 @@ int dense_matrix_inverse ( int n, double *A, int *p )
 	return (0 == info); // info = 0 means success, info=i > 0 means singular and A(i,i) is 0 (singular node)
 }
 
-int dense_print_vector ( int n, double *x )
+int dense_print_vector ( int n, double *x, number_type type )
 {
-	for ( int i = 0; i < n; ++i )
+	if ( REAL_NUMBER == type )
 	{
-		printf( "%.10e\n", x[i] );
+		for ( int i = 0; i < n; ++i )
+		{
+			printf( "%.10e\n", x[i] );
+		}
+	}
+	else
+	{
+		for ( int i = 0; i < 2 * n; i += 2 )
+		{
+			printf( "%.10e + i*%.10e\n", x[i], x[i + 1] );
+		}
 	}
 
 	return true;
 }
 
-int dense_print_vector_i ( int n, int *x )
+int dense_print_vector_i ( int n, int *x, number_type type )
 {
 	for ( int i = 0; i < n; ++i )
 	{
@@ -351,7 +376,7 @@ int dense_print_vector_i ( int n, int *x )
 }
 
 
-int dense_print_matrix ( int m, int n, double *A )
+int dense_print_matrix ( int m, int n, double *A, number_type type )
 {
 	for ( int i = 0; i < m; ++i )
 	{
@@ -365,7 +390,7 @@ int dense_print_matrix ( int m, int n, double *A )
 	return true;
 }
 
-int dense_print_matrix_LU ( int n, double *A )
+int dense_print_matrix_LU ( int n, double *A, number_type type )
 {
 	printf( "L=\n" ); // assume L is unit lower triangular
 	for ( int i = 0; i < n; ++i )
@@ -392,47 +417,6 @@ int dense_print_matrix_LU ( int n, double *A )
 			printf( "%.10e ", *(A + j*n + i) );
 		}
 		printf( "\n" );
-	}
-
-	return true;
-}
-
-// ----------------------------------------
-//		complex-number
-// ----------------------------------------
-
-int complex_dense_vector_scale ( int n, double *x, double alpha )
-{
-	for ( int i = 0; i < 2 * n; ++i )
-	{
-		x[i] *= alpha;
-	}
-
-	return true;
-}
-
-
-/* ZSSCAL
-	scales a vector by a complex number
-*/
-void zscal_( int *n, double *alpha, double *x, int *incx );
-
-// x := alpha*x where alpha is complex number
-int complex_dense_vector_scale_complex ( int n, double *x, double alpha_real, double alpha_imag )
-{
-	int incx = 1;
-	double z[2] = { alpha_real, alpha_imag };
-	zscal_( &n, z, x, &incx );
-
-	return true;
-}
-
-
-int complex_dense_print_vector ( int n, double *x )
-{
-	for ( int i = 0; i < 2 * n; i += 2 )
-	{
-		printf( "%.10e + i*%.10e\n", x[i], x[i + 1] );
 	}
 
 	return true;

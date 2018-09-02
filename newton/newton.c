@@ -52,6 +52,8 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	double *J = (double *) malloc ( sizeof(double) * J_size );
 	double *J_old = NULL;
 	double *D = NULL;
+	double alpha;
+	double beta;
 
 	if ( NEWTON_DIFF_JACOBIAN != diff_type )
 	{
@@ -170,7 +172,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			// prevent matrix be singular during LU factorization, this technique will 'not' affect accuracy
 			if ( jmin > 0.0 )
 			{
-				dense_diagonal_addition( n, J, jmin );
+				dense_diagonal_addition( n, J, &jmin, REAL_NUMBER );
 			}
 
 			if ( (NEWTON_BROYDEN == iterative_type) && (1 == iter) )
@@ -193,7 +195,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			     (NEWTON_BROYDEN_INVERTED_BAD != iterative_type) )
 			{
 				printf( "J = \n" );
-				dense_print_matrix ( n, n, J );
+				dense_print_matrix ( n, n, J, REAL_NUMBER );
 			}
 		}
 
@@ -204,7 +206,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		     !(NEWTON_BROYDEN_INVERTED == iterative_type) && 
 		     !(NEWTON_BROYDEN_INVERTED_BAD == iterative_type) )
 		{
-			matrix_factor_ok = dense_lu_factor ( n, J, perm );
+			matrix_factor_ok = dense_lu_factor ( n, J, perm, REAL_NUMBER );
 			if ( !matrix_factor_ok )
 			{
 				if ( RESCUE_DIAGONAL == rescue_type )
@@ -214,7 +216,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 						printf( "[Warning] LU factorization fail, try diagonal update technique\n" );
 					}
 					load_jacobian( x, J );
-					dense_matrix_get_diagonal ( n, J, D );
+					dense_matrix_get_diagonal ( n, J, D, REAL_NUMBER );
 					if ( jmin > 0.0 )
 					{
 						for ( int i = 0; i < n; ++i )
@@ -249,7 +251,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		{
 			if ( 1 == iter )
 			{
-				matrix_factor_ok = dense_matrix_inverse ( n, J, perm );
+				matrix_factor_ok = dense_matrix_inverse ( n, J, perm, REAL_NUMBER );
 				if ( !matrix_factor_ok )
 				{
 					fprintf( stderr, "[Error] inverse jacobian matrix fail\n" );
@@ -272,17 +274,19 @@ bool newton_solve ( newton_iterative_type iterative_type,
 
 			if ( debug )
 			{
-				dense_matrix_inverse ( n, J, perm );
+				dense_matrix_inverse ( n, J, perm, REAL_NUMBER );
 				printf( "J = \n" );
-				dense_print_matrix ( n, n, J );
+				dense_print_matrix ( n, n, J, REAL_NUMBER );
 
-				dense_matrix_inverse ( n, J, perm );
+				dense_matrix_inverse ( n, J, perm, REAL_NUMBER );
 				printf( "J^-1 = \n" );
-				dense_print_matrix ( n, n, J );
+				dense_print_matrix ( n, n, J, REAL_NUMBER );
 			}
 
 			// dx = J^-1 * -f
-			dense_matrix_vector_multiply ( n, n, 1.0, J, rhs, 0.0, dx, false );
+			alpha = 1.0;
+			beta = 0.0;
+			dense_matrix_vector_multiply ( n, n, &alpha, J, rhs, &beta, dx, false, REAL_NUMBER );
 		}
 		else
 		{
@@ -295,7 +299,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			}
 			else
 			{
-				matrix_solve_ok = dense_solve ( n, J, rhs, perm, false );
+				matrix_solve_ok = dense_solve ( n, J, rhs, perm, false, REAL_NUMBER );
 				if ( !matrix_solve_ok )
 				{
 					fprintf( stderr, "[Error] LU solve fail\n" );
@@ -459,18 +463,23 @@ static void newton_initialize ( int n, double *x, double *x0, bool random_initia
 // J = J + (df - J*dx)*dxT / |dx|^2
 static void broyden_update ( int n, double *J, double *df, double *dx, bool debug )
 {
+	double alpha;
+	double beta;
 	double dx_square;
 	double *work = (double *) malloc ( sizeof(double) * n );
 	memcpy( work, df, sizeof(double) * n );
 
 	// |dx|^2
-	dense_vector_inner_product ( n, dx, dx, &dx_square );
+	dense_vector_inner_product ( n, dx, dx, &dx_square, REAL_NUMBER );
 
 	// work = df - (J * dx)
-	dense_matrix_vector_multiply ( n, n, -1.0, J, dx, 1.0, work, false );
+	alpha = -1.0;
+	beta = 1.0;
+	dense_matrix_vector_multiply ( n, n, &alpha, J, dx, &beta, work, false, REAL_NUMBER );
 
 	// J = J + (x . yT) / |dx|^2
-	dense_maxtrix_rank_1_update ( n, J, 1.0/dx_square, work, dx );
+	alpha = 1.0 / dx_square;
+	dense_maxtrix_rank_1_update ( n, J, &alpha, work, dx, REAL_NUMBER );
 
 	free( work );
 }
@@ -478,22 +487,29 @@ static void broyden_update ( int n, double *J, double *df, double *dx, bool debu
 // J = J + (dx - J*df)*dxT*J / (dxT*J*df)
 static void broyden_update_sherman_morrison ( int n, double *J, double *df, double *dx, bool debug )
 {
+	double alpha;
+	double beta;
 	double dx_square;
 	double *work1 = (double *) malloc ( sizeof(double) * n );
 	double *work2 = (double *) malloc ( sizeof(double) * n );
 
 	// work = dx - (J * df)
 	memcpy( work1, dx, sizeof(double) * n );
-	dense_matrix_vector_multiply ( n, n, -1.0, J, df, 1.0, work1, false );
+	alpha = -1.0;
+	beta = 1.0;
+	dense_matrix_vector_multiply ( n, n, &alpha, J, df, &beta, work1, false, REAL_NUMBER );
 
 	// dxT*J = JT*dx
-	dense_matrix_vector_multiply ( n, n, 1.0, J, dx, 0.0, work2, true );
+	alpha = -1.0;
+	beta = 0.0;
+	dense_matrix_vector_multiply ( n, n, &alpha, J, dx, &beta, work2, true, REAL_NUMBER );
 
 	// (dxT*J) * df
-	dense_vector_inner_product ( n, work2, df, &dx_square );
+	dense_vector_inner_product ( n, work2, df, &dx_square, REAL_NUMBER );
 
 	// J = J + (x . yT) / |dx|^2
-	dense_maxtrix_rank_1_update ( n, J, 1.0/dx_square, work1, work2 );
+	alpha = 1.0 / dx_square;
+	dense_maxtrix_rank_1_update ( n, J, &alpha, work1, work2, REAL_NUMBER );
 
 	free( work1 );
 	free( work2 );
