@@ -465,12 +465,13 @@ static void broyden_update ( int n, double *J, double *df, double *dx, bool debu
 {
 	double alpha;
 	double beta;
+	double conjugate = false;
 	double dx_square;
 	double *work = (double *) malloc ( sizeof(double) * n );
 	memcpy( work, df, sizeof(double) * n );
 
 	// |dx|^2
-	dense_vector_inner_product ( n, dx, dx, &dx_square, REAL_NUMBER );
+	dense_vector_inner_product ( n, dx, dx, &dx_square, conjugate, REAL_NUMBER );
 
 	// work = df - (J * dx)
 	alpha = -1.0;
@@ -489,6 +490,7 @@ static void broyden_update_sherman_morrison ( int n, double *J, double *df, doub
 {
 	double alpha;
 	double beta;
+	double conjugate = false;
 	double dx_square;
 	double *work1 = (double *) malloc ( sizeof(double) * n );
 	double *work2 = (double *) malloc ( sizeof(double) * n );
@@ -505,7 +507,7 @@ static void broyden_update_sherman_morrison ( int n, double *J, double *df, doub
 	dense_matrix_vector_multiply ( n, n, &alpha, J, dx, &beta, work2, true, REAL_NUMBER );
 
 	// (dxT*J) * df
-	dense_vector_inner_product ( n, work2, df, &dx_square, REAL_NUMBER );
+	dense_vector_inner_product ( n, work2, df, &dx_square, conjugate, REAL_NUMBER );
 
 	// J = J + (x . yT) / |dx|^2
 	alpha = 1.0 / dx_square;

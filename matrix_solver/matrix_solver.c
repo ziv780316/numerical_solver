@@ -5,7 +5,16 @@
 
 #include "matrix_solver.h"
 
-// ============== BLAS Fortran API (column-major array) ============== 
+// ============== BLAS and LAPACK Fortran API (column-major array) ============== 
+// real matrix
+// EX: A[4] = { 1, 2, 3, 4 } 
+// A = 1 3
+//     2 4
+//
+// complex matrix
+// EX: A[4*2] = { 1, 2, 3, 4, 5, 6, 7, 8 } 
+// A = 1+2i 5+6i
+//     3+4i 7+8i
 
 /* ZSSCAL
 	scales a vector by a complex number
@@ -61,9 +70,22 @@ int dense_matrix_scale ( int m, int n, double *A, double *alpha, number_type typ
 // obtain D of A=L+D+U 
 int dense_matrix_get_diagonal ( int n, double *A, double *D, number_type type )
 {
-	for ( int i = 0; i < n; ++i )
+	if ( REAL_NUMBER == type )
 	{
-		D[i] = *(A + i*n + i); 
+		for ( int i = 0; i < n; ++i )
+		{
+			D[i] = *(A + i*n + i); 
+		}
+	}
+	else
+	{
+		int idx;
+		for ( int i = 0; i < n; ++i )
+		{
+			idx = 2 * i;
+			D[idx]     = *(A + n * idx + idx); 
+			D[idx + 1] = *(A + n * idx + idx + 1); 
+		}
 	}
 	return true;
 }
@@ -71,23 +93,64 @@ int dense_matrix_get_diagonal ( int n, double *A, double *D, number_type type )
 // main diagonal addition, aii = aii + alpha
 int dense_diagonal_addition ( int n, double *A, double *alpha, number_type type )
 {
-	double r = *alpha;
-	for ( int i = 0; i < n; ++i )
+	if ( REAL_NUMBER == type )
 	{
-		*(A + i*n + i) += r; 
+		double r = *alpha;
+		for ( int i = 0; i < n; ++i )
+		{
+			*(A + i*n + i) += r; 
+		}
+	}
+	else
+	{
+		int col_incr = 2 * n;
+		double real = alpha[0];
+		double imag = alpha[1];
+		for ( int i = 0; i < n; ++i )
+		{
+			*(A + i*col_incr + (2 * i)) 	+= real; // real
+			*(A + i*col_incr + (2 * i) + 1) += imag; // imag
+		}
 	}
 	return true;
 }
 
+/* ZDOTU, ZDOTC
+	forms the dot product of two complex vectors (result is complex*16 number, 2 double)
+	ZDOTU = X^T * Y
+	ZDOTC = X^H * Y
+*/
+complex_t zdotu_( int *n, double *x, int *incx, double *y, int *incy );
+complex_t zdotc_( int *n, double *x, int *incx, double *y, int *incy );
+
 // val = x . y
-int dense_vector_inner_product ( int n, double *x, double *y, double *val, number_type type )
+int dense_vector_inner_product ( int n, double *x, double *y, double *val, bool conjugate, number_type type )
 {
-	double sum = 0.0;
-	for ( int i = 0; i < n; ++i )
+	if ( REAL_NUMBER == type )
 	{
-		sum += x[i] * y[i];
+		double sum = 0.0;
+		for ( int i = 0; i < n; ++i )
+		{
+			sum += x[i] * y[i];
+		}
+		*val = sum;
 	}
-	*val = sum;
+	else
+	{
+		int incx = 1;
+		int incy = 1;
+		complex_t dot_result;
+		if ( conjugate )
+		{
+			dot_result = zdotc_( &n, x, &incx, y, &incy );
+		}
+		else
+		{
+			dot_result = zdotu_( &n, x, &incx, y, &incy );
+		}
+		val[0] = dot_result.real;
+		val[1] = dot_result.imag;
+	}
 	return true;
 }
 

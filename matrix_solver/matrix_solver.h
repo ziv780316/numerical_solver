@@ -7,6 +7,12 @@ typedef enum
 	COMPLEX_NUMBER
 } number_type;
 
+typedef struct
+{
+	double real;
+	double imag;
+} complex_t;
+
 // x := alpha*x
 int dense_vector_scale ( int n, double *x, double *alpha, number_type );
 
@@ -20,7 +26,7 @@ int dense_matrix_get_diagonal ( int n, double *A, double *D, number_type );
 int dense_diagonal_addition ( int n, double *A, double *alpha, number_type );
 
 // val = x . y
-int dense_vector_inner_product ( int n, double *x, double *y, double *val, number_type );
+int dense_vector_inner_product ( int n, double *x, double *y, double *val, bool conjugate, number_type type );
 
 // A = x . yT
 int dense_vector_outer_product ( int n, double *x, double *y, double *A, number_type );

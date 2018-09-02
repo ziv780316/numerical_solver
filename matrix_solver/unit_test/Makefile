@@ -36,7 +36,8 @@ UNIT_TEST_OBJ     := dense_matrix_vector_multiply.o\
 		     dense_matrix_rank_1_update.o\
 		     dense_matrix_inverse.o\
 		     complex_dense_vector_scale.o\
-		     complex_dense_matrix_scale.o
+		     complex_dense_matrix_scale.o\
+		     complex_dense_vector_inner_product.o
 
 #=================================================
 # Compile implicit rules
