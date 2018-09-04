@@ -39,7 +39,7 @@ void load_jacobian ( double *x, double *J )
 {
 	double v1 = x[0];
 	double v2 = x[1];
-	double is = x[2];
+	double i  = x[2];
 	*(J + nf*0 + 0) = 1.0 / r; // (1,1)
 	*(J + nf*0 + 1) = -1.0 / r; // (2,1)
 	*(J + nf*0 + 2) = 1.0; // (3,1)
