@@ -17,7 +17,7 @@ LINKER     = $(CC)
 DEFINES    = 
 BUILD_TYPE = -O3
 CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -std=gnu99 -fPIC 
-LIBS       = -L../lib -lmatrix_solver -lblas -llapack -lgfortran -lm
+LIBS       = -L../lib -lmatrix_solver -llapack -lblas -lgfortran -lm
 INCLUDE    = -I.. -I.
 MOVE       = mv -f
 

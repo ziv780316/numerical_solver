@@ -25,6 +25,9 @@ int main ( int argc, char **argv )
 	printf( "x=\n" );
 	dense_print_vector ( n, x, type );
 
+	printf( "y=\n" );
+	dense_print_vector ( m, y, type );
+
 	transpose = false;
 	alpha = 1.0;
 	beta = 0.0;
@@ -35,9 +38,9 @@ int main ( int argc, char **argv )
 	transpose = true;
 	alpha = 1.0;
 	beta = 0.0;
-	dense_matrix_vector_multiply ( m, n, &alpha, A, x, &beta, y, transpose, type );
-	printf( "\n(A^T)*x=\n" );
-	dense_print_vector ( m, y, type );
+	dense_matrix_vector_multiply ( m, m, &alpha, A, y_buf, &beta, y, transpose, type );
+	printf( "\n(A^T)*y=\n" );
+	dense_print_vector ( n, y, type );
 
 	memcpy( y, y_buf, sizeof(double) * m );
 	transpose = false;
