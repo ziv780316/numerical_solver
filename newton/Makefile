@@ -18,7 +18,7 @@ DEFINES    =
 BUILD_TYPE = -O3
 CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -Wextra -Wenum-compare -std=gnu99 -fPIC 
 MAT_SOLVER_PATH = /home/lintu/baba/numerical/matrix_solver/lib
-LIBS       = -L$(MAT_SOLVER_PATH) -lmatrix_solver -lblas -llapack -lgfortran -lm -ldl
+LIBS       = -L$(MAT_SOLVER_PATH) -lmatrix_solver -llapack -lblas -lgfortran -lm -ldl
 INCLUDE    = -I../matrix_solver -I. 
 MOVE       = mv -f
 

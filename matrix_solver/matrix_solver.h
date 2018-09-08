@@ -29,10 +29,10 @@ int dense_diagonal_addition ( int n, double *A, double *alpha, number_type );
 int dense_vector_inner_product ( int n, double *x, double *y, double *val, bool conjugate, number_type type );
 
 // A = x . yT
-int dense_vector_outer_product ( int n, double *x, double *y, double *A, number_type );
+int dense_vector_outer_product ( int m, int n, double *x, double *y, double *A, bool conjugate, number_type );
 
 // A = A + alpha * (x . yT)
-int dense_maxtrix_rank_1_update ( int n, double *A, double *alpha, double *x, double *y, number_type );
+int dense_maxtrix_rank_1_update ( int m, int n, double *A, double *alpha, double *x, double *y, bool conjugate, number_type );
 
 // vector norm |x|p = (sum |xi|^p)^(1.0/p)
 int dense_vector_norm ( int p_norm, int n, double *x, double *val, number_type );

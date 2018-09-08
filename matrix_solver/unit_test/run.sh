@@ -13,6 +13,7 @@ dense_triangular_solve \
 complex_dense_vector_scale \
 complex_dense_matrix_scale \
 complex_dense_vector_inner_product \
+complex_dense_matrix_rank_1_update \
 "
  
 # execute each unit function

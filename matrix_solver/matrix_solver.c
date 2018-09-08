@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 
 #include "matrix_solver.h"
 
@@ -155,15 +156,25 @@ int dense_vector_inner_product ( int n, double *x, double *y, double *val, bool 
 }
 
 // A = x . yT
-int dense_vector_outer_product ( int n, double *x, double *y, double *A, number_type type )
+int dense_vector_outer_product ( int m, int n, double *x, double *y, double *A, bool conjugate, number_type type )
 {
-	for ( int j = 0; j < n; ++j )
+	if ( REAL_NUMBER == type )
 	{
-		for ( int i = 0; i < n; ++i )
+		for ( int j = 0; j < n; ++j )
 		{
-			*(A + j*n + i) = x[i] * y[j];
+			for ( int i = 0; i < m; ++i )
+			{
+				*(A + j*m + i) = x[i] * y[j];
+			}
 		}
 	}
+	else
+	{
+		memset( A, 0, sizeof(double) * 2 * m * n );
+		complex_t alpha = { .real = 1.0, .imag = 0.0 };
+		dense_maxtrix_rank_1_update ( m, n, A, (double *)&alpha, x, y, conjugate, type );
+	}
+
 	return true;
 }
 
@@ -230,15 +241,42 @@ int dense_vector_norm ( int p_norm, int n, double *x, double *val, number_type t
 	return true;
 }
 
+/* ZGERU
+	performs the rank 1 operation
+
+	A := alpha*x*y**T + A,
+
+	where alpha is a complex scalar, x is an m element vector, y is an n element
+	vector and A is an m by n matrix.
+*/
+void zgeru_( int *m, int *n, double *alpha, double *x, int *incx, double *y, int *incy, double *A, int *lda );
+
 // A = A + alpha * (x . yT)
-int dense_maxtrix_rank_1_update ( int n, double *A, double *alpha, double *x, double *y, number_type type )
+int dense_maxtrix_rank_1_update ( int m, int n, double *A, double *alpha, double *x, double *y, bool conjugate, number_type type )
 {
-	double r = *alpha;
-	for ( int j = 0; j < n; ++j )
+	if ( REAL_NUMBER == type )
 	{
-		for ( int i = 0; i < n; ++i )
+		double r = *alpha;
+		for ( int j = 0; j < n; ++j )
 		{
-			*(A + j*n + i) += r * (x[i] * y[j]);
+			for ( int i = 0; i < m; ++i )
+			{
+				*(A + j*m + i) += r * (x[i] * y[j]);
+			}
+		}
+	}
+	else
+	{
+		int incx = 1;
+		int incy = 1;
+		int lda  = m;
+		if ( conjugate )
+		{
+			zgerc_( &m, &n, alpha, x, &incx, y, &incy, A, &lda );
+		}
+		else
+		{
+			zgeru_( &m, &n, alpha, x, &incx, y, &incy, A, &lda );
 		}
 	}
 	return true;

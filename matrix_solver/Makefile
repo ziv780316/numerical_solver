@@ -26,7 +26,7 @@ BLAS_VERSION = BLAS-3.8.0
 LAPACK_VERSION = lapack-3.8.0
 CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -Wextra -std=gnu99 -fPIC 
 CXXFLAGS   = $(BUILD_TYPE) -Wfatal-errors -Wall -Wextra -std=c++11 -fPIC
-LIBS       = -Llib -lmatrix_solver -lapack -lblas -lgfortran -lm
+LIBS       = -Llib -lblas -llapack -lgfortran -lm
 INCLUDE    = -I./include -I.
 MOVE       = mv -f
 ARCH       = ar
@@ -41,9 +41,9 @@ LIBRARY_DIR       := library
 MATRIX_SOLVER_OBJ := matrix_solver.o 
 LEX_YACC_TARGET   := 
 UNIT_TEST_OBJ     := dense_matrix_vector_multiply.o
-MATRIX_SOLVER_TARGET := libmatrix_solver.so
-BLAS_TARGET := libblas.a
-LAPACK_TARGET := liblapack.a
+MATRIX_SOLVER_TARGET := libmatrix_solver.a
+BLAS_TARGET 	  := libblas.a
+LAPACK_TARGET     := liblapack.a
 
 #=================================================
 # Compile implicit rules
@@ -97,19 +97,19 @@ verbose_info:
 	@echo "*****************************"
 
 $(BLAS_TARGET): 
-	make -s -C $(BLAS_VERSION) OPTS=$(BUILD_TYPE) all
+	make -s -C $(BLAS_VERSION) OPTS=$(BUILD_TYPE) double
 	cd lib; ln -sf ../$(BLAS_VERSION)/$(BLAS_TARGET) $(BLAS_TARGET)
 
 $(LAPACK_TARGET): 
 	make -s -C $(LAPACK_VERSION)/INSTALL
-	make -s -C $(LAPACK_VERSION)/src -j4 OPTS=$(BUILD_TYPE) all
-	cd lib; ln -sf ../$(LAPACK_VERSION)/$(LAPACK_TARGET) $(LAPACK_TARGET)
+	make -s -C $(LAPACK_VERSION)/src -j4 OPTS=$(BUILD_TYPE) double
+	cd lib; ln -sf ../$(LAPACK_VERSION)/src/$(LAPACK_TARGET) $(LAPACK_TARGET)
 
 $(MATRIX_SOLVER_TARGET): verbose_info create_dir $(BLAS_TARGET) $(LAPACK_TARGET) $(MATRIX_SOLVER_OBJ)
-	cd $(LIBRARY_DIR);\
-	$(ARCH) $(ARCHFLAGS) $@ $(MATRIX_SOLVER_OBJ);\
-	$(MOVE) $@ ../$(BIN_DIR)
-	#$(LINKER) -o $@ -shared $(MATRIX_SOLVER_OBJ);\
+		cd $(LIBRARY_DIR);\
+		$(ARCH) $(ARCHFLAGS) $@ $(MATRIX_SOLVER_OBJ);\
+		#$(LINKER) -o $@ -shared $(MATRIX_SOLVER_OBJ);\
+		$(MOVE) $@ ../$(BIN_DIR)
 
 ut: 
 	cd $(UNIT_TEST_DIR); make

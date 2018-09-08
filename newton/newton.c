@@ -480,7 +480,7 @@ static void broyden_update ( int n, double *J, double *df, double *dx, bool debu
 
 	// J = J + (x . yT) / |dx|^2
 	alpha = 1.0 / dx_square;
-	dense_maxtrix_rank_1_update ( n, J, &alpha, work, dx, REAL_NUMBER );
+	dense_maxtrix_rank_1_update ( n, n, J, &alpha, work, dx, false, REAL_NUMBER );
 
 	free( work );
 }
@@ -511,7 +511,7 @@ static void broyden_update_sherman_morrison ( int n, double *J, double *df, doub
 
 	// J = J + (x . yT) / |dx|^2
 	alpha = 1.0 / dx_square;
-	dense_maxtrix_rank_1_update ( n, J, &alpha, work1, work2, REAL_NUMBER );
+	dense_maxtrix_rank_1_update ( n, n, J, &alpha, work1, work2, false, REAL_NUMBER );
 
 	free( work1 );
 	free( work2 );
