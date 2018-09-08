@@ -185,54 +185,119 @@ int dense_vector_norm ( int p_norm, int n, double *x, double *val, number_type t
 	{
 		case -1:
 		{
-			double max = 0;
-			for ( int i = 0; i < n; ++i )
+			if ( REAL_NUMBER == type )
 			{
-				if ( x[i] > max )
+				double max = 0;
+				for ( int i = 0; i < n; ++i )
 				{
-					max = x[i];
+					if ( x[i] > max )
+					{
+						max = x[i];
+					}
 				}
+				*val = max;
 			}
-			*val = max;
+			else
+			{
+				double max = 0.0;
+				double z_val;
+				for ( int i = 0; i < 2 * n; i += 2 )
+				{
+					z_val = x[i]*x[i] + x[i+1]*x[i+1];
+					if ( z_val > max )
+					{
+						max = z_val;
+					}
+				}
+				max = sqrt( max );
+				*val = max;
+			}
 			break;
 		}
 
 		case 1:
 		{
-			double sum = 0.0;
-			for ( int i = 0; i < n; ++i )
+			if ( REAL_NUMBER == type )
 			{
-				sum += x[i];
+				double sum = 0.0;
+				for ( int i = 0; i < n; ++i )
+				{
+					sum += x[i];
+				}
+				*val = sum;
 			}
-			*val = sum;
+			else
+			{
+				double sum = 0.0;
+				for ( int i = 0; i < 2 * n; i += 2 )
+				{
+					sum += sqrt( x[i]*x[i] + x[i+1]*x[i+1] );
+				}
+				*val = sum;
+			}
 			break;
 		}
 
 		case 2:
 		{
-			double sum = 0.0;
-			for ( int i = 0; i < n; ++i )
+			if ( REAL_NUMBER == type )
 			{
-				sum += x[i] * x[i];
+				double sum = 0.0;
+				for ( int i = 0; i < n; ++i )
+				{
+					sum += x[i] * x[i];
+				}
+				sum = sqrt( sum );
+				*val = sum;
 			}
-			sum = sqrt( sum );
+			else
+			{
+				double sum = 0.0;
+				for ( int i = 0; i < 2 * n; i += 2 )
+				{
+					sum += x[i]*x[i] + x[i+1]*x[i+1];
+				}
+				sum = sqrt( sum );
+				*val = sum;
+			}
 			break;
 		}
 
 		default:
 		{
-			double sum = 0.0;
-			for ( int i = 0; i < n; ++i )
+			if ( REAL_NUMBER == type )
 			{
-				sum += pow( x[i], p_norm ); 
-			}
-			if ( 0.0 == sum )
-			{
-				*val = 0;
+				double sum = 0.0;
+				for ( int i = 0; i < n; ++i )
+				{
+					sum += pow( x[i], p_norm ); 
+				}
+				if ( 0.0 == sum )
+				{
+					*val = 0;
+				}
+				else
+				{
+					*val = exp( (1.0 / p_norm) * log(sum) );
+				}
 			}
 			else
 			{
-				*val = exp( (1.0 / p_norm) * log(sum) );
+				double sum = 0.0;
+				double z_val;
+				for ( int i = 0; i < 2 * n; i += 2 )
+				{
+					z_val = sqrt(x[i]*x[i] + x[i+1]*x[i+1]);
+					sum += pow( z_val, p_norm ); 
+				}
+				if ( 0.0 == sum )
+				{
+					*val = 0;
+				}
+				else
+				{
+					*val = exp( (1.0 / p_norm) * log(sum) );
+				}
 			}
 
 			break;
