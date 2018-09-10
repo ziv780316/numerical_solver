@@ -7,6 +7,13 @@ typedef enum
 	COMPLEX_NUMBER
 } number_type;
 
+typedef enum
+{
+	TRANS_NONE,
+	TRANS_NORMAL,
+	TRANS_CONJUGATE
+} transpose_type;
+
 typedef struct
 {
 	double real;
@@ -37,8 +44,8 @@ int dense_maxtrix_rank_1_update ( int m, int n, double *A, double *alpha, double
 // vector norm |x|p = (sum |xi|^p)^(1.0/p)
 int dense_vector_norm ( int p_norm, int n, double *x, double *val, number_type );
 
-// y := alpha*A*x + beta*y, or y := alpha*AT*x + beta*y if transpose
-int dense_matrix_vector_multiply ( int m, int n, double *alpha, double *A, double *x, double *beta, double *y, bool transpose, number_type );
+// y := alpha*A*x + beta*y, or y := alpha*A**T*x + beta*y or y := alpha*A**H*x + beta*y
+int dense_matrix_vector_multiply ( int m, int n, double *alpha, double *A, double *x, double *beta, double *y, transpose_type , number_type );
 
 // C := alpha*A*B + beta*C,
 int dense_matrix_matrix_multiply ( int m, int n, int k, double *alpha, double *A, double *B, double *beta, double *C, bool a_transpose, bool b_transpose, number_type );

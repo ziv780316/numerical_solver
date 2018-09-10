@@ -347,22 +347,51 @@ int dense_maxtrix_rank_1_update ( int m, int n, double *A, double *alpha, double
 	return true;
 }
 
-/* DGEMV
+/* DGEMV, ZGEMV
 	performs one of the matrix-vector operations
-	y := alpha*A*x + beta*y, or y := alpha*A**T*x + beta*y,
+	y := alpha*A*x + beta*y, or y := alpha*A**T*x + beta*y or y := alpha*A**H*x + beta*y
 	where alpha and beta are scalars, x and y are vectors and A is an m by n matrix.
+
+	TRANS = 'N' or 'n' y := alpha*A*x + beta*y.
+	TRANS = 'T' or 't' y := alpha*A**T*x + beta*y.
+	TRANS = 'C' or 'c' y := alpha*A**H*x + beta*y.
 */
 void dgemv_( char *trans, int *m, int *n, double *alpha, double *A, int *lda, double *x, int *incx, double *beta, double *y, int *incy );
 
-int dense_matrix_vector_multiply ( int m, int n, double *alpha, double *A, double *x, double *beta, double *y, bool transpose, number_type type )
+int dense_matrix_vector_multiply ( int m, int n, double *alpha, double *A, double *x, double *beta, double *y, transpose_type trans_type, number_type type )
 {
-	char tran = transpose ? 'T' : 'N';
-	int lda = m;
-	int incx = 1;
-	int incy = 1;
+	if ( REAL_NUMBER == type )
+	{
+		char tran = 'N';
+		int lda = m;
+		int incx = 1;
+		int incy = 1;
 
-	dgemv_( &tran, &m, &n, alpha, A, &lda, x, &incx, beta, y, &incy );
+		if ( TRANS_NORMAL == trans_type )
+		{
+			tran = 'T';
+		}
+		
+		dgemv_( &tran, &m, &n, alpha, A, &lda, x, &incx, beta, y, &incy );
+	}
+	else
+	{
+		char tran = 'N';
+		int lda = m;
+		int incx = 1;
+		int incy = 1;
 
+		if ( TRANS_NORMAL == trans_type )
+		{
+			tran = 'T';
+		}
+		else if ( TRANS_CONJUGATE == trans_type )
+		{
+			tran = 'C';
+		}
+
+		zgemv_( &tran, &m, &n, alpha, A, &lda, x, &incx, beta, y, &incy );
+	}
 	return true;
 }
 
