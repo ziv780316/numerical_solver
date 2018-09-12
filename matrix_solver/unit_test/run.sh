@@ -16,6 +16,7 @@ complex_dense_vector_inner_product \
 complex_dense_matrix_rank_1_update \
 complex_dense_vector_norm \
 complex_dense_matrix_vector_multiply \
+complex_dense_matrix_matrix_multiply \
 "
  
 # execute each unit function

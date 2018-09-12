@@ -1,7 +1,7 @@
 #=================================================
 # Makefile settings
 #=================================================
-.PHONY: create_dir # specify phony target, do not generate file as target name
+.PHONY: tags create_dir # specify phony target, do not generate file as target name
 
 .DEFAULT_GOAL=default # specify default target if there is no target specified
 
@@ -41,6 +41,7 @@ UNIT_TEST_OBJ     := dense_matrix_vector_multiply.o\
 		     complex_dense_matrix_rank_1_update.o\
 		     complex_dense_vector_norm.o\
 		     complex_dense_matrix_vector_multiply.o\
+		     complex_dense_matrix_matrix_multiply.o\
 
 #=================================================
 # Compile implicit rules
@@ -67,6 +68,12 @@ create_dir:
 	@mkdir -p $(LIBRARY_DIR) 
 
 unit_test: create_dir $(UNIT_TEST_OBJ)
+
+tags: 
+	rm -f tags
+	find ../$(BLAS_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function))/\L\1\E_\2/I' >> tags
+	find ../$(LAPACK_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function))/\L\1\E_\2/I' >> tags
+	find .. -name "*.c" -o -name "*.h" | xargs ctags --append 
 
 clean:
 	rm -rf $(BIN_DIR)/*

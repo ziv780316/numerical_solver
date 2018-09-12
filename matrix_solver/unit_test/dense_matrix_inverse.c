@@ -30,7 +30,7 @@ int main ( int argc, char **argv )
 	bool b_transpose = false;
 	double alpha = 1.0;
 	double beta = 1.0;
-	dense_matrix_matrix_multiply ( n, n, n, &alpha, B, A, &beta, C, a_transpose, b_transpose, type );
+	dense_matrix_matrix_multiply ( n, n, n, n, &alpha, B, A, &beta, C, a_transpose, b_transpose, type );
 	printf( "\nA*A^-1=\n" );
 	dense_print_matrix( n, n, C, type );
 

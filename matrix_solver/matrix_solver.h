@@ -47,8 +47,8 @@ int dense_vector_norm ( int p_norm, int n, double *x, double *val, number_type )
 // y := alpha*A*x + beta*y, or y := alpha*A**T*x + beta*y or y := alpha*A**H*x + beta*y
 int dense_matrix_vector_multiply ( int m, int n, double *alpha, double *A, double *x, double *beta, double *y, transpose_type , number_type );
 
-// C := alpha*A*B + beta*C,
-int dense_matrix_matrix_multiply ( int m, int n, int k, double *alpha, double *A, double *B, double *beta, double *C, bool a_transpose, bool b_transpose, number_type );
+// C := alpha*OP(A)*OP(B) + beta*C, OP(A) = A or A**T or A**H, OP(A)*OP(B) is m*k*n
+int dense_matrix_matrix_multiply ( int ma, int na, int mb, int nb, double *alpha, double *A, double *B, double *beta, double *C, transpose_type a_transpose, transpose_type b_transpose, number_type type );
 
 // solve A*x = b, or (A**T)*x = b where A is triangular matrix, x is RHS and result will overwrite in x after solve
 int dense_triangular_solve ( int n, double *A, double *x, bool is_lower_triangular, bool transpose, bool is_unit_triangular, number_type );

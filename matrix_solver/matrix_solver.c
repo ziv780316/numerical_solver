@@ -6,6 +6,14 @@
 
 #include "matrix_solver.h"
 
+static void iswap ( int *x, int *y )
+{
+	// XOR swap does not need buffer
+	*x = *x ^ *y;
+	*y = *x ^ *y;
+	*x = *x ^ *y;
+}
+
 // ============== BLAS and LAPACK Fortran API (column-major array) ============== 
 // real matrix
 // EX: A[4] = { 1, 2, 3, 4 } 
@@ -395,25 +403,83 @@ int dense_matrix_vector_multiply ( int m, int n, double *alpha, double *A, doubl
 	return true;
 }
 
-/* DGEMM  
+/* DGEMM, ZGEMM
 	performs one of the matrix-matrix operations
 	C := alpha*op(A)*op(B) + beta*C,
-	where  op(X  is one of op(X) = X or op(X) = X**T,
+	where  op(X) is one of op(X) = X or op(X) = X**T or op(X) = X**H
 	alpha and beta are scalars, and A, B and C are matrices
 	op(A) an m by k matrix, op(B) a k by n matrix and C an m by n matrix.
+
+	TRANS = 'N' or 'n' op(A)=A
+	TRANS = 'T' or 't' op(A)=A**T
+	TRANS = 'C' or 'c' op(A)=A**H
 */
 void dgemm_( char *a_transpose, char *b_transpose, int *m, int *n, int *k, double *alpha, double *A, int *lda, double *B, int *ldb, double *beta, double *C, int *ldc );
 
-int dense_matrix_matrix_multiply ( int m, int n, int k, double *alpha, double *A, double *B, double *beta, double *C, bool a_transpose, bool b_transpose, number_type type )
+int dense_matrix_matrix_multiply ( int ma, int na, int mb, int nb, double *alpha, double *A, double *B, double *beta, double *C, transpose_type a_transpose, transpose_type b_transpose, number_type type )
 {
-	char tran_a = a_transpose ? 'T' : 'N';
-	char tran_b = b_transpose ? 'T' : 'N';
-	int lda = a_transpose ? k : m; 
-	int ldb = b_transpose ? n : k; 
-	int ldc = m; 
+	if ( REAL_NUMBER == type )
+	{
+		char tran_a = 'N';
+		char tran_b = 'N';
+		int lda = ma; 
+		int ldb = mb; 
+		int ldc;
 
-	dgemm_( &tran_a, &tran_b, &m, &n, &k, alpha, A, &lda, B, &ldb, beta, C, &ldc );
+		if ( TRANS_NORMAL == a_transpose )
+		{
+			tran_a = 'T';
+			iswap( &ma, &na );
+		}
+		if ( TRANS_NORMAL == b_transpose )
+		{
+			tran_b = 'T';
+			iswap( &mb, &nb );
+		}
 
+		if ( na != mb )
+		{
+			fprintf( stderr, "[Error] matrix dimension mismatch (A=%dx%d B=%dx%d)\n", ma, na, mb, nb );
+			abort();
+		}
+
+		ldc = ma;
+
+		dgemm_( &tran_a, &tran_b, &ma, &nb, &na, alpha, A, &lda, B, &ldb, beta, C, &ldc );
+	}
+	else
+	{
+		char tran_a = 'N';
+		char tran_b = 'N';
+		int lda = ma; 
+		int ldb = mb; 
+		int ldc;
+
+		if ( TRANS_NORMAL == a_transpose )
+		{
+			tran_a = 'T';
+			iswap( &ma, &na );
+		}
+		if ( TRANS_NORMAL == b_transpose )
+		{
+			tran_b = 'T';
+			iswap( &mb, &nb );
+		}
+		if ( TRANS_CONJUGATE == a_transpose )
+		{
+			tran_a = 'C';
+			iswap( &ma, &na );
+		}
+		if ( TRANS_CONJUGATE == b_transpose )
+		{
+			tran_b = 'C';
+			iswap( &mb, &nb );
+		}
+
+		ldc = ma;
+
+		zgemm_( &tran_a, &tran_b, &ma, &nb, &na, alpha, A, &lda, B, &ldb, beta, C, &ldc );
+	}
 	return true;
 }
 

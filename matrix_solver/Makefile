@@ -3,7 +3,7 @@
 #=================================================
 -include dependency.mk # - do not abort if file does not exist
 
-.PHONY: create_dir verbose_info depend default all clean cscope qa# specify phony target, do not generate file as target name
+.PHONY: tags create_dir verbose_info depend default all clean cscope qa# specify phony target, do not generate file as target name
 
 .DEFAULT_GOAL=default # specify default target if there is no target specified
 
@@ -128,6 +128,12 @@ depend:
 cscope:
 	find . -name "*.c" -o -name "*.cxx" -o -name "*.h" -o -name "*.hxx" > cscope.files
 	cscope -Rbq -i cscope.files
+
+tags: 
+	rm -f tags
+	find $(BLAS_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function))/\L\1\E_\2/I' >> tags
+	find $(LAPACK_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function))/\L\1\E_\2/I' >> tags
+	find . -name "*.c" -o -name "*.h" | xargs ctags --append 
 
 qa:
 	./bin/$(MATRIX_SOLVER_TARGET) > output
