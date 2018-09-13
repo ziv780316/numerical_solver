@@ -103,7 +103,7 @@ $(BLAS_TARGET):
 $(LAPACK_TARGET): 
 	make -s -C $(LAPACK_VERSION)/INSTALL
 	make -s -C $(LAPACK_VERSION)/src -j4 OPTS=$(BUILD_TYPE) double
-	cd lib; ln -sf ../$(LAPACK_VERSION)/src/$(LAPACK_TARGET) $(LAPACK_TARGET)
+	cd lib; ln -sf ../$(LAPACK_VERSION)/$(LAPACK_TARGET) $(LAPACK_TARGET)
 
 $(MATRIX_SOLVER_TARGET): verbose_info create_dir $(BLAS_TARGET) $(LAPACK_TARGET) $(MATRIX_SOLVER_OBJ)
 		cd $(LIBRARY_DIR);\
