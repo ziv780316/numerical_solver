@@ -97,12 +97,11 @@ verbose_info:
 	@echo "*****************************"
 
 $(BLAS_TARGET): 
-	make -s -C $(BLAS_VERSION) OPTS=$(BUILD_TYPE) double
+	make -s -C $(BLAS_VERSION) OPTS="$(BUILD_TYPE) -fno-underscoring" double complex16
 	cd lib; ln -sf ../$(BLAS_VERSION)/$(BLAS_TARGET) $(BLAS_TARGET)
 
 $(LAPACK_TARGET): 
-	make -s -C $(LAPACK_VERSION)/INSTALL
-	make -s -C $(LAPACK_VERSION)/src -j4 OPTS=$(BUILD_TYPE) double
+	make -s -C $(LAPACK_VERSION) OPTS="$(BUILD_TYPE) -fno-underscoring" TARGET="double complex16"
 	cd lib; ln -sf ../$(LAPACK_VERSION)/$(LAPACK_TARGET) $(LAPACK_TARGET)
 
 $(MATRIX_SOLVER_TARGET): verbose_info create_dir $(BLAS_TARGET) $(LAPACK_TARGET) $(MATRIX_SOLVER_OBJ)
@@ -119,6 +118,7 @@ clean:
 	rm -rf lib/*
 	rm -rf $(LIBRARY_DIR)/*
 	cd $(BLAS_VERSION); make clean
+	cd $(LAPACK_VERSION); make clean
 	cd $(UNIT_TEST_DIR); make clean
 
 depend:

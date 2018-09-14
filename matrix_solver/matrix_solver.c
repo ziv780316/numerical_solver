@@ -28,7 +28,7 @@ static void iswap ( int *x, int *y )
 /* ZSSCAL
 	scales a vector by a complex number
 */
-void zscal_( int *n, double *alpha, double *x, int *incx );
+void zscal ( int *n, double *alpha, double *x, int *incx );
 
 // x := alpha*x
 int dense_vector_scale ( int n, double *x, double *alpha, number_type type )
@@ -44,7 +44,7 @@ int dense_vector_scale ( int n, double *x, double *alpha, number_type type )
 	else
 	{
 		int incx = 1;
-		zscal_( &n, alpha, x, &incx );
+		zscal( &n, alpha, x, &incx );
 	}
 
 	return true;
@@ -70,7 +70,7 @@ int dense_matrix_scale ( int m, int n, double *A, double *alpha, number_type typ
 		int col_incr = 2 * m;
 		for ( int j = 0; j < n; ++j )
 		{
-			zscal_( &n, alpha, (A + j*col_incr), &incx );
+			zscal( &n, alpha, (A + j*col_incr), &incx );
 		}
 	}
 	return true;
@@ -129,8 +129,8 @@ int dense_diagonal_addition ( int n, double *A, double *alpha, number_type type 
 	ZDOTU = X^T * Y
 	ZDOTC = X^H * Y
 */
-complex_t zdotu_( int *n, double *x, int *incx, double *y, int *incy );
-complex_t zdotc_( int *n, double *x, int *incx, double *y, int *incy );
+complex_t zdotu ( int *n, double *x, int *incx, double *y, int *incy );
+complex_t zdotc ( int *n, double *x, int *incx, double *y, int *incy );
 
 // val = x . y
 int dense_vector_inner_product ( int n, double *x, double *y, double *val, bool conjugate, number_type type )
@@ -151,11 +151,11 @@ int dense_vector_inner_product ( int n, double *x, double *y, double *val, bool 
 		complex_t dot_result;
 		if ( conjugate )
 		{
-			dot_result = zdotc_( &n, x, &incx, y, &incy );
+			dot_result = zdotc( &n, x, &incx, y, &incy );
 		}
 		else
 		{
-			dot_result = zdotu_( &n, x, &incx, y, &incy );
+			dot_result = zdotu( &n, x, &incx, y, &incy );
 		}
 		val[0] = dot_result.real;
 		val[1] = dot_result.imag;
@@ -322,7 +322,7 @@ int dense_vector_norm ( int p_norm, int n, double *x, double *val, number_type t
 	where alpha is a complex scalar, x is an m element vector, y is an n element
 	vector and A is an m by n matrix.
 */
-void zgeru_( int *m, int *n, double *alpha, double *x, int *incx, double *y, int *incy, double *A, int *lda );
+void zgeru ( int *m, int *n, double *alpha, double *x, int *incx, double *y, int *incy, double *A, int *lda );
 
 // A = A + alpha * (x . yT)
 int dense_maxtrix_rank_1_update ( int m, int n, double *A, double *alpha, double *x, double *y, bool conjugate, number_type type )
@@ -345,11 +345,11 @@ int dense_maxtrix_rank_1_update ( int m, int n, double *A, double *alpha, double
 		int lda  = m;
 		if ( conjugate )
 		{
-			zgerc_( &m, &n, alpha, x, &incx, y, &incy, A, &lda );
+			zgerc( &m, &n, alpha, x, &incx, y, &incy, A, &lda );
 		}
 		else
 		{
-			zgeru_( &m, &n, alpha, x, &incx, y, &incy, A, &lda );
+			zgeru( &m, &n, alpha, x, &incx, y, &incy, A, &lda );
 		}
 	}
 	return true;
@@ -364,7 +364,7 @@ int dense_maxtrix_rank_1_update ( int m, int n, double *A, double *alpha, double
 	TRANS = 'T' or 't' y := alpha*A**T*x + beta*y.
 	TRANS = 'C' or 'c' y := alpha*A**H*x + beta*y.
 */
-void dgemv_( char *trans, int *m, int *n, double *alpha, double *A, int *lda, double *x, int *incx, double *beta, double *y, int *incy );
+void dgemv ( char *trans, int *m, int *n, double *alpha, double *A, int *lda, double *x, int *incx, double *beta, double *y, int *incy );
 
 int dense_matrix_vector_multiply ( int m, int n, double *alpha, double *A, double *x, double *beta, double *y, transpose_type trans_type, number_type type )
 {
@@ -380,7 +380,7 @@ int dense_matrix_vector_multiply ( int m, int n, double *alpha, double *A, doubl
 			tran = 'T';
 		}
 		
-		dgemv_( &tran, &m, &n, alpha, A, &lda, x, &incx, beta, y, &incy );
+		dgemv( &tran, &m, &n, alpha, A, &lda, x, &incx, beta, y, &incy );
 	}
 	else
 	{
@@ -398,7 +398,7 @@ int dense_matrix_vector_multiply ( int m, int n, double *alpha, double *A, doubl
 			tran = 'C';
 		}
 
-		zgemv_( &tran, &m, &n, alpha, A, &lda, x, &incx, beta, y, &incy );
+		zgemv( &tran, &m, &n, alpha, A, &lda, x, &incx, beta, y, &incy );
 	}
 	return true;
 }
@@ -414,7 +414,7 @@ int dense_matrix_vector_multiply ( int m, int n, double *alpha, double *A, doubl
 	TRANS = 'T' or 't' op(A)=A**T
 	TRANS = 'C' or 'c' op(A)=A**H
 */
-void dgemm_( char *a_transpose, char *b_transpose, int *m, int *n, int *k, double *alpha, double *A, int *lda, double *B, int *ldb, double *beta, double *C, int *ldc );
+void dgemm ( char *a_transpose, char *b_transpose, int *m, int *n, int *k, double *alpha, double *A, int *lda, double *B, int *ldb, double *beta, double *C, int *ldc );
 
 int dense_matrix_matrix_multiply ( int ma, int na, int mb, int nb, double *alpha, double *A, double *B, double *beta, double *C, transpose_type a_transpose, transpose_type b_transpose, number_type type )
 {
@@ -445,7 +445,7 @@ int dense_matrix_matrix_multiply ( int ma, int na, int mb, int nb, double *alpha
 
 		ldc = ma;
 
-		dgemm_( &tran_a, &tran_b, &ma, &nb, &na, alpha, A, &lda, B, &ldb, beta, C, &ldc );
+		dgemm( &tran_a, &tran_b, &ma, &nb, &na, alpha, A, &lda, B, &ldb, beta, C, &ldc );
 	}
 	else
 	{
@@ -478,7 +478,7 @@ int dense_matrix_matrix_multiply ( int ma, int na, int mb, int nb, double *alpha
 
 		ldc = ma;
 
-		zgemm_( &tran_a, &tran_b, &ma, &nb, &na, alpha, A, &lda, B, &ldb, beta, C, &ldc );
+		zgemm( &tran_a, &tran_b, &ma, &nb, &na, alpha, A, &lda, B, &ldb, beta, C, &ldc );
 	}
 	return true;
 }
@@ -491,7 +491,7 @@ int dense_matrix_matrix_multiply ( int ma, int na, int mb, int nb, double *alpha
 	No test for singularity or near-singularity is included in this routine. 
 	Such tests must be performed before calling this routine.
 */
-void dtrsv_( char *triangulr_type, char *trans, char *is_unit_triangular, int *n, double *A, int *lda, double *x, int *incx );
+void dtrsv ( char *triangulr_type, char *trans, char *is_unit_triangular, int *n, double *A, int *lda, double *x, int *incx );
 
 int dense_triangular_solve ( int n, double *A, double *x, bool is_lower_triangular, bool transpose, bool is_unit_triangular, number_type type )
 {
@@ -501,7 +501,7 @@ int dense_triangular_solve ( int n, double *A, double *x, bool is_lower_triangul
 	int lda = n;
 	int incx = 1;
 
-	dtrsv_( &triangle_type, &tran, &is_unit, &n, A, &lda, x, &incx );
+	dtrsv( &triangle_type, &tran, &is_unit, &n, A, &lda, x, &incx );
 
 	return true;
 }
@@ -510,14 +510,14 @@ int dense_triangular_solve ( int n, double *A, double *x, bool is_lower_triangul
 	interchanges two vectors.
 	uses unrolled loops for increments equal to 1.
 */
-void dswap_( int *n, double *x, int *incx, double *y, int *incy );
+void dswap ( int *n, double *x, int *incx, double *y, int *incy );
 
 int dense_swap_vector ( int n, double *x, double *y, number_type type )
 {
 	int incx = 1;
 	int incy = 1;
 
-	dswap_( &n, x, &incx, y, &incy );
+	dswap( &n, x, &incx, y, &incy );
 	
 	return true;
 }
@@ -536,7 +536,7 @@ int dense_lu_factor ( int n, double *A, int *p, number_type type )
 {
 	int lda = n;
 	int info;
-	dgetrf_( &n, &n, A, &lda, p, &info );
+	dgetrf( &n, &n, A, &lda, p, &info );
 
 	return (0 == info); // info = 0 means success
 }
@@ -546,7 +546,7 @@ int dense_lu_factor ( int n, double *A, int *p, number_type type )
 	A * X = B  or  A**T * X = B
 	with a general N-by-N matrix A using the LU factorization computed by DGETRF
 */
-void dgetrs_( char *trans, int *n, int *nrhs, double *A, int *lda, int *ipiv, double *x, int *ldb, int *info );
+void dgetrs ( char *trans, int *n, int *nrhs, double *A, int *lda, int *ipiv, double *x, int *ldb, int *info );
 
 int dense_solve ( int n, double *A, double *x, int *ipiv, bool transpose, number_type type )
 {
@@ -556,7 +556,7 @@ int dense_solve ( int n, double *A, double *x, int *ipiv, bool transpose, number
 	int ldb = n;
 	int info;
 
-	dgetrs_( &tran, &n, &nrhs, A, &lda, ipiv, x, &ldb, &info );
+	dgetrs( &tran, &n, &nrhs, A, &lda, ipiv, x, &ldb, &info );
 	
 	return (0 == info); // info = 0 means success
 }
@@ -604,7 +604,7 @@ int dense_matrix_inverse ( int n, double *A, int *p, number_type type )
 	}
 
 	// query suitable worksapce size first
-	dgetri_( &n, A, &lda, p, &optima_lwork, &lwork, &info );
+	dgetri( &n, A, &lda, p, &optima_lwork, &lwork, &info );
 
 	// allocate temperal memory for optimizing performance
 	lwork = (int) optima_lwork;
@@ -612,7 +612,7 @@ int dense_matrix_inverse ( int n, double *A, int *p, number_type type )
 	//fprintf( stderr, "[matrix info] %s: n=%d optimized_lwork=%d\n", __func__, n, lwork );
 
 	// inverse A
-	dgetri_( &n, A, &lda, p, work, &lwork, &info );
+	dgetri( &n, A, &lda, p, work, &lwork, &info );
 
 	free( work );
 	
