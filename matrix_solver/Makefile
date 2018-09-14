@@ -79,9 +79,12 @@ LAPACK_TARGET     := liblapack.a
 #=================================================
 # Target rules
 #=================================================
-default: $(MATRIX_SOLVER_TARGET) ut
+default: ut
 
-all: $(MATRIX_SOLVER_TARGET) unit_test
+all: ut
+
+ut: $(MATRIX_SOLVER_TARGET)
+	cd $(UNIT_TEST_DIR); $(MAKE)
 
 debug: BUILD_TYPE:=-g3 
 debug: default
@@ -97,29 +100,25 @@ verbose_info:
 	@echo "*****************************"
 
 $(BLAS_TARGET): 
-	make -s -C $(BLAS_VERSION) OPTS="$(BUILD_TYPE) -fno-underscoring" double complex16
+	$(MAKE) -C $(BLAS_VERSION) OPTS="$(BUILD_TYPE) -fno-underscoring" double complex16
 	cd lib; ln -sf ../$(BLAS_VERSION)/$(BLAS_TARGET) $(BLAS_TARGET)
 
 $(LAPACK_TARGET): 
-	make -s -C $(LAPACK_VERSION) OPTS="$(BUILD_TYPE) -fno-underscoring" TARGET="double complex16"
+	$(MAKE) -C $(LAPACK_VERSION) OPTS="$(BUILD_TYPE) -fno-underscoring" TARGET="double complex16" NOOPT="-fno-underscoring"
 	cd lib; ln -sf ../$(LAPACK_VERSION)/$(LAPACK_TARGET) $(LAPACK_TARGET)
 
 $(MATRIX_SOLVER_TARGET): verbose_info create_dir $(BLAS_TARGET) $(LAPACK_TARGET) $(MATRIX_SOLVER_OBJ)
 		cd $(LIBRARY_DIR);\
 		$(ARCH) $(ARCHFLAGS) $@ $(MATRIX_SOLVER_OBJ);\
-		#$(LINKER) -o $@ -shared $(MATRIX_SOLVER_OBJ);\
 		$(MOVE) $@ ../$(BIN_DIR)
-
-ut: 
-	cd $(UNIT_TEST_DIR); make
 
 clean:
 	rm -f dependency.mk
 	rm -rf lib/*
 	rm -rf $(LIBRARY_DIR)/*
-	cd $(BLAS_VERSION); make clean
-	cd $(LAPACK_VERSION); make clean
-	cd $(UNIT_TEST_DIR); make clean
+	cd $(BLAS_VERSION); $(MAKE) clean
+	cd $(LAPACK_VERSION); $(MAKE) clean
+	cd $(UNIT_TEST_DIR); $(MAKE) clean
 
 depend:
 	rm -f dependency.mk

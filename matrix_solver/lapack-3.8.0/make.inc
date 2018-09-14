@@ -20,9 +20,9 @@ CFLAGS = -O3
 #  should not compile LAPACK with flags such as -ffpe-trap=overflow.
 #
 FORTRAN = gfortran
-#OPTS    = -O2 -frecursive -fno-underscoring
+OPTS    = -O2 -frecursive 
 DRVOPTS = $(OPTS)
-NOOPT   = -O0 -frecursive -fno-underscoring
+NOOPT   = -O0 -frecursive 
 
 #  Define LOADER and LOADOPTS to refer to the loader and desired
 #  load options for your machine.
