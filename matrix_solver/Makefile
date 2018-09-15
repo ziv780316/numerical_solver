@@ -130,8 +130,8 @@ cscope:
 
 tags: 
 	rm -f tags
-	find $(BLAS_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function))/\L\1\E_\2/I' >> tags
-	find $(LAPACK_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function))/\L\1\E_\2/I' >> tags
+	find $(BLAS_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function))/\L\1\E\2/I' >> tags
+	find $(LAPACK_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function))/\L\1\E\2/I' >> tags
 	find . -name "*.c" -o -name "*.h" | xargs ctags --append 
 
 qa:

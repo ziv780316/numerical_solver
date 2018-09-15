@@ -314,15 +314,16 @@ int dense_vector_norm ( int p_norm, int n, double *x, double *val, number_type t
 	return true;
 }
 
-/* ZGERU
+/* ZGERU, ZGERC
 	performs the rank 1 operation
 
-	A := alpha*x*y**T + A,
+	A := alpha*x*(y**T) + A or A := alpha*x*(y**H) + A
 
 	where alpha is a complex scalar, x is an m element vector, y is an n element
 	vector and A is an m by n matrix.
 */
 void zgeru ( int *m, int *n, double *alpha, double *x, int *incx, double *y, int *incy, double *A, int *lda );
+void zgerc ( int *m, int *n, double *alpha, double *x, int *incx, double *y, int *incy, double *A, int *lda );
 
 // A = A + alpha * (x . yT)
 int dense_maxtrix_rank_1_update ( int m, int n, double *A, double *alpha, double *x, double *y, bool conjugate, number_type type )
@@ -345,6 +346,7 @@ int dense_maxtrix_rank_1_update ( int m, int n, double *A, double *alpha, double
 		int lda  = m;
 		if ( conjugate )
 		{
+			// y conjugate
 			zgerc( &m, &n, alpha, x, &incx, y, &incy, A, &lda );
 		}
 		else
@@ -365,6 +367,7 @@ int dense_maxtrix_rank_1_update ( int m, int n, double *A, double *alpha, double
 	TRANS = 'C' or 'c' y := alpha*A**H*x + beta*y.
 */
 void dgemv ( char *trans, int *m, int *n, double *alpha, double *A, int *lda, double *x, int *incx, double *beta, double *y, int *incy );
+void zgemv ( char *trans, int *m, int *n, double *alpha, double *A, int *lda, double *x, int *incx, double *beta, double *y, int *incy );
 
 int dense_matrix_vector_multiply ( int m, int n, double *alpha, double *A, double *x, double *beta, double *y, transpose_type trans_type, number_type type )
 {
@@ -415,6 +418,7 @@ int dense_matrix_vector_multiply ( int m, int n, double *alpha, double *A, doubl
 	TRANS = 'C' or 'c' op(A)=A**H
 */
 void dgemm ( char *a_transpose, char *b_transpose, int *m, int *n, int *k, double *alpha, double *A, int *lda, double *B, int *ldb, double *beta, double *C, int *ldc );
+void zgemm ( char *a_transpose, char *b_transpose, int *m, int *n, int *k, double *alpha, double *A, int *lda, double *B, int *ldb, double *beta, double *C, int *ldc );
 
 int dense_matrix_matrix_multiply ( int ma, int na, int mb, int nb, double *alpha, double *A, double *B, double *beta, double *C, transpose_type a_transpose, transpose_type b_transpose, number_type type )
 {
@@ -483,7 +487,7 @@ int dense_matrix_matrix_multiply ( int ma, int na, int mb, int nb, double *alpha
 	return true;
 }
 
-/* DTRSV
+/* DTRSV, ZTRSV
 	solves one of the systems of equations
 	A*x = b, or A**T*x = b,
 	where b and x are n element vectors and A is an n by n unit,
@@ -491,38 +495,65 @@ int dense_matrix_matrix_multiply ( int ma, int na, int mb, int nb, double *alpha
 	No test for singularity or near-singularity is included in this routine. 
 	Such tests must be performed before calling this routine.
 */
-void dtrsv ( char *triangulr_type, char *trans, char *is_unit_triangular, int *n, double *A, int *lda, double *x, int *incx );
+void dtrsv ( char *trig, char *tran, char *is_unit_triangular, int *n, double *A, int *lda, double *x, int *incx );
+void ztrsv ( char *trig, char *tran, char *is_unit_triangular, int *n, double *A, int *lda, double *x, int *incx );
 
-int dense_triangular_solve ( int n, double *A, double *x, bool is_lower_triangular, bool transpose, bool is_unit_triangular, number_type type )
+int dense_triangular_solve ( int n, double *A, double *x, triangular_type triangle_type, transpose_type transpose, number_type type )
 {
-	char triangle_type = is_lower_triangular ? 'L' : 'U'; // if is L, will ignore strictly upper triangular part, otherwise
-	char tran = transpose ? 'T' : 'N';
-	char is_unit = is_unit_triangular ? 'U' : 'N'; // if is U, will regard diagonal element as 1
+	char trig = ((TRIG_LOWER == triangle_type) ||
+		     (TRIG_LOWER_UNIT == triangle_type)) ? 'L' : 'U'; // if is L, will ignore strictly upper triangular part, otherwise
+	char tran = 'N';
+	char is_unit = ((TRIG_LOWER_UNIT == triangle_type) || 
+			(TRIG_UPPER_UNIT == triangle_type)) ? 'U' : 'N'; // if is U, will regard diagonal element as 1
 	int lda = n;
 	int incx = 1;
 
-	dtrsv( &triangle_type, &tran, &is_unit, &n, A, &lda, x, &incx );
+	if ( TRANS_NORMAL == transpose )
+	{
+		tran = 'T';
+	}
+	else if ( TRANS_CONJUGATE == transpose )
+	{
+		tran = 'C';
+	}
 
+	if ( type == REAL_NUMBER )
+	{
+		dtrsv( &trig, &tran, &is_unit, &n, A, &lda, x, &incx );
+	}
+	else
+	{
+		ztrsv( &trig, &tran, &is_unit, &n, A, &lda, x, &incx );
+	}
 	return true;
 }
 
-/* DSWAP
+/* DSWAP, ZSWAP
 	interchanges two vectors.
 	uses unrolled loops for increments equal to 1.
 */
 void dswap ( int *n, double *x, int *incx, double *y, int *incy );
+void zswap ( int *n, double *x, int *incx, double *y, int *incy );
 
 int dense_swap_vector ( int n, double *x, double *y, number_type type )
 {
 	int incx = 1;
 	int incy = 1;
 
-	dswap( &n, x, &incx, y, &incy );
+	if ( REAL_NUMBER == type )
+	{
+		dswap( &n, x, &incx, y, &incy );
+	}
+	else
+	{
+		zswap( &n, x, &incx, y, &incy );
+	}
 	
 	return true;
 }
 
-/* DGETRF DGETRF computes an LU factorization of a general M-by-N matrix A 
+/* DGETRF, ZGETRF 
+	computes an LU factorization of a general M-by-N matrix A 
 	using partial pivoting with row interchanges.
 	The factorization has the form
 	A = P * L * U
@@ -530,38 +561,63 @@ int dense_swap_vector ( int n, double *x, double *y, number_type type )
 	L is lower triangular with unit diagonal elements (lower trapezoidal if m > n),
 	and U is upper triangular (upper trapezoidal if m < n).
 */
-void dgetrf_ ( int *m, int *n, double *A, int *lda, int*ipiv, int *info );
+void dgetrf ( int *m, int *n, double *A, int *lda, int*ipiv, int *info );
+void zgetrf ( int *m, int *n, double *A, int *lda, int*ipiv, int *info );
 
 int dense_lu_factor ( int n, double *A, int *p, number_type type )
 {
 	int lda = n;
 	int info;
-	dgetrf( &n, &n, A, &lda, p, &info );
+
+	if ( REAL_NUMBER == type )
+	{
+		dgetrf( &n, &n, A, &lda, p, &info );
+	}
+	else
+	{
+		zgetrf( &n, &n, A, &lda, p, &info );
+	}
 
 	return (0 == info); // info = 0 means success
 }
 
-/* DGETRS 
+/* DGETRS, ZGETRS
 	solves a system of linear equations
-	A * X = B  or  A**T * X = B
+	A * X = B  or  A**T * X = B or A**H X = B
 	with a general N-by-N matrix A using the LU factorization computed by DGETRF
 */
 void dgetrs ( char *trans, int *n, int *nrhs, double *A, int *lda, int *ipiv, double *x, int *ldb, int *info );
+void zgetrs ( char *trans, int *n, int *nrhs, double *A, int *lda, int *ipiv, double *x, int *ldb, int *info );
 
-int dense_solve ( int n, double *A, double *x, int *ipiv, bool transpose, number_type type )
+int dense_solve ( int n, int nrhs, double *A, double *x, int *ipiv, transpose_type transpose, number_type type )
 {
-	char tran = transpose ? 'T' : 'N';
-	int nrhs = 1;
+	char tran = 'N';
 	int lda = n;
 	int ldb = n;
 	int info;
 
-	dgetrs( &tran, &n, &nrhs, A, &lda, ipiv, x, &ldb, &info );
+	if ( TRANS_NORMAL == transpose )
+	{
+		tran = 'T';
+	}
+	else if ( TRANS_CONJUGATE == transpose )
+	{
+		tran = 'C';
+	}
+
+	if ( REAL_NUMBER == type )
+	{
+		dgetrs( &tran, &n, &nrhs, A, &lda, ipiv, x, &ldb, &info );
+	}
+	else
+	{
+		zgetrs( &tran, &n, &nrhs, A, &lda, ipiv, x, &ldb, &info );
+	}
 	
 	return (0 == info); // info = 0 means success
 }
 
-int dense_factor_and_solve ( int n, double *A, double *x, bool transpose, number_type type )
+int dense_factor_and_solve ( int n, int nrhs, double *A, double *x, transpose_type tran, number_type type )
 {
 	int *p = (int *) malloc( sizeof(int) * n );
 	int success;
@@ -571,7 +627,7 @@ int dense_factor_and_solve ( int n, double *A, double *x, bool transpose, number
 	{
 		return 0;
 	}
-	success = dense_solve( n, A, x, p, transpose, type );
+	success = dense_solve( n, nrhs, A, x, p, tran, type );
 	if ( !success )
 	{
 		return 0;
@@ -585,7 +641,7 @@ int dense_factor_and_solve ( int n, double *A, double *x, bool transpose, number
 /* DGETRI computes the inverse of a matrix using the LU factorization computed by DGETRF.
    This method inverts U and then computes inv(A) by solving the system inv(A)*L = inv(U) for inv(A).
 */
-void dgetri_ ( int *n, double *A, int *lda, int *ipiv, double *work, int *lwork, int *info );
+void dgetri ( int *n, double *A, int *lda, int *ipiv, double *work, int *lwork, int *info );
 
 int dense_matrix_inverse ( int n, double *A, int *p, number_type type )
 {
@@ -682,31 +738,63 @@ int dense_print_matrix ( int m, int n, double *A, number_type type )
 
 int dense_print_matrix_LU ( int n, double *A, number_type type )
 {
-	printf( "L=\n" ); // assume L is unit lower triangular
-	for ( int i = 0; i < n; ++i )
+	if ( REAL_NUMBER == type )
 	{
-		for ( int j = 0; j <= i; ++j )
+		printf( "L=\n" ); // assume L is unit lower triangular
+		for ( int i = 0; i < n; ++i )
 		{
-			if ( i == j )
+			for ( int j = 0; j <= i; ++j )
 			{
-				printf( "%.10e", 1.0 );
+				if ( i == j )
+				{
+					printf( "%.10e", 1.0 );
+				}
+				else
+				{
+					printf( "%.10e ", *(A + j*n + i) );
+				}
 			}
-			else
+			printf( "\n" );
+		}
+
+		printf( "U=\n" );
+		for ( int i = 0; i < n; ++i )
+		{
+			for ( int j = i; j < n; ++j )
 			{
 				printf( "%.10e ", *(A + j*n + i) );
 			}
+			printf( "\n" );
 		}
-		printf( "\n" );
 	}
-
-	printf( "U=\n" );
-	for ( int i = 0; i < n; ++i )
+	else
 	{
-		for ( int j = i; j < n; ++j )
+		printf( "L=\n" ); // assume L is unit lower triangular
+		for ( int i = 0; i < n; ++i )
 		{
-			printf( "%.10e ", *(A + j*n + i) );
+			for ( int j = 0; j <= i; ++j )
+			{
+				if ( i == j )
+				{
+					printf( "%.10e", 1.0 );
+				}
+				else
+				{
+					printf( "%.10e+i%.10e ", *(A + j*2*n + 2*i), *(A + j*2*n + 2*i + 1) );
+				}
+			}
+			printf( "\n" );
 		}
-		printf( "\n" );
+
+		printf( "U=\n" );
+		for ( int i = 0; i < n; ++i )
+		{
+			for ( int j = i; j < n; ++j )
+			{
+				printf( "%.10e+i%.10e ", *(A + j*2*n + 2*i), *(A + j*2*n + 2*i + 1) );
+			}
+			printf( "\n" );
+		}
 	}
 
 	return true;

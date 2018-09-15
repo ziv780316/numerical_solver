@@ -7,10 +7,10 @@
 
 int main ( int argc, char **argv )
 {
-	number_type type = REAL_NUMBER;
-	double A[9] = {1, 2, 3, 0, 4, 5, 0, 0, 6}; // column-major in Fortran, row based is [1; 2 4; 3 5 6]
-	double b[3] = {3, 2, 1}; 
-	double b_buf[3] = {3, 2, 1}; 
+	number_type type = COMPLEX_NUMBER;
+	double A[9*2] = {1, -1, 2, -3, 3, -1, 0, 1, 4, -1, 5, -4, 0, 1, 0, 0, 6, 1}; // column-major in Fortran, row based is [1; 2 4; 3 5 6]
+	double b[3*2] = {3, 2, 1, 2, 3, -1}; 
+	double b_buf[3*2] = {3, 2, 1, 2, 3, -1}; 
 	int n = 3;
 
 	printf( "A=\n" );
@@ -23,12 +23,12 @@ int main ( int argc, char **argv )
 	printf( "\nx=\n" );
 	dense_print_vector( n, b, type );
 
-	memcpy( b, b_buf, sizeof(double) * n );
+	memcpy( b, b_buf, sizeof(double) * n * 2 );
 	dense_triangular_solve( n, A, b, TRIG_UPPER, TRANS_NONE, type );
 	printf( "\nx=\n" );
 	dense_print_vector( n, b, type );
 
-	memcpy( b, b_buf, sizeof(double) * n );
+	memcpy( b, b_buf, sizeof(double) * n * 2 );
 	dense_triangular_solve( n, A, b, TRIG_LOWER_UNIT, TRANS_NONE, type );
 	printf( "\nx=\n" );
 	dense_print_vector( n, b, type );

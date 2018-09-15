@@ -17,6 +17,9 @@ complex_dense_matrix_rank_1_update \
 complex_dense_vector_norm \
 complex_dense_matrix_vector_multiply \
 complex_dense_matrix_matrix_multiply \
+complex_dense_triangular_solve \
+complex_dense_swap_vector \
+complex_dense_lu_factor \
 "
  
 # execute each unit function

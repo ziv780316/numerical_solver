@@ -11,8 +11,16 @@ typedef enum
 {
 	TRANS_NONE,
 	TRANS_NORMAL,
-	TRANS_CONJUGATE
+	TRANS_CONJUGATE // Hermitian transpose 
 } transpose_type;
+
+typedef enum
+{
+	TRIG_LOWER,
+	TRIG_UPPER,
+	TRIG_LOWER_UNIT, // main diagonal is 1
+	TRIG_UPPER_UNIT
+} triangular_type;
 
 typedef struct
 {
@@ -51,7 +59,7 @@ int dense_matrix_vector_multiply ( int m, int n, double *alpha, double *A, doubl
 int dense_matrix_matrix_multiply ( int ma, int na, int mb, int nb, double *alpha, double *A, double *B, double *beta, double *C, transpose_type a_transpose, transpose_type b_transpose, number_type type );
 
 // solve A*x = b, or (A**T)*x = b where A is triangular matrix, x is RHS and result will overwrite in x after solve
-int dense_triangular_solve ( int n, double *A, double *x, bool is_lower_triangular, bool transpose, bool is_unit_triangular, number_type );
+int dense_triangular_solve ( int n, double *A, double *x, triangular_type, transpose_type, number_type );
 
 // swap vector x and y
 int dense_swap_vector ( int n, double *x, double *y, number_type );
@@ -60,10 +68,10 @@ int dense_swap_vector ( int n, double *x, double *y, number_type );
 int dense_lu_factor ( int n, double *A, int *p, number_type );
 
 // solve A*x = b 
-int dense_solve ( int n, double *A, double *x, int *p, bool transpose, number_type );
+int dense_solve ( int n, int nrhs, double *A, double *x, int *p, transpose_type transpose, number_type );
 
 // solve A*x = b with LU factorization
-int dense_factor_and_solve ( int n, double *A, double *x, bool transpose, number_type );
+int dense_factor_and_solve ( int n, int nrhs, double *A, double *x, transpose_type, number_type );
 
 // A := A^-1, computes inv(A) by solving the system inv(A)*L = inv(U) for inv(A).
 int dense_matrix_inverse ( int n, double *A, int *p, number_type );

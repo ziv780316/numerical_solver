@@ -16,6 +16,7 @@ CC         = gcc
 LINKER     = $(CC)
 DEFINES    = 
 BUILD_TYPE = -O3
+MATRIX_SOLVER_LIB = ../lib/libmatrix_solver.a
 CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -std=gnu99 -fPIC 
 LIBS       = -L../lib -lmatrix_solver -llapack -lblas -lgfortran -lm
 INCLUDE    = -I.. -I.
@@ -42,11 +43,14 @@ UNIT_TEST_OBJ     := dense_matrix_vector_multiply.o\
 		     complex_dense_vector_norm.o\
 		     complex_dense_matrix_vector_multiply.o\
 		     complex_dense_matrix_matrix_multiply.o\
+		     complex_dense_triangular_solve.o\
+		     complex_dense_swap_vector.o\
+		     complex_dense_lu_factor.o\
 
 #=================================================
 # Compile implicit rules
 #=================================================
-%.o:%.c
+%.o:%.c $(MATRIX_SOLVER_LIB) 
 	$(CC) -c $< -o $@ $(CFLAGS) $(INCLUDE) 
 	$(LINKER) $@ -o $(@:.o=) $(LIBS) 
 	@$(MOVE) $@ $(LIBRARY_DIR) # @ means do not echo command
@@ -71,8 +75,8 @@ unit_test: create_dir $(UNIT_TEST_OBJ)
 
 tags: 
 	rm -f tags
-	find ../$(BLAS_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function))/\L\1\E_\2/I' >> tags
-	find ../$(LAPACK_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function))/\L\1\E_\2/I' >> tags
+	find ../$(BLAS_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function))/\L\1\E\2/I' >> tags
+	find ../$(LAPACK_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function))/\L\1\E\2/I' >> tags
 	find .. -name "*.c" -o -name "*.h" | xargs ctags --append 
 
 clean:
