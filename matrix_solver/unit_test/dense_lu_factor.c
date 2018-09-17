@@ -29,7 +29,7 @@ int main ( int argc, char **argv )
 	}
 	printf( "\nLU=\n" );
 	dense_print_matrix_LU( n, A, type );
-	printf( "\nperm=\n" );
+	printf( "\np=\n" );
 	dense_print_vector_i( n, p, type );
 
 	dense_solve( n, nrhs, A, x, p, TRANS_NONE, type );

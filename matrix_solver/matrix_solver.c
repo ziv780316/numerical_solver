@@ -561,8 +561,8 @@ int dense_swap_vector ( int n, double *x, double *y, number_type type )
 	L is lower triangular with unit diagonal elements (lower trapezoidal if m > n),
 	and U is upper triangular (upper trapezoidal if m < n).
 */
-void dgetrf ( int *m, int *n, double *A, int *lda, int*ipiv, int *info );
-void zgetrf ( int *m, int *n, double *A, int *lda, int*ipiv, int *info );
+void dgetrf ( int *m, int *n, double *A, int *lda, int *ipiv, int *info );
+void zgetrf ( int *m, int *n, double *A, int *lda, int *ipiv, int *info );
 
 int dense_lu_factor ( int n, double *A, int *p, number_type type )
 {
@@ -638,10 +638,12 @@ int dense_factor_and_solve ( int n, int nrhs, double *A, double *x, transpose_ty
 	return true;
 }
 
-/* DGETRI computes the inverse of a matrix using the LU factorization computed by DGETRF.
-   This method inverts U and then computes inv(A) by solving the system inv(A)*L = inv(U) for inv(A).
+/* DGETRI ZGETRI
+	computes the inverse of a matrix using the LU factorization computed by DGETRF.
+   	This method inverts U and then computes inv(A) by solving the system inv(A)*L = inv(U) for inv(A).
 */
 void dgetri ( int *n, double *A, int *lda, int *ipiv, double *work, int *lwork, int *info );
+void zgetri ( int *n, double *A, int *lda, int *ipiv, double *work, int *lwork, int *info );
 
 int dense_matrix_inverse ( int n, double *A, int *p, number_type type )
 {
@@ -660,15 +662,29 @@ int dense_matrix_inverse ( int n, double *A, int *p, number_type type )
 	}
 
 	// query suitable worksapce size first
-	dgetri( &n, A, &lda, p, &optima_lwork, &lwork, &info );
-
-	// allocate temperal memory for optimizing performance
-	lwork = (int) optima_lwork;
-	work = (double *) malloc (sizeof(double) * lwork);
-	//fprintf( stderr, "[matrix info] %s: n=%d optimized_lwork=%d\n", __func__, n, lwork );
+	if ( REAL_NUMBER == type )
+	{
+		dgetri( &n, A, &lda, p, &optima_lwork, &lwork, &info );
+	}
+	else
+	{
+		zgetri( &n, A, &lda, p, &optima_lwork, &lwork, &info );
+	}
+	//fprintf( stderr, "[matrix info] %s: n=%d optimized_lwork=%d\n", __func__, n, (int)optima_lwork );
 
 	// inverse A
-	dgetri( &n, A, &lda, p, work, &lwork, &info );
+	lwork = (int) optima_lwork;
+	if ( REAL_NUMBER == type )
+	{
+		// allocate temperal memory for optimizing performance
+		work = (double *) malloc (sizeof(double) * lwork);
+		dgetri( &n, A, &lda, p, work, &lwork, &info );
+	}
+	else
+	{
+		work = (double *) malloc (sizeof(double) * 2 * lwork);
+		zgetri( &n, A, &lda, p, work, &lwork, &info );
+	}
 
 	free( work );
 	

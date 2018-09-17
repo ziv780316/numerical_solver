@@ -84,7 +84,7 @@ default: ut
 all: ut
 
 ut: $(MATRIX_SOLVER_TARGET)
-	cd $(UNIT_TEST_DIR); $(MAKE)
+	$(MAKE) -C $(UNIT_TEST_DIR) BUILD_TYPE=$(BUILD_TYPE)
 
 debug: BUILD_TYPE:=-g3 
 debug: default
@@ -130,8 +130,8 @@ cscope:
 
 tags: 
 	rm -f tags
-	find $(BLAS_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function))/\L\1\E\2/I' >> tags
-	find $(LAPACK_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function))/\L\1\E\2/I' >> tags
+	find $(BLAS_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function).*)/\U\1\E\2\n\L\1\E\2/I' >> tags
+	find $(LAPACK_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function).*)/\U\1\E\2\n\L\1\E\2/I' >> tags
 	find . -name "*.c" -o -name "*.h" | xargs ctags --append 
 
 qa:

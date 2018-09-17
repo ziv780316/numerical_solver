@@ -46,6 +46,7 @@ UNIT_TEST_OBJ     := dense_matrix_vector_multiply.o\
 		     complex_dense_triangular_solve.o\
 		     complex_dense_swap_vector.o\
 		     complex_dense_lu_factor.o\
+		     complex_dense_matrix_inverse.o\
 
 #=================================================
 # Compile implicit rules
@@ -75,8 +76,8 @@ unit_test: create_dir $(UNIT_TEST_OBJ)
 
 tags: 
 	rm -f tags
-	find ../$(BLAS_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function))/\L\1\E\2/I' >> tags
-	find ../$(LAPACK_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function))/\L\1\E\2/I' >> tags
+	find ../$(BLAS_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function).*)/\U\1\E\2\n\L\1\E\2/I' >> tags
+	find ../$(LAPACK_VERSION) -name "*.f" | xargs ctags --language-force=fortran -f /dev/stdout | sed -r 's/([a-z]\S+)(\s+.*(subroutine|function).*)/\U\1\E\2\n\L\1\E\2/I' >> tags
 	find .. -name "*.c" -o -name "*.h" | xargs ctags --append 
 
 clean:

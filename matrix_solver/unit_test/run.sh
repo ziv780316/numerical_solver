@@ -20,6 +20,7 @@ complex_dense_matrix_matrix_multiply \
 complex_dense_triangular_solve \
 complex_dense_swap_vector \
 complex_dense_lu_factor \
+complex_dense_matrix_inverse \
 "
  
 # execute each unit function
