@@ -650,7 +650,7 @@ int dense_matrix_inverse ( int n, double *A, int *p, number_type type )
 	int lda = n;
 	int lwork = -1;
 	int info;
-	double optima_lwork;
+	double optima_lwork[2]; // need at least 2 double for zgetri to prevent stack smash (there is complex16 work(1) access in zgetri)
 	double *work;
 	bool success;
 
@@ -664,16 +664,16 @@ int dense_matrix_inverse ( int n, double *A, int *p, number_type type )
 	// query suitable worksapce size first
 	if ( REAL_NUMBER == type )
 	{
-		dgetri( &n, A, &lda, p, &optima_lwork, &lwork, &info );
+		dgetri( &n, A, &lda, p, optima_lwork, &lwork, &info );
 	}
 	else
 	{
-		zgetri( &n, A, &lda, p, &optima_lwork, &lwork, &info );
+		zgetri( &n, A, &lda, p, optima_lwork, &lwork, &info );
 	}
-	//fprintf( stderr, "[matrix info] %s: n=%d optimized_lwork=%d\n", __func__, n, (int)optima_lwork );
+	//fprintf( stderr, "[matrix info] %s: n=%d optimized_lwork=%d\n", __func__, n, (int)optima_lwork[0] );
 
 	// inverse A
-	lwork = (int) optima_lwork;
+	lwork = (int) optima_lwork[0];
 	if ( REAL_NUMBER == type )
 	{
 		// allocate temperal memory for optimizing performance
