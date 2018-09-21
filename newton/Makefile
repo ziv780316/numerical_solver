@@ -62,7 +62,7 @@ newton_solver: create_dir $(OBJS) make_test_functions
 	$(MOVE) $@ ../$(BIN_DIR)
 
 make_test_functions: 
-	make -C $(TEST_FUNCTION_DIR) OPTS=$(BUILD_TYPE) 
+	$(MAKE) -C $(TEST_FUNCTION_DIR) OPTS=$(BUILD_TYPE) 
 
 debug: BUILD_TYPE:=-g3 
 debug: default

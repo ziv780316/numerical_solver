@@ -11,7 +11,7 @@ int main ( int argc, char **argv )
 	double A[9] = {1, 2, 3, 4, 5, 6, 7, 8, 10}; 
 	double B[9] = {1, 2, 3, 4, 5, 6, 7, 8, 10}; 
 	double C[9] = {0};
-	int p[3];
+	int p[3] = {0};
 	int n = 3;
 
 	printf( "A=\n" );

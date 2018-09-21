@@ -286,7 +286,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			// dx = J^-1 * -f
 			alpha = 1.0;
 			beta = 0.0;
-			dense_matrix_vector_multiply ( n, n, &alpha, J, rhs, &beta, dx, false, REAL_NUMBER );
+			dense_matrix_vector_multiply ( n, n, &alpha, J, rhs, &beta, dx, TRANS_NONE, REAL_NUMBER );
 		}
 		else
 		{
@@ -299,7 +299,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			}
 			else
 			{
-				matrix_solve_ok = dense_solve ( n, J, rhs, perm, false, REAL_NUMBER );
+				matrix_solve_ok = dense_solve ( n, 1, J, rhs, perm, TRANS_NONE, REAL_NUMBER );
 				if ( !matrix_solve_ok )
 				{
 					fprintf( stderr, "[Error] LU solve fail\n" );
@@ -476,11 +476,11 @@ static void broyden_update ( int n, double *J, double *df, double *dx, bool debu
 	// work = df - (J * dx)
 	alpha = -1.0;
 	beta = 1.0;
-	dense_matrix_vector_multiply ( n, n, &alpha, J, dx, &beta, work, false, REAL_NUMBER );
+	dense_matrix_vector_multiply ( n, n, &alpha, J, dx, &beta, work, TRANS_NONE, REAL_NUMBER );
 
 	// J = J + (x . yT) / |dx|^2
 	alpha = 1.0 / dx_square;
-	dense_maxtrix_rank_1_update ( n, n, J, &alpha, work, dx, false, REAL_NUMBER );
+	dense_maxtrix_rank_1_update ( n, n, J, &alpha, work, dx, TRANS_NONE, REAL_NUMBER );
 
 	free( work );
 }
@@ -499,7 +499,7 @@ static void broyden_update_sherman_morrison ( int n, double *J, double *df, doub
 	memcpy( work1, dx, sizeof(double) * n );
 	alpha = -1.0;
 	beta = 1.0;
-	dense_matrix_vector_multiply ( n, n, &alpha, J, df, &beta, work1, false, REAL_NUMBER );
+	dense_matrix_vector_multiply ( n, n, &alpha, J, df, &beta, work1, TRANS_NONE, REAL_NUMBER );
 
 	// dxT*J = JT*dx
 	alpha = -1.0;
@@ -511,7 +511,7 @@ static void broyden_update_sherman_morrison ( int n, double *J, double *df, doub
 
 	// J = J + (x . yT) / |dx|^2
 	alpha = 1.0 / dx_square;
-	dense_maxtrix_rank_1_update ( n, n, J, &alpha, work1, work2, false, REAL_NUMBER );
+	dense_maxtrix_rank_1_update ( n, n, J, &alpha, work1, work2, TRANS_NONE, REAL_NUMBER );
 
 	free( work1 );
 	free( work2 );
