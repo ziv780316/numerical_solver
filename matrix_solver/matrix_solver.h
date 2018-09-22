@@ -22,6 +22,15 @@ typedef enum
 	TRIG_UPPER_UNIT
 } triangular_type;
 
+typedef enum
+{
+	FACTOR_LU_CROUT,
+	FACTOR_LU_SIVAN_RECURSIVE,
+	FACTOR_LU_LEFT_LOOKING,
+	FACTOR_LU_RIGHT_LOOKING,
+	FACTOR_LU_CHOLESKY // real symmetric positive definite matrix
+} factorization_type;
+
 typedef struct
 {
 	double real;
@@ -65,22 +74,23 @@ int dense_triangular_solve ( int n, double *A, double *x, triangular_type, trans
 int dense_swap_vector ( int n, double *x, double *y, number_type );
 
 // LU factorization A = P * L * U
-int dense_lu_factor ( int n, double *A, int *p, number_type );
+int dense_lu_factor ( int n, double *A, int *p, factorization_type, number_type );
 
 // solve A*x = b 
-int dense_solve ( int n, int nrhs, double *A, double *x, int *p, transpose_type transpose, number_type );
+int dense_solve ( int n, int nrhs, double *A, double *x, int *p, factorization_type, transpose_type transpose, number_type );
 
 // solve A*x = b with LU factorization
-int dense_factor_and_solve ( int n, int nrhs, double *A, double *x, transpose_type, number_type );
+int dense_factor_and_solve ( int n, int nrhs, double *A, double *x, int *p, factorization_type, transpose_type, number_type );
 
 // A := A^-1, computes inv(A) by solving the system inv(A)*L = inv(U) for inv(A).
-int dense_matrix_inverse ( int n, double *A, int *p, number_type );
+int dense_matrix_inverse ( int n, double *A, int *p, factorization_type, number_type );
 
 // print matrix
 int dense_print_vector ( int n, double *x, number_type );
 int dense_print_vector_i ( int n, int *x, number_type );
 int dense_print_matrix ( int m, int n, double *A, number_type );
 int dense_print_matrix_LU ( int n, double *A, number_type );
+int dense_print_matrix_trig ( int n, double *A, triangular_type, number_type );
 
 #endif
 

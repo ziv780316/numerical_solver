@@ -20,7 +20,7 @@ int main ( int argc, char **argv )
 	printf( "\np=\n" );
 	dense_print_vector_i( n, p, type );
 
-	if ( !dense_matrix_inverse( n, A, p, type ) )
+	if ( !dense_matrix_inverse( n, A, p, FACTOR_LU_RIGHT_LOOKING, type ) )
 	{
 		fprintf( stderr, "[Error] inverse matrix fail\n" );
 		abort();

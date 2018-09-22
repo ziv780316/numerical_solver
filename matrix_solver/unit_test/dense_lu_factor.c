@@ -11,7 +11,9 @@ int main ( int argc, char **argv )
 	double A[9] = {1, 2, 3, 4, 5, 6, 7, 8, 10}; 
 	double x[3] = {2, 1, 3};
 	double y[6] = {1, -2, 1, 4, 1, 6};
-	int p[3];
+	double z[6] = {1, -2, 1, 4, 1, 6};
+	double B[9] = {14, 23, 16, 23, 38, 26, 16, 26, 35};
+	int p[3] = {0};
 	int n = 3;
 	int nrhs = 1;
 
@@ -21,8 +23,12 @@ int main ( int argc, char **argv )
 	dense_print_vector( n, x, type );
 	printf( "\ny=\n" );
 	dense_print_vector( 2 * n, y, type );
+	printf( "\nB=\n" );
+	dense_print_matrix_trig( n, B, TRIG_LOWER, type );
+	printf( "\nz=\n" );
+	dense_print_vector( 2 * n, z, type );
 
-	if ( !dense_lu_factor( n, A, p, type ) )
+	if ( !dense_lu_factor( n, A, p, FACTOR_LU_RIGHT_LOOKING, type ) )
 	{
 		fprintf( stderr, "[Error] LU factorization fail\n" );
 		abort();
@@ -32,16 +38,28 @@ int main ( int argc, char **argv )
 	printf( "\np=\n" );
 	dense_print_vector_i( n, p, type );
 
-	dense_solve( n, nrhs, A, x, p, TRANS_NONE, type );
+	dense_solve( n, nrhs, A, x, p, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, type );
 	printf( "\nsolve x=\n" );
 	dense_print_vector( n, x, type );
 
 	nrhs = 2;
-	dense_solve( n, nrhs, A, y, p, TRANS_NONE, type );
+	dense_solve( n, nrhs, A, y, p, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, type );
 	printf( "\nsolve y1=\n" );
 	dense_print_vector( n, y, type );
 	printf( "\nsolve y2=\n" );
 	dense_print_vector( n, y + n, type );
+
+	if ( !dense_lu_factor( n, B, NULL, FACTOR_LU_CHOLESKY, type ) )
+	{
+		fprintf( stderr, "[Error] LU factorization fail\n" );
+		abort();
+	}
+	nrhs = 2;
+	dense_solve( n, nrhs, B, z, NULL, FACTOR_LU_CHOLESKY, TRANS_NONE, type );
+	printf( "\nsolve z1=\n" );
+	dense_print_vector( n, z, type );
+	printf( "\nsolve z2=\n" );
+	dense_print_vector( n, z + n, type );
 
 	return EXIT_SUCCESS;
 }

@@ -552,7 +552,7 @@ int dense_swap_vector ( int n, double *x, double *y, number_type type )
 	return true;
 }
 
-/* DGETRF, ZGETRF 
+/* 1. DGETRF, ZGETRF 
 	computes an LU factorization of a general M-by-N matrix A 
 	using partial pivoting with row interchanges.
 	The factorization has the form
@@ -560,80 +560,126 @@ int dense_swap_vector ( int n, double *x, double *y, number_type type )
 	where P is a permutation matrix, 
 	L is lower triangular with unit diagonal elements (lower trapezoidal if m > n),
 	and U is upper triangular (upper trapezoidal if m < n).
+
+   2. DOPTRF, ZPOTRF
+	computes the Cholesky factorization of a real symmetric positive definite matrix A.
+	The factorization has the form
+	A = U**T * U,  if UPLO = 'U', or
+	A = L  * L**T,  if UPLO = 'L',
+	where U is an upper triangular matrix and L is lower triangular.
 */
 void dgetrf ( int *m, int *n, double *A, int *lda, int *ipiv, int *info );
 void zgetrf ( int *m, int *n, double *A, int *lda, int *ipiv, int *info );
+void dpotrf ( char *uplo, int *n, double *A, int *lda, int *info );
+void zpotrf ( char *uplo, int *n, double *A, int *lda, int *info );
 
-int dense_lu_factor ( int n, double *A, int *p, number_type type )
+int dense_lu_factor ( int n, double *A, int *p, factorization_type factor_method, number_type type )
 {
 	int lda = n;
 	int info;
 
-	if ( REAL_NUMBER == type )
+	if ( FACTOR_LU_RIGHT_LOOKING == factor_method )
 	{
-		dgetrf( &n, &n, A, &lda, p, &info );
+		if ( REAL_NUMBER == type )
+		{
+			dgetrf( &n, &n, A, &lda, p, &info );
+		}
+		else
+		{
+			zgetrf( &n, &n, A, &lda, p, &info );
+		}
 	}
-	else
+	else if ( FACTOR_LU_CHOLESKY == factor_method )
 	{
-		zgetrf( &n, &n, A, &lda, p, &info );
+		char uplo = 'L';
+		if ( REAL_NUMBER == type )
+		{
+			dpotrf( &uplo, &n, A, &lda, &info );
+		}
+		else
+		{
+			zpotrf( &uplo, &n, A, &lda, &info );
+		}
 	}
 
 	return (0 == info); // info = 0 means success
 }
 
-/* DGETRS, ZGETRS
+/* 1. DGETRS, ZGETRS
 	solves a system of linear equations
 	A * X = B  or  A**T * X = B or A**H X = B
 	with a general N-by-N matrix A using the LU factorization computed by DGETRF
+	
+   2. DPOTRS, ZPOTRS
+	solves a system of linear equations A*X = B with a symmetric
+	positive definite matrix A using the Cholesky factorization
+	A = U**T*U or A = L*L**T computed by DPOTRF.
+
 */
 void dgetrs ( char *trans, int *n, int *nrhs, double *A, int *lda, int *ipiv, double *x, int *ldb, int *info );
 void zgetrs ( char *trans, int *n, int *nrhs, double *A, int *lda, int *ipiv, double *x, int *ldb, int *info );
+void dpotrs ( char *uplo, int *n, int *nrhs, double *A, int *lda, double *x, int *ldb, int *info );
+void zpotrs ( char *uplo, int *n, int *nrhs, double *A, int *lda, double *x, int *ldb, int *info );
 
-int dense_solve ( int n, int nrhs, double *A, double *x, int *ipiv, transpose_type transpose, number_type type )
+int dense_solve ( int n, int nrhs, double *A, double *x, int *ipiv, factorization_type factor_method, transpose_type transpose, number_type type )
 {
-	char tran = 'N';
 	int lda = n;
 	int ldb = n;
 	int info;
 
-	if ( TRANS_NORMAL == transpose )
+	if ( FACTOR_LU_RIGHT_LOOKING == factor_method )
 	{
-		tran = 'T';
+		char tran = 'N';
+
+		if ( TRANS_NORMAL == transpose )
+		{
+			tran = 'T';
+		}
+		else if ( TRANS_CONJUGATE == transpose )
+		{
+			tran = 'C';
+		}
+
+		if ( REAL_NUMBER == type )
+		{
+			dgetrs( &tran, &n, &nrhs, A, &lda, ipiv, x, &ldb, &info );
+		}
+		else
+		{
+			zgetrs( &tran, &n, &nrhs, A, &lda, ipiv, x, &ldb, &info );
+		}
 	}
-	else if ( TRANS_CONJUGATE == transpose )
+	else if ( FACTOR_LU_CHOLESKY == factor_method )
 	{
-		tran = 'C';
+		char uplo = 'L';
+
+		if ( REAL_NUMBER == type )
+		{
+			dpotrs ( &uplo, &n, &nrhs, A, &lda, x, &ldb, &info );
+		}
+		else
+		{
+			zpotrs ( &uplo, &n, &nrhs, A, &lda, x, &ldb, &info );
+		}
 	}
 
-	if ( REAL_NUMBER == type )
-	{
-		dgetrs( &tran, &n, &nrhs, A, &lda, ipiv, x, &ldb, &info );
-	}
-	else
-	{
-		zgetrs( &tran, &n, &nrhs, A, &lda, ipiv, x, &ldb, &info );
-	}
-	
 	return (0 == info); // info = 0 means success
 }
 
-int dense_factor_and_solve ( int n, int nrhs, double *A, double *x, transpose_type tran, number_type type )
+int dense_factor_and_solve ( int n, int nrhs, double *A, double *x, int *p, factorization_type factor_method, transpose_type tran, number_type type )
 {
-	int *p = (int *) malloc( sizeof(int) * n );
 	int success;
 
-	success = dense_lu_factor( n, A, p, type );
+	success = dense_lu_factor( n, A, p, factor_method, type );
 	if ( !success )
 	{
 		return 0;
 	}
-	success = dense_solve( n, nrhs, A, x, p, tran, type );
+	success = dense_solve( n, nrhs, A, x, p, factor_method, tran, type );
 	if ( !success )
 	{
 		return 0;
 	}
-
-	free(p);
 
 	return true;
 }
@@ -645,7 +691,7 @@ int dense_factor_and_solve ( int n, int nrhs, double *A, double *x, transpose_ty
 void dgetri ( int *n, double *A, int *lda, int *ipiv, double *work, int *lwork, int *info );
 void zgetri ( int *n, double *A, int *lda, int *ipiv, double *work, int *lwork, int *info );
 
-int dense_matrix_inverse ( int n, double *A, int *p, number_type type )
+int dense_matrix_inverse ( int n, double *A, int *p, factorization_type factor_method, number_type type )
 {
 	int lda = n;
 	int lwork = -1;
@@ -655,13 +701,13 @@ int dense_matrix_inverse ( int n, double *A, int *p, number_type type )
 	bool success;
 
 	// need LU factor before invese
-	success = dense_lu_factor( n, A, p, type );
+	success = dense_lu_factor( n, A, p, FACTOR_LU_RIGHT_LOOKING, type );
 	if ( !success )
 	{
 		return 0;
 	}
 
-	// query suitable worksapce size first
+	// query suitable worksapce size first, lwork = -1 means query optima workspace size (store in optima_lwork[0])
 	if ( REAL_NUMBER == type )
 	{
 		dgetri( &n, A, &lda, p, optima_lwork, &lwork, &info );
@@ -808,6 +854,74 @@ int dense_print_matrix_LU ( int n, double *A, number_type type )
 			for ( int j = i; j < n; ++j )
 			{
 				printf( "%.10e+i%.10e ", *(A + j*2*n + 2*i), *(A + j*2*n + 2*i + 1) );
+			}
+			printf( "\n" );
+		}
+	}
+
+	return true;
+}
+
+int dense_print_matrix_trig ( int n, double *A, triangular_type trig, number_type type )
+{
+	if ( TRIG_LOWER == trig )
+	{
+		printf( "L=\n" ); 
+		for ( int i = 0; i < n; ++i )
+		{
+			for ( int j = 0; j <= i; ++j )
+			{
+				printf( "%.10e ", *(A + j*n + i) );
+			}
+			printf( "\n" );
+		}
+	}
+	else if ( TRIG_LOWER_UNIT == trig )
+	{
+		printf( "L=\n" ); 
+		for ( int i = 0; i < n; ++i )
+		{
+			for ( int j = 0; j <= i; ++j )
+			{
+				if ( i == j )
+				{
+					printf( "%.10e", 1.0 );
+				}
+				else
+				{
+					printf( "%.10e ", *(A + j*n + i) );
+				}
+			}
+			printf( "\n" );
+		}
+	}
+	else if ( TRIG_UPPER == trig )
+	{
+		printf( "U=\n" );
+		for ( int i = 0; i < n; ++i )
+		{
+			for ( int j = i; j < n; ++j )
+			{
+				printf( "%.10e ", *(A + j*n + i) );
+			}
+			printf( "\n" );
+		}
+	}
+	else if ( TRIG_UPPER_UNIT == trig )
+	{
+		printf( "U=\n" ); 
+		for ( int i = 0; i < n; ++i )
+		{
+			for ( int j = i; j <= n; ++j )
+			{
+				if ( i == j )
+				{
+					printf( "%.10e", 1.0 );
+				}
+				else
+				{
+					printf( "%.10e ", *(A + j*n + i) );
+				}
 			}
 			printf( "\n" );
 		}
