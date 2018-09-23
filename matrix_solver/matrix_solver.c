@@ -864,68 +864,135 @@ int dense_print_matrix_LU ( int n, double *A, number_type type )
 
 int dense_print_matrix_trig ( int n, double *A, triangular_type trig, number_type type )
 {
-	if ( TRIG_LOWER == trig )
+	if ( REAL_NUMBER == type )
 	{
-		printf( "L=\n" ); 
-		for ( int i = 0; i < n; ++i )
+		if ( TRIG_LOWER == trig )
 		{
-			for ( int j = 0; j <= i; ++j )
+			printf( "L=\n" ); 
+			for ( int i = 0; i < n; ++i )
 			{
-				printf( "%.10e ", *(A + j*n + i) );
-			}
-			printf( "\n" );
-		}
-	}
-	else if ( TRIG_LOWER_UNIT == trig )
-	{
-		printf( "L=\n" ); 
-		for ( int i = 0; i < n; ++i )
-		{
-			for ( int j = 0; j <= i; ++j )
-			{
-				if ( i == j )
-				{
-					printf( "%.10e", 1.0 );
-				}
-				else
+				for ( int j = 0; j <= i; ++j )
 				{
 					printf( "%.10e ", *(A + j*n + i) );
 				}
+				printf( "\n" );
 			}
-			printf( "\n" );
 		}
-	}
-	else if ( TRIG_UPPER == trig )
-	{
-		printf( "U=\n" );
-		for ( int i = 0; i < n; ++i )
+		else if ( TRIG_LOWER_UNIT == trig )
 		{
-			for ( int j = i; j < n; ++j )
+			printf( "L=\n" ); 
+			for ( int i = 0; i < n; ++i )
 			{
-				printf( "%.10e ", *(A + j*n + i) );
-			}
-			printf( "\n" );
-		}
-	}
-	else if ( TRIG_UPPER_UNIT == trig )
-	{
-		printf( "U=\n" ); 
-		for ( int i = 0; i < n; ++i )
-		{
-			for ( int j = i; j <= n; ++j )
-			{
-				if ( i == j )
+				for ( int j = 0; j <= i; ++j )
 				{
-					printf( "%.10e", 1.0 );
+					if ( i == j )
+					{
+						printf( "%.10e", 1.0 );
+					}
+					else
+					{
+						printf( "%.10e ", *(A + j*n + i) );
+					}
 				}
-				else
+				printf( "\n" );
+			}
+		}
+		else if ( TRIG_UPPER == trig )
+		{
+			printf( "U=\n" );
+			for ( int i = 0; i < n; ++i )
+			{
+				for ( int j = i; j < n; ++j )
 				{
 					printf( "%.10e ", *(A + j*n + i) );
 				}
+				printf( "\n" );
 			}
-			printf( "\n" );
+		}
+		else if ( TRIG_UPPER_UNIT == trig )
+		{
+			printf( "U=\n" ); 
+			for ( int i = 0; i < n; ++i )
+			{
+				for ( int j = i; j <= n; ++j )
+				{
+					if ( i == j )
+					{
+						printf( "%.10e", 1.0 );
+					}
+					else
+					{
+						printf( "%.10e ", *(A + j*n + i) );
+					}
+				}
+				printf( "\n" );
+			}
 		}
 	}
-
+	else
+	{
+		if ( TRIG_LOWER == trig )
+		{
+			printf( "L=\n" ); 
+			for ( int i = 0; i < n; ++i )
+			{
+				for ( int j = 0; j <= i; ++j )
+				{
+					printf( "%.10e+i%.10e ", *(A + j*2*n + 2*i), *(A + j*2*n + 2*i + 1) );
+				}
+				printf( "\n" );
+			}
+		}
+		else if ( TRIG_LOWER_UNIT == trig )
+		{
+			printf( "L=\n" ); 
+			for ( int i = 0; i < n; ++i )
+			{
+				for ( int j = 0; j <= i; ++j )
+				{
+					if ( i == j )
+					{
+						printf( "%.10e", 1.0 );
+					}
+					else
+					{
+						printf( "%.10e+i%.10e ", *(A + j*2*n + 2*i), *(A + j*2*n + 2*i + 1) );
+					}
+				}
+				printf( "\n" );
+			}
+		}
+		else if ( TRIG_UPPER == trig )
+		{
+			printf( "U=\n" );
+			for ( int i = 0; i < n; ++i )
+			{
+				for ( int j = i; j < n; ++j )
+				{
+					printf( "%.10e+i%.10e ", *(A + j*2*n + 2*i), *(A + j*2*n + 2*i + 1) );
+				}
+				printf( "\n" );
+			}
+		}
+		else if ( TRIG_UPPER_UNIT == trig )
+		{
+			printf( "U=\n" );
+			for ( int i = 0; i < n; ++i )
+			{
+				for ( int j = i; j < n; ++j )
+				{
+					if ( i == j )
+					{
+						printf( "%.10e", 1.0 );
+					}
+					else
+					{
+						printf( "%.10e+i%.10e ", *(A + j*2*n + 2*i), *(A + j*2*n + 2*i + 1) );
+					}
+				}
+				printf( "\n" );
+			}
+		}
+	}
 	return true;
 }
