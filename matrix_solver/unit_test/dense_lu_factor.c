@@ -12,7 +12,9 @@ int main ( int argc, char **argv )
 	double x[3] = {2, 1, 3};
 	double y[6] = {1, -2, 1, 4, 1, 6};
 	double z[6] = {1, -2, 1, 4, 1, 6};
-	double B[9] = {14, 23, 16, 23, 38, 26, 16, 26, 35};
+	double w[6] = {1, -2, 1, 4, 1, 6};
+	double B[9] = {14, 23, 16, 0, 38, 26, 0, 0, 35};
+	double C[9] = {14, 23, 16, 0, 38, 26, 0, 0, 35};
 	int p[3] = {0};
 	int n = 3;
 	int nrhs = 1;
@@ -35,8 +37,10 @@ int main ( int argc, char **argv )
 	}
 	printf( "\nLU=\n" );
 	dense_print_matrix_LU( n, A, type );
-	printf( "\np=\n" );
-	dense_print_vector_i( n, p, type );
+	printf( "\nperm=\n" );
+	dense_print_vector_i( n, p );
+	printf( "\nP=\n" );
+	dense_print_matrix_perm( n, p );
 
 	dense_solve( n, nrhs, A, x, p, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, type );
 	printf( "\nsolve x=\n" );
@@ -54,12 +58,32 @@ int main ( int argc, char **argv )
 		fprintf( stderr, "[Error] LU factorization fail\n" );
 		abort();
 	}
+	printf( "\nLU=\n" );
+	dense_print_matrix_trig( n, B, TRIG_LOWER, type );
 	nrhs = 2;
 	dense_solve( n, nrhs, B, z, NULL, FACTOR_LU_CHOLESKY, TRANS_NONE, type );
 	printf( "\nsolve z1=\n" );
 	dense_print_vector( n, z, type );
 	printf( "\nsolve z2=\n" );
 	dense_print_vector( n, z + n, type );
+
+	if ( !dense_lu_factor( n, C, p, FACTOR_LU_BUNCH_KAUFMAN, type ) )
+	{
+		fprintf( stderr, "[Error] LU factorization fail\n" );
+		abort();
+	}
+	printf( "\nLU=\n" );
+	dense_print_matrix_trig( n, C, TRIG_LOWER, type );
+	printf( "\nperm=\n" );
+	dense_print_vector_i( n, p );
+	printf( "\nP=\n" );
+	dense_print_matrix_perm( n, p );
+	nrhs = 2;
+	dense_solve( n, nrhs, C, w, p, FACTOR_LU_BUNCH_KAUFMAN, TRANS_NONE, type );
+	printf( "\nsolve w1=\n" );
+	dense_print_vector( n, w, type );
+	printf( "\nsolve w2=\n" );
+	dense_print_vector( n, w + n, type );
 
 	return EXIT_SUCCESS;
 }

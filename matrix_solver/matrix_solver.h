@@ -28,7 +28,8 @@ typedef enum
 	FACTOR_LU_SIVAN_RECURSIVE,
 	FACTOR_LU_LEFT_LOOKING,
 	FACTOR_LU_RIGHT_LOOKING,
-	FACTOR_LU_CHOLESKY // real symmetric positive definite matrix
+	FACTOR_LU_CHOLESKY, // A = L*(L**H), need real symmetric (hermitian) positive definite matrix
+	FACTOR_LU_BUNCH_KAUFMAN // A = L*D*(L**T), D is block diagonal matrix, need real symmetric (hermitian) matrix 
 } factorization_type;
 
 typedef struct
@@ -87,8 +88,9 @@ int dense_matrix_inverse ( int n, double *A, int *p, factorization_type, number_
 
 // print matrix
 int dense_print_vector ( int n, double *x, number_type );
-int dense_print_vector_i ( int n, int *x, number_type );
+int dense_print_vector_i ( int n, int *x );
 int dense_print_matrix ( int m, int n, double *A, number_type );
+int dense_print_matrix_perm ( int n, int *p );
 int dense_print_matrix_LU ( int n, double *A, number_type );
 int dense_print_matrix_trig ( int n, double *A, triangular_type, number_type );
 

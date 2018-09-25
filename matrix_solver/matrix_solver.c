@@ -560,6 +560,7 @@ int dense_swap_vector ( int n, double *x, double *y, number_type type )
 	where P is a permutation matrix, 
 	L is lower triangular with unit diagonal elements (lower trapezoidal if m > n),
 	and U is upper triangular (upper trapezoidal if m < n).
+	ipiv is P**T
 
    2. DOPTRF, ZPOTRF
 	computes the Cholesky factorization of a real symmetric positive definite matrix A.
@@ -567,11 +568,22 @@ int dense_swap_vector ( int n, double *x, double *y, number_type type )
 	A = U**T * U,  if UPLO = 'U', or
 	A = L  * L**T,  if UPLO = 'L',
 	where U is an upper triangular matrix and L is lower triangular.
+
+   3. DSYTRF, ZSYTRF
+	computes the factorization of a real symmetric matrix A using
+	the Bunch-Kaufman diagonal pivoting method.  The form of the factorization is
+	A = U*D*U**T  or  A = L*D*L**T
+	where U (or L) is a product of permutation and unit upper (lower)
+	triangular matrices, and D is symmetric and block diagonal with
+	1-by-1 and 2-by-2 diagonal blocks.
 */
+
 void dgetrf ( int *m, int *n, double *A, int *lda, int *ipiv, int *info );
 void zgetrf ( int *m, int *n, double *A, int *lda, int *ipiv, int *info );
 void dpotrf ( char *uplo, int *n, double *A, int *lda, int *info );
 void zpotrf ( char *uplo, int *n, double *A, int *lda, int *info );
+void dsytrf ( char *uplo, int *n, double *A, int *lda, int *ipiv, double *work, int *lwork, int *info );
+void zsytrf ( char *uplo, int *n, double *A, int *lda, int *ipiv, double *work, int *lwork, int *info );
 
 int dense_lu_factor ( int n, double *A, int *p, factorization_type factor_method, number_type type )
 {
@@ -601,6 +613,42 @@ int dense_lu_factor ( int n, double *A, int *p, factorization_type factor_method
 			zpotrf( &uplo, &n, A, &lda, &info );
 		}
 	}
+	else if ( FACTOR_LU_BUNCH_KAUFMAN == factor_method )
+	{
+		char uplo = 'L';
+		int lwork = -1;
+		double optima_lwork[2]; // need at least 2 double for zgetri to prevent stack smash (there is complex16 work(1) access in zsytrf)
+		double *work;
+
+		// query lwork
+		if ( REAL_NUMBER == type )
+		{
+			dsytrf ( &uplo, &n, A, &lda, p, optima_lwork, &lwork, &info );
+		}
+		else
+		{
+			zsytrf ( &uplo, &n, A, &lda, p, optima_lwork, &lwork, &info );
+		}
+
+		//fprintf( stderr, "[matrix info] %s: n=%d optima_lwork=%d\n", __func__, n, (int)optima_lwork[0] );
+
+		// factorization
+		lwork = (int) optima_lwork[0];
+		if ( REAL_NUMBER == type )
+		{
+			// allocate temperal memory for optimizing performance
+			work = (double *) malloc (sizeof(double) * lwork);
+			dsytrf ( &uplo, &n, A, &lda, p, work, &lwork, &info );
+		}
+		else
+		{
+			// allocate temperal memory for optimizing performance
+			work = (double *) malloc (sizeof(double) * 2 * lwork);
+			zsytrf ( &uplo, &n, A, &lda, p, work, &lwork, &info );
+		}
+
+		free( work );
+	}
 
 	return (0 == info); // info = 0 means success
 }
@@ -615,11 +663,18 @@ int dense_lu_factor ( int n, double *A, int *p, factorization_type factor_method
 	positive definite matrix A using the Cholesky factorization
 	A = U**T*U or A = L*L**T computed by DPOTRF.
 
+   3. DSYTRS, ZSYTRS
+	solves a system of linear equations A*X = B with a real
+	symmetric matrix A using the factorization A = U*D*U**T or
+	A = L*D*L**T computed by DSYTRF.
+
 */
 void dgetrs ( char *trans, int *n, int *nrhs, double *A, int *lda, int *ipiv, double *x, int *ldb, int *info );
 void zgetrs ( char *trans, int *n, int *nrhs, double *A, int *lda, int *ipiv, double *x, int *ldb, int *info );
 void dpotrs ( char *uplo, int *n, int *nrhs, double *A, int *lda, double *x, int *ldb, int *info );
 void zpotrs ( char *uplo, int *n, int *nrhs, double *A, int *lda, double *x, int *ldb, int *info );
+void dsytrs ( char *uplo, int *n, int *nrhs, double *A, int *lda, int *ipiv, double *x, int *ldb, int *info );
+void zsytrs ( char *uplo, int *n, int *nrhs, double *A, int *lda, int *ipiv, double *x, int *ldb, int *info );
 
 int dense_solve ( int n, int nrhs, double *A, double *x, int *ipiv, factorization_type factor_method, transpose_type transpose, number_type type )
 {
@@ -660,6 +715,19 @@ int dense_solve ( int n, int nrhs, double *A, double *x, int *ipiv, factorizatio
 		else
 		{
 			zpotrs ( &uplo, &n, &nrhs, A, &lda, x, &ldb, &info );
+		}
+	}
+	else if ( FACTOR_LU_BUNCH_KAUFMAN == factor_method )
+	{
+		char uplo = 'L';
+
+		if ( REAL_NUMBER == type )
+		{
+			dsytrs( &uplo, &n, &nrhs, A, &lda, ipiv, x, &ldb, &info );
+		}
+		else
+		{
+			zsytrs( &uplo, &n, &nrhs, A, &lda, ipiv, x, &ldb, &info );
 		}
 	}
 
@@ -716,7 +784,7 @@ int dense_matrix_inverse ( int n, double *A, int *p, factorization_type factor_m
 	{
 		zgetri( &n, A, &lda, p, optima_lwork, &lwork, &info );
 	}
-	//fprintf( stderr, "[matrix info] %s: n=%d optimized_lwork=%d\n", __func__, n, (int)optima_lwork[0] );
+	//fprintf( stderr, "[matrix info] %s: n=%d optima_lwork=%d\n", __func__, n, (int)optima_lwork[0] );
 
 	// inverse A
 	lwork = (int) optima_lwork[0];
@@ -757,7 +825,7 @@ int dense_print_vector ( int n, double *x, number_type type )
 	return true;
 }
 
-int dense_print_vector_i ( int n, int *x, number_type type )
+int dense_print_vector_i ( int n, int *x )
 {
 	for ( int i = 0; i < n; ++i )
 	{
@@ -795,6 +863,49 @@ int dense_print_matrix ( int m, int n, double *A, number_type type )
 	}
 
 
+	return true;
+}
+
+int dense_print_matrix_perm ( int n, int *p )
+{
+	int *idx = (int *) malloc ( sizeof(int) * (n + 1) );
+	for ( int i = 1; i <= n; ++i )
+	{
+		idx[i] = i;
+	}
+
+	for ( int i = 1; i <= n; ++i )
+	{
+		if ( i != p[i - 1] ) 
+		{
+			iswap( &(idx[i]), &(idx[ p[i - 1] ]) );
+		}
+	}
+	
+	//printf( "permutation=\n");
+	//for ( int i = 1; i <= n; ++i )
+	//{
+	//	printf( "%d ", idx[i] );
+	//}
+	//printf("\n");
+
+	for ( int i = 1; i <= n; ++i )
+	{
+		for ( int j = 1; j <= n; ++j )
+		{
+			if ( j == idx[i] )
+			{
+				printf( "1 ");
+			}
+			else
+			{
+				printf( "0 ");
+			}
+		}
+		printf( "\n" );
+	}
+
+	free( idx );
 	return true;
 }
 

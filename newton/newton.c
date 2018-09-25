@@ -206,7 +206,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		     !(NEWTON_BROYDEN_INVERTED == iterative_type) && 
 		     !(NEWTON_BROYDEN_INVERTED_BAD == iterative_type) )
 		{
-			matrix_factor_ok = dense_lu_factor ( n, J, perm, REAL_NUMBER );
+			matrix_factor_ok = dense_lu_factor ( n, J, perm, FACTOR_LU_RIGHT_LOOKING, REAL_NUMBER );
 			if ( !matrix_factor_ok )
 			{
 				if ( RESCUE_DIAGONAL == rescue_type )
@@ -251,7 +251,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		{
 			if ( 1 == iter )
 			{
-				matrix_factor_ok = dense_matrix_inverse ( n, J, perm, REAL_NUMBER );
+				matrix_factor_ok = dense_matrix_inverse ( n, J, perm, FACTOR_LU_RIGHT_LOOKING, REAL_NUMBER );
 				if ( !matrix_factor_ok )
 				{
 					fprintf( stderr, "[Error] inverse jacobian matrix fail\n" );
@@ -274,11 +274,11 @@ bool newton_solve ( newton_iterative_type iterative_type,
 
 			if ( debug )
 			{
-				dense_matrix_inverse ( n, J, perm, REAL_NUMBER );
+				dense_matrix_inverse ( n, J, perm, FACTOR_LU_RIGHT_LOOKING, REAL_NUMBER );
 				printf( "J = \n" );
 				dense_print_matrix ( n, n, J, REAL_NUMBER );
 
-				dense_matrix_inverse ( n, J, perm, REAL_NUMBER );
+				dense_matrix_inverse ( n, J, perm, FACTOR_LU_RIGHT_LOOKING, REAL_NUMBER );
 				printf( "J^-1 = \n" );
 				dense_print_matrix ( n, n, J, REAL_NUMBER );
 			}
@@ -299,7 +299,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			}
 			else
 			{
-				matrix_solve_ok = dense_solve ( n, 1, J, rhs, perm, TRANS_NONE, REAL_NUMBER );
+				matrix_solve_ok = dense_solve ( n, 1, J, rhs, perm, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, REAL_NUMBER );
 				if ( !matrix_solve_ok )
 				{
 					fprintf( stderr, "[Error] LU solve fail\n" );

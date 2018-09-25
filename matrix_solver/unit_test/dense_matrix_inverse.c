@@ -17,14 +17,14 @@ int main ( int argc, char **argv )
 	printf( "A=\n" );
 	dense_print_matrix( n, n, A, type );
 
-	printf( "\np=\n" );
-	dense_print_vector_i( n, p, type );
-
 	if ( !dense_matrix_inverse( n, A, p, FACTOR_LU_RIGHT_LOOKING, type ) )
 	{
 		fprintf( stderr, "[Error] inverse matrix fail\n" );
 		abort();
 	}
+
+	printf( "\np=\n" );
+	dense_print_vector_i( n, p );
 
 	printf( "\nA^-1=\n" );
 	dense_print_matrix( n, n, A, type );
