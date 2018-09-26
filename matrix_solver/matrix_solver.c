@@ -758,6 +758,10 @@ int dense_factor_and_solve ( int n, int nrhs, double *A, double *x, int *p, fact
 */
 void dgetri ( int *n, double *A, int *lda, int *ipiv, double *work, int *lwork, int *info );
 void zgetri ( int *n, double *A, int *lda, int *ipiv, double *work, int *lwork, int *info );
+void dpotri ( char *uplo, int *n, double *A, int *lda, int *info );
+void zpotri ( char *uplo, int *n, double *A, int *lda, int *info );
+void dsytri ( char *uplo, int *n, double *A, int *lda, int *ipiv, double *work, int *info );
+void zsytri ( char *uplo, int *n, double *A, int *lda, int *ipiv, double *work, int *info );
 
 int dense_matrix_inverse ( int n, double *A, int *p, factorization_type factor_method, number_type type )
 {
@@ -768,39 +772,90 @@ int dense_matrix_inverse ( int n, double *A, int *p, factorization_type factor_m
 	double *work;
 	bool success;
 
-	// need LU factor before invese
-	success = dense_lu_factor( n, A, p, FACTOR_LU_RIGHT_LOOKING, type );
+	// need factorization before invese
+	success = dense_lu_factor( n, A, p, factor_method, type );
 	if ( !success )
 	{
 		return 0;
 	}
 
-	// query suitable worksapce size first, lwork = -1 means query optima workspace size (store in optima_lwork[0])
-	if ( REAL_NUMBER == type )
+	if ( FACTOR_LU_RIGHT_LOOKING == factor_method )
 	{
-		dgetri( &n, A, &lda, p, optima_lwork, &lwork, &info );
-	}
-	else
-	{
-		zgetri( &n, A, &lda, p, optima_lwork, &lwork, &info );
-	}
-	//fprintf( stderr, "[matrix info] %s: n=%d optima_lwork=%d\n", __func__, n, (int)optima_lwork[0] );
+		// query suitable worksapce size first, lwork = -1 means query optima workspace size (store in optima_lwork[0])
+		if ( REAL_NUMBER == type )
+		{
+			dgetri( &n, A, &lda, p, optima_lwork, &lwork, &info );
+		}
+		else
+		{
+			zgetri( &n, A, &lda, p, optima_lwork, &lwork, &info );
+		}
+		//fprintf( stderr, "[matrix info] %s: n=%d optima_lwork=%d\n", __func__, n, (int)optima_lwork[0] );
 
-	// inverse A
-	lwork = (int) optima_lwork[0];
-	if ( REAL_NUMBER == type )
-	{
-		// allocate temperal memory for optimizing performance
-		work = (double *) malloc (sizeof(double) * lwork);
-		dgetri( &n, A, &lda, p, work, &lwork, &info );
-	}
-	else
-	{
-		work = (double *) malloc (sizeof(double) * 2 * lwork);
-		zgetri( &n, A, &lda, p, work, &lwork, &info );
-	}
+		// inverse A
+		lwork = (int) optima_lwork[0];
+		if ( REAL_NUMBER == type )
+		{
+			// allocate temperal memory for optimizing performance
+			work = (double *) malloc (sizeof(double) * lwork);
+			dgetri( &n, A, &lda, p, work, &lwork, &info );
+		}
+		else
+		{
+			work = (double *) malloc (sizeof(double) * 2 * lwork);
+			zgetri( &n, A, &lda, p, work, &lwork, &info );
+		}
 
-	free( work );
+		free( work );
+	}
+	else if ( FACTOR_LU_CHOLESKY == factor_method )
+	{
+		// query suitable worksapce size first, lwork = -1 means query optima workspace size (store in optima_lwork[0])
+		char uplo = 'L';
+		if ( REAL_NUMBER == type )
+		{
+			dpotri( &uplo, &n, A, &lda, &info );
+		}
+		else
+		{
+			zpotri( &uplo, &n, A, &lda, &info );
+		}
+
+		// only inverse lower triangle, so add upper manual
+		for ( int j = 0; j < n; ++j )
+		{
+			for ( int i = j + 1; i < n; ++i )
+			{
+				*(A + i*n + j) = *(A + j*n + i);
+			}
+		}
+	}
+	else if ( FACTOR_LU_BUNCH_KAUFMAN == factor_method )
+	{
+		// query suitable worksapce size first, lwork = -1 means query optima workspace size (store in optima_lwork[0])
+		char uplo = 'L';
+		if ( REAL_NUMBER == type )
+		{
+			work = (double *) malloc (sizeof(double) * n );
+			dsytri( &uplo, &n, A, &lda, p, work, &info );
+		}
+		else
+		{
+			work = (double *) malloc (sizeof(double) * 2 * n );
+			zsytri( &uplo, &n, A, &lda, p, work, &info );
+		}
+
+		free( work );
+
+		// only inverse lower triangle, so add upper manual
+		for ( int j = 0; j < n; ++j )
+		{
+			for ( int i = j + 1; i < n; ++i )
+			{
+				*(A + i*n + j) = *(A + j*n + i);
+			}
+		}
+	}
 	
 	return (0 == info); // info = 0 means success, info=i > 0 means singular and A(i,i) is 0 (singular node)
 }
