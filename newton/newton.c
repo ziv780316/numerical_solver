@@ -44,6 +44,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	int *perm = (int *) malloc ( sizeof(int) * n ); // use in lapack LU factorization
 	double *x = (double *) malloc ( sizeof(double) * n );
 	double *dx = (double *) malloc ( sizeof(double) * n );
+	double *dx_old[2] = {0};
 	double *f = (double *) malloc ( sizeof(double) * n );
 	double *df = NULL;
 	double *f_delta_forward = NULL;
@@ -77,13 +78,19 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	{
 		D = (double *) malloc ( sizeof(double) * n );
 	}
+	if ( debug )
+	{
+		dx_old[0] = (double *) malloc ( sizeof(double) * n );
+		dx_old[1] = (double *) malloc ( sizeof(double) * n );
+	}
 
 	newton_initialize( n, x, x0, random_initial );
 
 	// iterative procedure
 	int iter = 1;
 	bool converge = false;
-	double delta = 1e-9;
+	double delta_ratio = 1e-9;
+	double delta;
 	double delta_inv;
 	double x_tmp;
 	while ( !converge )
@@ -140,6 +147,15 @@ bool newton_solve ( newton_iterative_type iterative_type,
 					if ( NEWTON_DIFF_FORWARD == diff_type )
 					{
 						// use forward difference for better speed
+						delta = x[i] * delta_ratio;
+						if ( fabs(delta) < DBL_EPSILON )
+						{
+							if ( debug )
+							{
+								printf( "x[%d] is too small, delta change from %.10e to %.10e\n", i, delta, x[i] * (DBL_EPSILON / delta_ratio) );
+							}
+							delta = DBL_EPSILON / delta_ratio;
+						}
 						delta_inv = 1.0 / delta;
 						x_tmp = x[i];
 						x[i] += delta;
@@ -153,6 +169,15 @@ bool newton_solve ( newton_iterative_type iterative_type,
 					else if ( NEWTON_DIFF_CENTRAL == diff_type )
 					{
 						// use central difference for accurate derivative approximation O(h^2)
+						delta = x[i] * delta_ratio;
+						if ( fabs(delta) < DBL_EPSILON )
+						{
+							if ( debug )
+							{
+								printf( "x[%d] is too small, delta change from %.10e to %.10e\n", i, delta, x[i] * (DBL_EPSILON / delta_ratio) );
+							}
+							delta = DBL_EPSILON / delta_ratio;
+						}
 						delta_inv = 1.0 / (2.0 * delta);
 						x_tmp = x[i];
 						x[i] += delta;
@@ -242,6 +267,12 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		}
 
 		// solve J(dx) = -F
+		if ( debug )
+		{
+			// use to esitimate converge rate
+			memcpy( dx_old[1], dx_old[0], sizeof(double) * n ); 
+			memcpy( dx_old[0], dx, sizeof(double) * n ); 
+		}
 		for ( int i = 0; i < n; ++i )
 		{
 			rhs[i] *= -1.0;
@@ -367,6 +398,18 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			}
 		}
 
+		// check converge rate
+		if ( debug && (iter > 2) )
+		{
+			double rate;
+			printf( "converge rate of each variable:\n" );
+			for ( int i = 0; i < n; ++i )
+			{
+				rate = fabs(log( fabs(dx[i]) / fabs(dx_old[0][i]) ) / log( fabs(dx_old[0][i]) / fabs(dx_old[1][i]) ));
+				printf( "x%d = %.10e (dx=%.10e dx_old0=%.10e dx_old1=%.10e\n", i, rate, dx[i], dx_old[0][i], dx_old[1][i] );
+			}
+		}
+
 		// modified newton for better performance or prevent too large step
 		if ( MODIFIED_LINE_SEARCH == modified_type )
 		{
@@ -430,6 +473,11 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	if ( RESCUE_DIAGONAL == rescue_type )
 	{
 		free( D );
+	}
+	if ( debug )
+	{
+		free( dx_old[0] );
+		free( dx_old[1] );
 	}
 
 	return converge;

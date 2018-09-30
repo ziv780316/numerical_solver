@@ -5,6 +5,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#include <float.h>
 #include "opts.h"
 
 static void str_to_lower ( char *str );
@@ -19,7 +20,7 @@ opt_t g_opts = {
 	.miniter = 0, 	
 	.rtol = 1e-3,	
 	.atol = 1e-6,
-	.max_dx = 10,
+	.max_dx = DBL_MAX,
 	.jmin = 0.0,
 	.residual_tol = 1e-9,
 	.random_initial = false,
