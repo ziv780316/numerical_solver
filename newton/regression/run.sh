@@ -21,5 +21,5 @@ done
 
 # compare with golden
 for file in `ls golden`; do
-	diff -q ${file/golden\//} $file
+	diff -q $file golden/$file
 done
