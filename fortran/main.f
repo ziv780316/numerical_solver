@@ -12,7 +12,7 @@ c     implicit double precision (a-h,o-z)! a-h and o-z character start letter fo
       real x, y ! power notation follow by E
       logical d
       integer i
-      double precision w ! power notation follow by D
+      double precision f, w ! power notation follow by D
       character str*20
       complex(16) z
       parameter (y = 1E1, w=1D1) ! define y as a constant 10, which cannot be modify (compile error)
@@ -40,6 +40,23 @@ c logical number assignment
 c type conversion --> int, real, dble, ichar, char
       i = ichar(str(1:1)) ! character need to use sub-string notation to extract value
       write (*, *) i
+
+c format write
+c A - text string
+c D - double precision numbers, exponent notation
+c E - real numbers, exponent notation
+c F - real numbers, fixed point format
+c I - integer
+c X - horizontal skip (space)
+c / - vertical skip (newline)
+c If a number or string does not fill up the entire field width, spaces will be added
+c Usually the text will be adjusted to the right, but the exact rules vary among the different format codes.
+      f = 1.23456789
+      write (*, 100) f, f
+ 100  format (E10.3, F10.3) 
+      write (*, '(''f='', E10.3)') f ! inline format '(...,...)'
+
+c file IO
       
       stop ! exit program, use to emphasize
       end 

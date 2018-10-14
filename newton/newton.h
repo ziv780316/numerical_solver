@@ -4,6 +4,7 @@
 typedef enum {
 	NEWTON_NORMAL,
 	NEWTON_CHORD,
+	NEWTON_JACOBI,
 	NEWTON_BROYDEN,
 	NEWTON_BROYDEN_INVERTED,
 	NEWTON_BROYDEN_INVERTED_BAD,
@@ -17,7 +18,7 @@ typedef enum {
 
 typedef enum {
 	RESCUE_NONE,
-	RESCUE_DIAGONAL
+	RESCUE_DIAGONAL,
 } newton_rescue_type;
 
 typedef enum {
@@ -46,7 +47,8 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		    double max_dx,
 		    double jmin,
 		    bool random_initial,
-		    bool debug );
+		    bool debug,
+		    char *debug_file );
 
 #endif
 

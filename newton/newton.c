@@ -4,6 +4,7 @@
 #include <string.h>
 #include <float.h>
 #include <math.h>
+#include <errno.h>
 
 #include "newton.h"
 #include "matrix_solver.h"
@@ -34,7 +35,8 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		    double max_dx,
 		    double jmin,
 		    bool random_initial,
-		    bool debug )
+		    bool debug,
+		    char *debug_file )
 {
 	// check load_f exist or not
 	check_user_define_args( x0, load_f, load_jacobian );
@@ -55,6 +57,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	double *D = NULL;
 	double alpha;
 	double beta;
+	FILE *fout_debug = NULL;
 
 	if ( NEWTON_DIFF_JACOBIAN != diff_type )
 	{
@@ -74,7 +77,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	{
 		df = (double *) malloc ( sizeof(double) * n );
 	}
-	if ( RESCUE_DIAGONAL == rescue_type )
+	if ( NEWTON_JACOBI == iterative_type )
 	{
 		D = (double *) malloc ( sizeof(double) * n );
 	}
@@ -85,6 +88,33 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	}
 
 	newton_initialize( n, x, x0, random_initial );
+
+	// use to output raw data for plot and analysis converge issue
+	if ( debug_file )
+	{
+		char debug_file_name[BUFSIZ] = {0};
+		sprintf( debug_file_name, "%s.raw", debug_file );
+		fout_debug = fopen( debug_file_name, "w" );
+		if ( !fout_debug )
+		{
+			fprintf( stderr, "[Error] open debug file %s fail --> %s\n", debug_file_name, strerror(errno) );
+			abort();
+		}
+		fprintf( fout_debug, "# %d iter ", 1 + (n * 3) );
+		for ( int i = 0; i < n; ++i )
+		{
+			fprintf( fout_debug, "x%d ", i );
+		}
+		for ( int i = 0; i < n; ++i )
+		{
+			fprintf( fout_debug, "dx%d ", i );
+		}
+		for ( int i = 0; i < n; ++i )
+		{
+			fprintf( fout_debug, "f%d ", i );
+		}
+		fprintf( fout_debug, "\n" );
+	}
 
 	// iterative procedure
 	int iter = 1;
@@ -129,6 +159,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 
 		// construct jacobian matrix
 		if ( (NEWTON_NORMAL == iterative_type) || 
+		     (NEWTON_JACOBI == iterative_type) || 
 		     ((NEWTON_CHORD == iterative_type) && (1 == iter)) ||
 		     ((NEWTON_BROYDEN == iterative_type) && (1 == iter)) ||
 		     ((NEWTON_BROYDEN_INVERTED == iterative_type) && (1 == iter)) ||
@@ -227,42 +258,16 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		// matrix factorization A = PLU
 		bool matrix_factor_ok = false;
 		bool matrix_solve_ok = false;
-		if ( !((NEWTON_CHORD == iterative_type) && (iter > 1)) && 
+		if ( !(NEWTON_JACOBI == iterative_type) &&
+		     !((NEWTON_CHORD == iterative_type) && (iter > 1)) && 
 		     !(NEWTON_BROYDEN_INVERTED == iterative_type) && 
 		     !(NEWTON_BROYDEN_INVERTED_BAD == iterative_type) )
 		{
 			matrix_factor_ok = dense_lu_factor ( n, J, perm, FACTOR_LU_RIGHT_LOOKING, REAL_NUMBER );
 			if ( !matrix_factor_ok )
 			{
-				if ( RESCUE_DIAGONAL == rescue_type )
-				{
-					if ( debug )
-					{
-						printf( "[Warning] LU factorization fail, try diagonal update technique\n" );
-					}
-					load_jacobian( x, J );
-					dense_matrix_get_diagonal ( n, J, D, REAL_NUMBER );
-					if ( jmin > 0.0 )
-					{
-						for ( int i = 0; i < n; ++i )
-						{
-							D[i] += jmin;
-						}
-					}
-					if ( debug )
-					{
-						printf( "D = \n" );
-						for ( int i = 0; i < n; ++i )
-						{
-							printf( "%.10e\n", D[i] );
-						}
-					}
-				}
-				else
-				{
-					fprintf( stderr, "[Error] LU factorization fail\n" );
-					abort();
-				}
+				fprintf( stderr, "[Error] LU factorization fail\n" );
+				abort();
 			}
 		}
 
@@ -319,23 +324,34 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			beta = 0.0;
 			dense_matrix_vector_multiply ( n, n, &alpha, J, rhs, &beta, dx, TRANS_NONE, REAL_NUMBER );
 		}
-		else
+		else if ( NEWTON_JACOBI == iterative_type )
 		{
-			if ( (RESCUE_DIAGONAL == rescue_type) && !matrix_factor_ok )
+			dense_matrix_get_diagonal ( n, J, D, REAL_NUMBER );
+			if ( jmin > 0.0 )
 			{
 				for ( int i = 0; i < n; ++i )
 				{
-					rhs[i] /= D[i];
+					D[i] += jmin;
 				}
 			}
-			else
+			for ( int i = 0; i < n; ++i )
 			{
-				matrix_solve_ok = dense_solve ( n, 1, J, rhs, perm, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, REAL_NUMBER );
-				if ( !matrix_solve_ok )
+				if ( 0.0 == D[i] )
 				{
-					fprintf( stderr, "[Error] LU solve fail\n" );
+					fprintf( stderr, "[Error] Newton-Jacobi fail due to D[%d]=0\n", i );
 					abort();
 				}
+				rhs[i] /= D[i];
+			}
+			memcpy( dx, rhs, sizeof(double) * n );
+		}
+		else
+		{
+			matrix_solve_ok = dense_solve ( n, 1, J, rhs, perm, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, REAL_NUMBER );
+			if ( !matrix_solve_ok )
+			{
+				fprintf( stderr, "[Error] LU solve fail\n" );
+				abort();
 			}
 			memcpy( dx, rhs, sizeof(double) * n );
 		}
@@ -415,6 +431,25 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		{
 		}
 
+		if ( debug && fout_debug )
+		{
+			fprintf( fout_debug, "%d ", iter );
+			for ( int i = 0; i < n; ++i )
+			{
+				fprintf( fout_debug, "%.10e ", x[i] );
+			}
+			for ( int i = 0; i < n; ++i )
+			{
+				fprintf( fout_debug, "%.10e ", dx[i] );
+			}
+			for ( int i = 0; i < n; ++i )
+			{
+				fprintf( fout_debug, "%.10e ", f[i] );
+			}
+			fprintf( fout_debug, "\n" );
+		}
+
+
 		// next iteration
 		for ( int i = 0; i < n; ++i )
 		{
@@ -470,7 +505,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	{
 		free( df );
 	}
-	if ( RESCUE_DIAGONAL == rescue_type )
+	if ( NEWTON_JACOBI == iterative_type )
 	{
 		free( D );
 	}

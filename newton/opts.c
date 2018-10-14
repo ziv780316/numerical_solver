@@ -37,20 +37,32 @@ void show_help ()
 		"*------------------------------------*\n" 
 		"[Options]\n"
 		"  -h  =>  show help\n"
-		"  -d  =>  enable debug infomation\n"
-		"  -z -->  randomize x0\n"
-		"  -i | --iterative  =>  specify iterative method\n"
-		"  -f | --modified  =>  specify modified method\n"
-		"  -c | --rescue  =>  specify rescue method\n"
-		"  -e | --derivative  =>  specify derivative type\n"
-		"  -m | --maxiter  =>  specify maximum iterations\n"
-		"  -n | --miniter  =>  specify minimum iterations\n"
-		"  -r | --rtol  =>  specify rtol\n"
-		"  -a | --atol  =>  specify atol\n"
-		"  -u | --residual  =>  specify residual tol\n"
-		"  -b | --max_dx  =>  maximum dx in damped newton\n"
-		"  -j | --jmin  =>  specify minimum diagonal value of jacobian\n"
-		"  -o | --output  =>  specify output file name\n"
+		"  -d  =>  enable debug information\n"
+		"  -z  =>  randomize x0\n"
+		"  -i | --iterative  =>  specify iterative method (default normal)\n"
+		"    normal\n"
+		"    chord\n"
+		"    jacobi\n"
+		"    broyden\n"
+		"    broyden_inverted\n"
+		"    broyden_inverted_bad\n"
+		"  -f | --modified  =>  specify modified method (default none)\n"
+		"    damped\n"
+		"    line_search\n"
+		"  -c | --rescue  =>  specify rescue method (default none)\n"
+		"    diagonal\n"
+		"  -e | --derivative  =>  specify derivative type (default forward)\n"
+		"    jacobian\n"
+		"    forward\n"
+		"    central\n"
+		"  -m | --maxiter  =>  specify maximum iterations (default unlimited)\n"
+		"  -n | --miniter  =>  specify minimum iterations (default unlimited)\n"
+		"  -r | --rtol  =>  specify rtol (default 1e-3)\n"
+		"  -a | --atol  =>  specify atol (default 1e-6)\n"
+		"  -u | --residual  =>  specify residual tol (default 1e-9)\n"
+		"  -b | --max_dx  =>  maximum dx in damped newton (default unlimited)\n"
+		"  -j | --jmin  =>  specify minimum diagonal value of jacobian (default 0)\n"
+		"  -o | --output  =>  specify output file name (default terminal)\n"
 		"  -p | --problem_so  =>  specify problem file (*.so)\n"
 		"  -x | --initial_x0_file  =>  specify initializing file of x0\n"
 		);
@@ -150,6 +162,10 @@ void parse_cmd_options ( int argc, char **argv )
 				{
 					g_opts.iterative_type = NEWTON_NORMAL;
 				}
+				else if ( is_str_nocase_match( "jacobi", optarg ) )
+				{
+					g_opts.iterative_type = NEWTON_JACOBI;
+				}
 				else if ( is_str_nocase_match( "chord", optarg ) )
 				{
 					g_opts.iterative_type = NEWTON_CHORD;
@@ -165,14 +181,6 @@ void parse_cmd_options ( int argc, char **argv )
 				else if ( is_str_nocase_match( "broyden_inverted_bad", optarg ) )
 				{
 					g_opts.iterative_type = NEWTON_BROYDEN_INVERTED_BAD;
-				}
-				else if ( is_str_nocase_match( "damped", optarg ) )
-				{
-					g_opts.iterative_type = MODIFIED_DAMPED;
-				}
-				else if ( is_str_nocase_match( "line_search", optarg ) )
-				{
-					g_opts.iterative_type = MODIFIED_LINE_SEARCH;
 				}
 				else
 				{

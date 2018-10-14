@@ -112,6 +112,7 @@ int main ( int argc, char **argv )
 		bool random_initial = g_opts.random_initial;
 		bool debug = g_opts.debug;
 		bool converge;
+		char *debug_file = g_opts.output_file;
 
 		converge = newton_solve ( iterative_type, 
 			       		  modified_type,
@@ -132,7 +133,8 @@ int main ( int argc, char **argv )
 					  max_dx,
 					  jmin,
 			       		  random_initial,
-			       		  debug );
+			       		  debug,
+					  debug_file );
 
 		if ( !debug )
 		{
