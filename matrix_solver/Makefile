@@ -104,7 +104,7 @@ $(BLAS_TARGET):
 	cd lib; ln -sf ../$(BLAS_VERSION)/$(BLAS_TARGET) $(BLAS_TARGET)
 
 $(LAPACK_TARGET): 
-	$(MAKE) -C $(LAPACK_VERSION) OPTS="$(BUILD_TYPE) -fno-underscoring" TARGET="double complex16" NOOPT="-fno-underscoring"
+	$(MAKE) -C $(LAPACK_VERSION) OPTS="$(BUILD_TYPE) -fno-underscoring" TARGET="all" NOOPT="-fno-underscoring"
 	cd lib; ln -sf ../$(LAPACK_VERSION)/$(LAPACK_TARGET) $(LAPACK_TARGET)
 
 $(MATRIX_SOLVER_TARGET): verbose_info create_dir $(BLAS_TARGET) $(LAPACK_TARGET) $(MATRIX_SOLVER_OBJ)
