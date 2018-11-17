@@ -5,7 +5,7 @@ function x = qr_linsolve( A, b, debug )
 	nrow = size_A(1);
 	ncol = size_A(2);
 
-	[Q,R,P,rank]=qr_householder(A,0,0);
+	[Q,R,P,rank] = qr_householder(A,0,0);
 
 	R11 = R(1:rank,1:rank);
 	y = Q'*b;
@@ -32,7 +32,4 @@ function x = qr_linsolve( A, b, debug )
 		disp(A*x);
 	end
 
-	%C = R' * R;
-	%y = C\b;
-	%x = Q * R * y;
 end
