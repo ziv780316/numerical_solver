@@ -12,10 +12,12 @@ function [E,V] = qr_eig( A, debug )
 	ncol = size_A(2);
 
 	E = inf .* eye(ncol);
+	V = eye(ncol);
 	iter = 1;
 	while true
 	
 		[Q,R,P,rank] = qr_householder(A,0,0);
+		V = V*Q;
 
 		if debug
 			fprintf('i=%d\n',iter);
@@ -45,7 +47,5 @@ function [E,V] = qr_eig( A, debug )
 	end
 
 	E = diag( A );
-
-	V = zeros(ncol,ncol);
 	
 end
