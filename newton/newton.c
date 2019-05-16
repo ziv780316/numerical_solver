@@ -53,10 +53,15 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	double *f_delta_backward = NULL;
 	double *rhs = (double *) malloc ( sizeof(double) * n );
 	double *J = (double *) malloc ( sizeof(double) * J_size );
+	double *J_inv = NULL;
 	double *J_old = NULL;
 	double *D = NULL;
 	double alpha;
 	double beta;
+	double J_norm;
+	double J_inv_norm;
+	double F_norm;
+	double X_norm;
 	FILE *fout_debug = NULL;
 
 	if ( NEWTON_DIFF_JACOBIAN != diff_type )
@@ -85,6 +90,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	{
 		dx_old[0] = (double *) malloc ( sizeof(double) * n );
 		dx_old[1] = (double *) malloc ( sizeof(double) * n );
+		J_inv = (double *) malloc ( sizeof(double) * J_size );
 	}
 
 	newton_initialize( n, x, x0, random_initial );
@@ -100,7 +106,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			fprintf( stderr, "[Error] open debug file %s fail --> %s\n", debug_file_name, strerror(errno) );
 			abort();
 		}
-		fprintf( fout_debug, "# %d iter ", 1 + (n * 3) );
+		fprintf( fout_debug, "# iter " );
 		for ( int i = 0; i < n; ++i )
 		{
 			fprintf( fout_debug, "x%d ", i );
@@ -252,6 +258,16 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			{
 				printf( "J = \n" );
 				dense_print_matrix ( n, n, J, REAL_NUMBER );
+				dense_matrix_norm ( -1, n, n, J, &J_norm, REAL_NUMBER );
+				printf( "|J|_max = %.10e\n", J_norm );
+
+				memcpy( J_inv, J, sizeof(double) * J_size );
+				dense_matrix_inverse ( n, J_inv, perm, FACTOR_LU_RIGHT_LOOKING, REAL_NUMBER );
+				printf( "J^-1 = \n" );
+				dense_print_matrix ( n, n, J_inv, REAL_NUMBER );
+				dense_matrix_norm ( -1, n, n, J_inv, &J_inv_norm, REAL_NUMBER );
+				printf( "|J^-1|_max = %.10e\n", J_inv_norm );
+
 			}
 		}
 
@@ -359,11 +375,18 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		// show solve results 
 		if ( debug )
 		{
-			printf( "------- iter %d -------\n", iter );
+			printf( "\n------- iter %d -------\n", iter );
 			for ( int i = 0; i < n; ++i )
 			{
 				printf( "x[%d] new=%.10e old=%.10e dx=%.10e f=%.10e\n", i, x[i] + dx[i], x[i], dx[i], f[i] );
 			}
+		}
+
+		if ( debug )
+		{
+			dense_vector_norm ( -1, n, dx, &X_norm, REAL_NUMBER );
+			dense_vector_norm ( -1, n, f, &F_norm, REAL_NUMBER );
+			printf( "[norm] |X|_max=%.10e <= |F|_max=%.10e * |J^-1|_norm=%.10e = %.10e --> %d\n", X_norm, F_norm, J_inv_norm, F_norm * J_inv_norm, F_norm * J_inv_norm > X_norm );
 		}
 
 		// modified newton 
@@ -390,8 +413,8 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		for ( int i = 0; i < n; ++i )
 		{
 			// check iteration converge
-			diff = abs( dx[i] );
-			tol = abs(x[i]) * rtol + atol;
+			diff = fabs( dx[i] );
+			tol = fabs(x[i]) * rtol + atol;
 			if ( diff > tol )
 			{
 				if ( debug )
