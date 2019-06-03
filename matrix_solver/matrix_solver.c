@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <float.h>
 
 #include "matrix_solver.h"
 
@@ -198,9 +199,9 @@ int dense_vector_norm ( int p_norm, int n, double *x, double *val, number_type t
 				double max = 0;
 				for ( int i = 0; i < n; ++i )
 				{
-					if ( x[i] > max )
+					if ( fabs(x[i]) > max )
 					{
-						max = x[i];
+						max = fabs(x[i]);
 					}
 				}
 				*val = max;
@@ -230,7 +231,7 @@ int dense_vector_norm ( int p_norm, int n, double *x, double *val, number_type t
 				double sum = 0.0;
 				for ( int i = 0; i < n; ++i )
 				{
-					sum += x[i];
+					sum += fabs(x[i]);
 				}
 				*val = sum;
 			}
@@ -278,7 +279,7 @@ int dense_vector_norm ( int p_norm, int n, double *x, double *val, number_type t
 				double sum = 0.0;
 				for ( int i = 0; i < n; ++i )
 				{
-					sum += pow( x[i], p_norm ); 
+					sum += pow( fabs(x[i]), p_norm ); 
 				}
 				if ( 0.0 == sum )
 				{
@@ -858,6 +859,48 @@ int dense_matrix_inverse ( int n, double *A, int *p, factorization_type factor_m
 	}
 	
 	return (0 == info); // info = 0 means success, info=i > 0 means singular and A(i,i) is 0 (singular node)
+}
+
+int dense_matrix_norm ( int p_norm, int n, int m, double *A, double *val, number_type type )
+{
+	if ( REAL_NUMBER == type )
+	{
+		switch ( p_norm )
+		{
+			// max
+			case -1:
+				{
+					double norm = -DBL_MAX;
+					double sum;
+					for ( int i = 0; i < m; ++i )
+					{
+						sum = 0.0;
+						for ( int j = 0; j < n; ++j )
+						{
+							sum += fabs(*(A + j*m + i));
+						}
+						norm = fmax( norm, fabs(sum) );
+					}
+					*val = norm;
+					break;
+				}
+
+			case 1:
+			case 2:
+			default:
+				fprintf( stderr, "[Error] cannot support matrix %d norm\n", p_norm );
+				abort();
+				break;
+		}
+	}
+	else
+	{
+		fprintf( stderr, "[Error] cannot support complex matrix norm\n" );
+		abort();
+	}
+
+
+	return true;
 }
 
 int dense_print_vector ( int n, double *x, number_type type )

@@ -86,6 +86,9 @@ int dense_factor_and_solve ( int n, int nrhs, double *A, double *x, int *p, fact
 // A := A^-1, computes inv(A) by solving the system inv(A)*L = inv(U) for inv(A).
 int dense_matrix_inverse ( int n, double *A, int *p, factorization_type, number_type );
 
+// |A|_1 = col sum, |A|_max = row sum ...
+int dense_matrix_norm ( int p_norm, int m, int n, double *A, double *val, number_type );
+
 // print matrix
 int dense_print_vector ( int n, double *x, number_type );
 int dense_print_vector_i ( int n, int *x );
