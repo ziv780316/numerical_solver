@@ -14,10 +14,10 @@ SHELL=/bin/bash
 #=================================================
 CC         = gcc
 LINKER     = $(CC)
-PRECISION  = 64
+PRECISION  = 80
 DEFINES    = -DPRECISION_$(PRECISION)_BIT
 BUILD_TYPE = -O2
-CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -std=gnu99 -fPIC 
+CFLAGS     = $(BUILD_TYPE) $(DEFINES) -Wfatal-errors -Wall -std=gnu99 -fPIC 
 MAT_SOLVER_PATH = 
 LIBS       = lm 
 INCLUDE    = -I. 
