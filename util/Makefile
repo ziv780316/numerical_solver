@@ -16,10 +16,10 @@ CC         = gcc
 LINKER     = $(CC)
 PRECISION  = 80
 DEFINES    = -DPRECISION_$(PRECISION)_BIT
-BUILD_TYPE = -O2
+BUILD_TYPE = -O2 -g
 CFLAGS     = $(BUILD_TYPE) $(DEFINES) -Wfatal-errors -Wall -std=gnu99 -fPIC 
 MAT_SOLVER_PATH = 
-LIBS       = lm 
+LIBS       = -lm 
 INCLUDE    = -I. 
 MOVE       = mv -f
 
@@ -34,18 +34,22 @@ TARGET            := $(SO_NAME) test
 #=================================================
 # Compile implicit rules
 #=================================================
-numerical_util : numerical_util.c numerical_util.i 
+numerical_util : numerical_util.c numerical_util.i numerical_util.s
 	$(CC) -shared $< -o $@ $(CFLAGS) $(INCLUDE) 
 	@$(MOVE) $@ $(LIBRARY_DIR)/$(SO_NAME)_$(PRECISION).so
 test: test.o
 	@$(MOVE) $^ $(LIBRARY_DIR)
-	$(LINKER) $(LIBRARY_DIR)/$(notdir $@.o) -o $(BIN_DIR)/$@ $(LIBRARY_DIR)/$(SO_NAME)_$(PRECISION).so
+	$(LINKER) $(LIBRARY_DIR)/$(notdir $@.o) $(LIBS) -o $(BIN_DIR)/$@ $(LIBRARY_DIR)/$(SO_NAME)_$(PRECISION).so
 
 %.o:%.c
 	$(CC) -c $< -o $@ $(CFLAGS) $(INCLUDE) 
 
 %.i:%.c
 	$(CC) -E $< -o $@ $(CFLAGS) $(INCLUDE)
+	@$(MOVE) $@ $(LIBRARY_DIR)
+
+%.s:%.c
+	$(CC) -S $< -o $@ $(CFLAGS) $(INCLUDE)
 	@$(MOVE) $@ $(LIBRARY_DIR)
 
 #=================================================

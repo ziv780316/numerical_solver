@@ -35,5 +35,15 @@ void FUNC_WITH_POSTFIX( interpolation_lagrange, POSTFIX ) (
 	double *yp
 );
 
+// backward difference y0 = y[0], yn = y[n]
+// ddN = dd[n][0], dd1 = dd[1][0]
+// ddN = [yn, yn-1, ..., y0] = (y⁽ⁿ⁾(ζ) / N!) where xn ≤ ζ ≤ x0
+void FUNC_WITH_POSTFIX( divide_difference, POSTFIX ) (
+	long n, // backward difference [yn, yn-1, ..., y0], i.e. (y1 - y0)/(x1 - x0) and x0 > x1
+	double *x, // x0 is x[0], xn is x[n]
+	double *y, // backward difference, y0 is y[0], yn is y[n]
+	double *dd 
+);
+
 #endif
 
