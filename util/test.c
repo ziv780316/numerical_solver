@@ -24,6 +24,7 @@ int main ( int argc, char **argv )
 {
 	// test interpolation_lagrange
 	{
+		printf( "test interpolation_lagrange\n" );
 		long n = 2;
 		long ldy = 3;
 		double x[3] = {3, 1, 0};
@@ -33,7 +34,7 @@ int main ( int argc, char **argv )
 		y = (double **) malloc ( ldy * sizeof(double *) );
 		for ( int i = 0; i < ldy; ++i )
 		{
-			y[i] = (double *) malloc ( n * sizeof(double) );
+			y[i] = (double *) malloc ( (n + 1) * sizeof(double) );
 		}
 		y[0][0] = f1(x[0]);
 		y[0][1] = f1(x[1]);
@@ -58,6 +59,8 @@ int main ( int argc, char **argv )
 
 	// test divide_difference
 	{
+		printf( "\ntest divide_difference\n" );
+
 		long n = 3;
 		double x[4] = {0.4, 0.3, 0.2, 0.1};
 		double y[4];
@@ -76,6 +79,31 @@ int main ( int argc, char **argv )
 		for ( int i = 0; i <= n; ++i )
 		{
 			printf( "dd%d = %.16le\n", i, dd[i] );
+		}
+	}
+
+	// test interpolation_newton
+	{
+		printf( "\ntest interpolation_newton\n" );
+
+		long n = 3;
+		int ldx = 2;
+		double x[4] = {-0.04121, -0.00684, 0.02697, 0.05992};
+		double y[4] = {5.4, 5.5, 5.6, 5.7};
+		double xp[2] = {0, 0.02};
+		double yp[2];
+		double dd[4];
+
+		FUNC_WITH_POSTFIX( divide_difference, POSTFIX ) ( n, x, y, dd );
+		for ( int i = 0; i <= n; ++i )
+		{
+			printf( "dd%d = %.16le\n", i, dd[i] );
+		}
+
+		FUNC_WITH_POSTFIX( interpolation_newton, POSTFIX ) ( n, ldx, x, xp, yp, dd );
+		for ( int i = 0; i < ldx; ++i )
+		{
+			printf( "yp%d = P%ld(%.16le) = %.16le\n", i, n, xp[i], yp[i] );
 		}
 	}
 
