@@ -15,9 +15,10 @@ static void check_user_define_args ( double *x0,
 static void newton_initialize ( int n, double *x, double *x0, bool random_initial );
 static void broyden_update ( int n, double *J, double *df, double *dx, bool debug );
 static void broyden_update_sherman_morrison ( int n, double *J, double *df, double *dx, bool debug );
+static bool __bypass_check ( int n, double *x, double *f, double *dx, double bypass_rtol, double bypass_atol );
 
 bool newton_solve ( newton_iterative_type iterative_type, 
-		    newton_modified_type modified_type,
+		    newton_damped_type damped_type,
 		    newton_rescue_type rescue_type,
 		    newton_derivative_type diff_type,
 		    int n,
@@ -26,15 +27,18 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		    double *f_result,
 		    void (load_f) (double *x, double*f),
 		    void (load_jacobian) (double *x, double*J),
+		    bool (bypass_check) (double *x, double *f, double *dx),
 		    int maxiter,
 		    int miniter,
-		    int *total_iter,
 		    double rtol,
 		    double atol,
+		    double bypass_rtol,
+		    double bypass_atol,
 		    double residual_tol,
 		    double max_dx,
 		    double jmin,
 		    bool random_initial,
+		    performance_stat *nr_stat,
 		    bool debug,
 		    char *debug_file )
 {
@@ -62,6 +66,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	double J_inv_norm;
 	double F_norm;
 	double X_norm;
+	bool bypass_violate;
 	FILE *fout_debug = NULL;
 
 	if ( NEWTON_DIFF_JACOBIAN != diff_type )
@@ -144,6 +149,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			memcpy( df, f, sizeof(double) * n );	
 		}
 		load_f( x, f );
+		++(nr_stat->n_f_load);
 		memcpy( rhs, f, sizeof(double) * n );	
 		if ( (NEWTON_BROYDEN == iterative_type) ||
 		     (NEWTON_BROYDEN_INVERTED == iterative_type) || 
@@ -164,9 +170,34 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		}
 
 		// construct jacobian matrix
+		if ( NEWTON_CHORD_WITH_BYPASS_CHECK == iterative_type )
+		{
+			if ( 1 == iter )
+			{
+				bypass_violate = true;
+			}
+			else
+			{
+				if ( bypass_check )
+				{
+					bypass_violate = bypass_check( x, f, dx );
+				}
+				else
+				{
+					// user not specify bypass_check routine
+					bypass_violate = __bypass_check( n, x, f, dx, bypass_rtol, bypass_atol );
+				}
+
+				if ( debug )
+				{
+					printf( "bypass = %s\n", bypass_violate ? "no" : "yes" );
+				}
+			}
+		}
 		if ( (NEWTON_NORMAL == iterative_type) || 
 		     (NEWTON_JACOBI == iterative_type) || 
 		     ((NEWTON_CHORD == iterative_type) && (1 == iter)) ||
+		     ((NEWTON_CHORD_WITH_BYPASS_CHECK == iterative_type) && bypass_violate ) ||
 		     ((NEWTON_BROYDEN == iterative_type) && (1 == iter)) ||
 		     ((NEWTON_BROYDEN_INVERTED == iterative_type) && (1 == iter)) ||
 		     ((NEWTON_BROYDEN_INVERTED_BAD == iterative_type) && (1 == iter)) 
@@ -176,6 +207,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			{
 				// use user pre-define jacobian 
 				load_jacobian( x, J );
+				++(nr_stat->n_jac_load);
 			}
 			else
 			{
@@ -197,6 +229,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 						x_tmp = x[i];
 						x[i] += delta;
 						load_f( x, f_delta_forward );
+						++(nr_stat->n_f_load);
 						x[i] = x_tmp;
 						for ( int k = 0; k < n; ++k )
 						{
@@ -219,9 +252,11 @@ bool newton_solve ( newton_iterative_type iterative_type,
 						x_tmp = x[i];
 						x[i] += delta;
 						load_f( x, f_delta_forward );
+						++(nr_stat->n_f_load);
 						x[i] = x_tmp;
 						x[i] -= delta;
 						load_f( x, f_delta_backward );
+						++(nr_stat->n_f_load);
 						x[i] = x_tmp;
 						for ( int k = 0; k < n; ++k )
 						{
@@ -276,10 +311,12 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		bool matrix_solve_ok = false;
 		if ( !(NEWTON_JACOBI == iterative_type) &&
 		     !((NEWTON_CHORD == iterative_type) && (iter > 1)) && 
+		     !((NEWTON_CHORD_WITH_BYPASS_CHECK == iterative_type) && !bypass_violate) && 
 		     !(NEWTON_BROYDEN_INVERTED == iterative_type) && 
 		     !(NEWTON_BROYDEN_INVERTED_BAD == iterative_type) )
 		{
 			matrix_factor_ok = dense_lu_factor ( n, J, perm, FACTOR_LU_RIGHT_LOOKING, REAL_NUMBER );
+			++(nr_stat->n_mat_factor);
 			if ( !matrix_factor_ok )
 			{
 				fprintf( stderr, "[Error] LU factorization fail\n" );
@@ -364,6 +401,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		else
 		{
 			matrix_solve_ok = dense_solve ( n, 1, J, rhs, perm, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, REAL_NUMBER );
+			++(nr_stat->n_mat_solve);
 			if ( !matrix_solve_ok )
 			{
 				fprintf( stderr, "[Error] LU solve fail\n" );
@@ -390,7 +428,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		}
 
 		// modified newton 
-		if ( MODIFIED_DAMPED == modified_type )
+		if ( DAMPED_DIRECT == damped_type )
 		{
 			// directly damped (change both direction and value)
 			for ( int i = 0; i < n; ++i )
@@ -450,7 +488,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		}
 
 		// modified newton for better performance or prevent too large step
-		if ( MODIFIED_LINE_SEARCH == modified_type )
+		if ( DAMPED_LINE_SEARCH == damped_type )
 		{
 		}
 
@@ -486,7 +524,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		}
 
 		++iter;
-		++(*total_iter);
+		++(nr_stat->n_iter);
 	}
 
 	// store final results
@@ -622,3 +660,21 @@ static void broyden_update_sherman_morrison ( int n, double *J, double *df, doub
 	free( work1 );
 	free( work2 );
 }
+
+static bool __bypass_check ( int n, double *x, double *f, double *dx, double bypass_rtol, double bypass_atol )
+{
+	bool bypass_violate = false;
+	double tol;
+	for ( int i = 0; i < n ; ++i )
+	{
+		tol = fabs(x[i] * bypass_rtol) + bypass_atol;
+		if ( fabs(dx[i]) > tol )
+		{
+			bypass_violate = true;
+			break;
+		}
+	}
+
+	return bypass_violate;
+}
+

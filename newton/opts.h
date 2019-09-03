@@ -8,13 +8,15 @@
 typedef struct
 {
 	newton_iterative_type iterative_type;		
-	newton_modified_type modified_type;		
+	newton_damped_type damped_type;		
 	newton_rescue_type rescue_type;		
 	newton_derivative_type diff_type;		
 	int maxiter;	
 	int miniter;	
 	double rtol;	
 	double atol;	
+	double bypass_rtol;	
+	double bypass_atol;	
 	double residual_tol;	
 	double max_dx;
 	double jmin;
@@ -34,5 +36,6 @@ extern int nf;
 extern double x0[];
 extern void load_f ( double *x, double *y );
 extern void load_jacobian ( double *x, double *J );
+extern void bypass_check ( double *x, double *f, double *dx );
 
 #endif

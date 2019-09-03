@@ -25,4 +25,22 @@ void load_jacobian ( double *x, double *J )
 	*(J + nf*1 + 1) = 1.0; // (2,2)
 }
 
+bool bypass_check ( double *x, double *f, double *dx ) 
+{
+	bool bypass_violate = false;
+	double tol;
+	double rtol = 1e-2;
+	double atol = 1e-3;
+	for ( int i = 0; i < nf ; ++i )
+	{
+		tol = fabs(x[i] * rtol) + atol;
+		if ( fabs(dx[i]) > tol )
+		{
+			bypass_violate = true;
+			break;
+		}
+	}
+
+	return bypass_violate;
+}
 

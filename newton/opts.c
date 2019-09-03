@@ -13,13 +13,15 @@ static int is_str_nocase_match ( const char *str_a, const char *str_b );
 
 opt_t g_opts = {
 	.iterative_type = NEWTON_NORMAL,
-	.modified_type = MODIFIED_NONE,
+	.damped_type = DAMPED_NONE,
 	.rescue_type = RESCUE_NONE,
 	.diff_type = NEWTON_DIFF_FORWARD,		
 	.maxiter = -1, 	
 	.miniter = 0, 	
 	.rtol = 1e-3,	
 	.atol = 1e-6,
+	.bypass_rtol = 1e-2,	
+	.bypass_atol = 1e-3,
 	.max_dx = DBL_MAX,
 	.jmin = 0.0,
 	.residual_tol = 1e-9,
@@ -42,11 +44,12 @@ void show_help ()
 		"  -i | --iterative  =>  specify iterative method (default normal)\n"
 		"    normal\n"
 		"    chord\n"
+		"    chord_bypass_check\n"
 		"    jacobi\n"
 		"    broyden\n"
 		"    broyden_inverted\n"
 		"    broyden_inverted_bad\n"
-		"  -f | --modified  =>  specify modified method (default none)\n"
+		"  -f | --damped  =>  specify damped type (default none)\n"
 		"    damped\n"
 		"    line_search\n"
 		"  -c | --rescue  =>  specify rescue method (default none)\n"
@@ -59,6 +62,8 @@ void show_help ()
 		"  -n | --miniter  =>  specify minimum iterations (default unlimited)\n"
 		"  -r | --rtol  =>  specify rtol (default 1e-3)\n"
 		"  -a | --atol  =>  specify atol (default 1e-6)\n"
+		"  -y | --bypass rtol  =>  specify bypass_rtol (default 1e-2)\n"
+		"  -s | --bypass atol  =>  specify bypass_atol (default 1e-3)\n"
 		"  -u | --residual  =>  specify residual tol (default 1e-9)\n"
 		"  -b | --max_dx  =>  maximum dx in damped newton (default unlimited)\n"
 		"  -j | --jmin  =>  specify minimum diagonal value of jacobian (default 0)\n"
@@ -106,11 +111,13 @@ void parse_cmd_options ( int argc, char **argv )
 
 			// setting options
 			{"iterative", required_argument, 0, 'i'},
-			{"modified", required_argument, 0, 'f'},
+			{"damped", required_argument, 0, 'f'},
 			{"rescue", required_argument, 0, 'c'},
 			{"derivative", required_argument, 0, 'e'},
 			{"rtol", required_argument, 0, 'r'},
 			{"atol", required_argument, 0, 'a'},
+			{"bypass_rtol", required_argument, 0, 'y'},
+			{"bypass_atol", required_argument, 0, 's'},
 			{"residual", required_argument, 0, 'u'},
 			{"max_dx", required_argument, 0, 'b'},
 			{"jmin", required_argument, 0, 'j'},
@@ -125,7 +132,7 @@ void parse_cmd_options ( int argc, char **argv )
 		// getopt_long stores the option index here
 		int option_index = 0;
 
-		c = getopt_long( argc, argv, "hdzi:f:c:e:r:a:t:o:m:n:u:b:j:p:x:", long_options, &option_index );
+		c = getopt_long( argc, argv, "hdzi:f:c:e:r:a:y:s:t:o:m:n:u:b:j:p:x:", long_options, &option_index );
 
 		// detect the end of the options
 		if ( -1 == c )
@@ -170,6 +177,10 @@ void parse_cmd_options ( int argc, char **argv )
 				{
 					g_opts.iterative_type = NEWTON_CHORD;
 				}
+				else if ( is_str_nocase_match( "chord_bypass_check", optarg ) )
+				{
+					g_opts.iterative_type = NEWTON_CHORD_WITH_BYPASS_CHECK;
+				}
 				else if ( is_str_nocase_match( "broyden", optarg ) )
 				{
 					g_opts.iterative_type = NEWTON_BROYDEN;
@@ -192,15 +203,15 @@ void parse_cmd_options ( int argc, char **argv )
 			case 'f':
 				if ( is_str_nocase_match( "damped", optarg ) )
 				{
-					g_opts.modified_type = MODIFIED_DAMPED;
+					g_opts.damped_type = DAMPED_DIRECT;
 				}
 				else if ( is_str_nocase_match( "line_search", optarg ) )
 				{
-					g_opts.modified_type = MODIFIED_LINE_SEARCH;
+					g_opts.damped_type = DAMPED_LINE_SEARCH;
 				}
 				else
 				{
-					fprintf( stderr, "[Error] unknown modified type %s\n", optarg );
+					fprintf( stderr, "[Error] unknown damped type %s\n", optarg );
 					abort();
 				}
 				break;
@@ -212,7 +223,7 @@ void parse_cmd_options ( int argc, char **argv )
 				}
 				else
 				{
-					fprintf( stderr, "[Error] unknown modified type %s\n", optarg );
+					fprintf( stderr, "[Error] unknown rescue type %s\n", optarg );
 					abort();
 				}
 				break;
@@ -243,6 +254,14 @@ void parse_cmd_options ( int argc, char **argv )
 
 			case 'a':
 				g_opts.atol = atof( optarg );
+				break;
+
+			case 'y':
+				g_opts.bypass_rtol = atof( optarg );
+				break;
+
+			case 's':
+				g_opts.bypass_atol = atof( optarg );
 				break;
 
 			case 'u':
