@@ -50,6 +50,13 @@ int main ( int argc, char **argv )
 			abort();
 		}
 
+		double *px_ans = (double *) dlsym ( handle, "x_ans" );
+		if ( !px_ans )
+		{
+			px_ans = NULL;
+			dlerror(); 
+		}
+
 		void (*p_load_f) (double *, double *) = (void (*)(double *, double *)) dlsym ( handle, "load_f" );
 		if ( !p_load_f )
 		{
@@ -135,6 +142,7 @@ int main ( int argc, char **argv )
 			       		  derivative_type,
 					  n,
 			       		  x_init,
+			       		  px_ans,
 			       		  x_result,
 			       		  f_result,
 			       		  p_load_f,

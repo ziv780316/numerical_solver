@@ -44,6 +44,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		    newton_derivative_type diff_type,
 		    int n,
 		    double *x0, // initial x
+		    double *x_ans, // user give solution x*
 		    double *x_result, // final x
 		    double *f_result, // final f(x)
 		    void (load_f) (double *x, double*f),

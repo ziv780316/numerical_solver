@@ -11,6 +11,13 @@ double x0[] = {
 	1.0
 };
 
+double x_ans[] = {
+	7.071067811865476e-01,
+	7.071067811865476e-01,
+	7.071067811865476e-01
+};
+
+
 void load_f ( double *x, double *f )
 {
 	double x1 = x[0];

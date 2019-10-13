@@ -23,6 +23,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		    newton_derivative_type diff_type,
 		    int n,
 		    double *x0,
+		    double *x_ans,
 		    double *x_result,
 		    double *f_result,
 		    void (load_f) (double *x, double*f),
@@ -51,6 +52,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	double *x = (double *) malloc ( sizeof(double) * n );
 	double *dx = (double *) malloc ( sizeof(double) * n );
 	double *dx_old[2] = {0};
+	double *dx2 = NULL;
 	double *f = (double *) malloc ( sizeof(double) * n );
 	double *df = NULL;
 	double *f_delta_forward = NULL;
@@ -95,6 +97,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	{
 		dx_old[0] = (double *) malloc ( sizeof(double) * n );
 		dx_old[1] = (double *) malloc ( sizeof(double) * n );
+		dx2 = (double *) malloc ( sizeof(double) * n );
 		J_inv = (double *) malloc ( sizeof(double) * J_size );
 	}
 
@@ -165,7 +168,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			printf( "------- initial -------\n" );
 			for ( int i = 0; i < n; ++i )
 			{
-				printf( "x[%d]=%.10e f=%.10e\n", i, x[i], f[i] );
+				printf( "x[%d]=%.15le f=%.15le\n", i, x[i], f[i] );
 			}
 		}
 
@@ -221,7 +224,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 						{
 							if ( debug )
 							{
-								printf( "x[%d] is too small, delta change from %.10e to %.10e\n", i, delta, x[i] * (DBL_EPSILON / delta_ratio) );
+								printf( "x[%d] is too small, delta change from %.15le to %.15le\n", i, delta, x[i] * (DBL_EPSILON / delta_ratio) );
 							}
 							delta = DBL_EPSILON / delta_ratio;
 						}
@@ -244,7 +247,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 						{
 							if ( debug )
 							{
-								printf( "x[%d] is too small, delta change from %.10e to %.10e\n", i, delta, x[i] * (DBL_EPSILON / delta_ratio) );
+								printf( "x[%d] is too small, delta change from %.15le to %.15le\n", i, delta, x[i] * (DBL_EPSILON / delta_ratio) );
 							}
 							delta = DBL_EPSILON / delta_ratio;
 						}
@@ -294,14 +297,14 @@ bool newton_solve ( newton_iterative_type iterative_type,
 				printf( "J = \n" );
 				dense_print_matrix ( n, n, J, REAL_NUMBER );
 				dense_matrix_norm ( -1, n, n, J, &J_norm, REAL_NUMBER );
-				printf( "|J|_max = %.10e\n", J_norm );
+				printf( "|J|_max = %.15le\n", J_norm );
 
 				memcpy( J_inv, J, sizeof(double) * J_size );
 				dense_matrix_inverse ( n, J_inv, perm, FACTOR_LU_RIGHT_LOOKING, REAL_NUMBER );
 				printf( "J^-1 = \n" );
 				dense_print_matrix ( n, n, J_inv, REAL_NUMBER );
 				dense_matrix_norm ( -1, n, n, J_inv, &J_inv_norm, REAL_NUMBER );
-				printf( "|J^-1|_max = %.10e\n", J_inv_norm );
+				printf( "|J^-1|_max = %.15le\n", J_inv_norm );
 
 			}
 		}
@@ -330,6 +333,11 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			// use to esitimate converge rate
 			memcpy( dx_old[1], dx_old[0], sizeof(double) * n ); 
 			memcpy( dx_old[0], dx, sizeof(double) * n ); 
+
+			if ( 2 == iter ) // use for chord newton rate estimate
+			{
+				memcpy( dx2, dx, sizeof(double) * n ); 
+			}
 		}
 		for ( int i = 0; i < n; ++i )
 		{
@@ -416,7 +424,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			printf( "\n------- iter %d -------\n", iter );
 			for ( int i = 0; i < n; ++i )
 			{
-				printf( "x[%d] new=%.10e old=%.10e dx=%.10e f=%.10e\n", i, x[i] + dx[i], x[i], dx[i], f[i] );
+				printf( "x[%d] new=%.15le old=%.15le dx=%.15le f=%.15le\n", i, x[i] + dx[i], x[i], dx[i], f[i] );
 			}
 		}
 
@@ -424,7 +432,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		{
 			dense_vector_norm ( -1, n, dx, &X_norm, REAL_NUMBER );
 			dense_vector_norm ( -1, n, f, &F_norm, REAL_NUMBER );
-			printf( "[norm] |X|_max=%.10e <= |F|_max=%.10e * |J^-1|_norm=%.10e = %.10e --> %d\n", X_norm, F_norm, J_inv_norm, F_norm * J_inv_norm, F_norm * J_inv_norm > X_norm );
+			printf( "[norm] |X|_max=%.15le <= |F|_max=%.15le * |J^-1|_norm=%.15le = %.15le --> %d\n", X_norm, F_norm, J_inv_norm, F_norm * J_inv_norm, F_norm * J_inv_norm > X_norm );
 		}
 
 		// modified newton 
@@ -437,7 +445,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 				{
 					if ( debug )
 					{
-						printf( "[damped] change x%d from %.10e to %.10e\n", i, dx[i], ((dx[i] > 0.0) ? max_dx : -max_dx) );
+						printf( "[damped] change x%d from %.15le to %.15le\n", i, dx[i], ((dx[i] > 0.0) ? max_dx : -max_dx) );
 					}
 					dx[i] = (dx[i] > 0.0) ? max_dx : -max_dx;
 				}
@@ -457,7 +465,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			{
 				if ( debug )
 				{
-					printf( "iter=%d x[%d]=%.10e x_new[%d]=%.10e does not converged, diff=%.10e, tol=%.10e\n", iter, i, x[i], i, x[i] + dx[i], diff, tol );
+					printf( "iter=%d x[%d]=%.15le x_new[%d]=%.15le does not converged, diff=%.15le, tol=%.15le\n", iter, i, x[i], i, x[i] + dx[i], diff, tol );
 				}
 				converge = false;
 				break;
@@ -468,7 +476,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			{
 				if ( debug )
 				{
-					printf( "iter=%d f[%d]=%.10e does not converged residual_tol=%.10e\n", iter, i, f[i], residual_tol );
+					printf( "iter=%d f[%d]=%.15le does not converged residual_tol=%.15le\n", iter, i, f[i], residual_tol );
 				}
 				converge = false;
 				break;
@@ -483,7 +491,32 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			for ( int i = 0; i < n; ++i )
 			{
 				rate = fabs(log( fabs(dx[i]) / fabs(dx_old[0][i]) ) / log( fabs(dx_old[0][i]) / fabs(dx_old[1][i]) ));
-				printf( "x%d = %.10e (dx=%.10e dx_old0=%.10e dx_old1=%.10e\n", i, rate, dx[i], dx_old[0][i], dx_old[1][i] );
+				printf( "x%d = %.15le (dx=%.15le dx_old0=%.15le dx_old1=%.15le\n", i, rate, dx[i], dx_old[0][i], dx_old[1][i] );
+			}
+
+			if ( NEWTON_CHORD == iterative_type )
+			{
+				double rate_daspk;
+				double fixed_point_dist_esitimate;
+				double fixed_point_dist_esitimate_daspk;
+				double fixed_point_dist_exact;
+				printf( "linear converge rate and fixed-point distance of chord newton:\n" );
+				for ( int i = 0; i < n; ++i )
+				{
+					rate = fabs(dx[i]) / fabs(dx_old[0][i]);
+					rate_daspk = exp( (1.0/(iter-2)) * log(fabs(dx[i]) / fabs(dx2[i])) );
+					fixed_point_dist_esitimate = fabs((rate / (1 - rate)) * dx[i]);
+					fixed_point_dist_esitimate_daspk = fabs((rate_daspk / (1 - rate_daspk)) * dx[i]);
+					if ( NULL == x_ans )
+					{
+						printf( "rate%d = %.15le, rate_daspk = %.15le, dist_esitimate = %.15le, dist_esitimate_daspk = %.15le\n", i, rate, rate_daspk, fixed_point_dist_esitimate, fixed_point_dist_esitimate_daspk );
+					}
+					else
+					{
+						fixed_point_dist_exact = fabs((x[i] + dx[i]) - x_ans[i]);
+						printf( "rate%d = %.15le, rate_daspk = %.15le, dist_esitimate= %.15le, dist_esitimate_daspk = %.15le, dist_exact = %.15le\n", i, rate, rate_daspk, fixed_point_dist_esitimate, fixed_point_dist_esitimate_daspk, fixed_point_dist_exact );
+					}
+				}
 			}
 		}
 
@@ -497,15 +530,15 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			fprintf( fout_debug, "%d ", iter );
 			for ( int i = 0; i < n; ++i )
 			{
-				fprintf( fout_debug, "%.10e ", x[i] );
+				fprintf( fout_debug, "%.15le ", x[i] );
 			}
 			for ( int i = 0; i < n; ++i )
 			{
-				fprintf( fout_debug, "%.10e ", dx[i] );
+				fprintf( fout_debug, "%.15le ", dx[i] );
 			}
 			for ( int i = 0; i < n; ++i )
 			{
-				fprintf( fout_debug, "%.10e ", f[i] );
+				fprintf( fout_debug, "%.15le ", f[i] );
 			}
 			fprintf( fout_debug, "\n" );
 		}
@@ -537,7 +570,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		printf( "\n========== Newton Converge %s in %d Iteration ==========\n", (converge ? "Success" : "Fail"), iter - 1 );
 		for ( int i = 0; i < n; ++i )
 		{
-			printf( "x[%d]=%.10e  f=%.10e\n", i, x[i], f[i] );
+			printf( "x[%d]=%.15le  f=%.15le\n", i, x[i], f[i] );
 		}
 	}
 
@@ -574,6 +607,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	{
 		free( dx_old[0] );
 		free( dx_old[1] );
+		free( dx2 );
 	}
 
 	return converge;
