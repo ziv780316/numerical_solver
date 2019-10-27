@@ -18,13 +18,14 @@ opt_t g_opts = {
 	.diff_type = NEWTON_DIFF_FORWARD,		
 	.maxiter = -1, 	
 	.miniter = 0, 	
-	.rtol = 1e-3,	
-	.atol = 1e-6,
+	.delta_rtol = 1e-3,	
+	.delta_atol = 1e-6,
 	.bypass_rtol = 1e-2,	
 	.bypass_atol = 1e-3,
 	.max_dx = DBL_MAX,
 	.jmin = 0.0,
-	.residual_tol = 1e-9,
+	.residual_rtol = 1e-3,
+	.residual_atol = 1e-9,
 	.random_initial = false,
 	.debug = false,
 	.output_file = NULL,
@@ -60,11 +61,12 @@ void show_help ()
 		"    central\n"
 		"  -m | --maxiter  =>  specify maximum iterations (default unlimited)\n"
 		"  -n | --miniter  =>  specify minimum iterations (default unlimited)\n"
-		"  -r | --rtol  =>  specify rtol (default 1e-3)\n"
-		"  -a | --atol  =>  specify atol (default 1e-6)\n"
+		"  -r | --delta_rtol  =>  specify delta_rtol (default 1e-3)\n"
+		"  -a | --delta_atol  =>  specify delta_atol (default 1e-6)\n"
+		"  -g | --residual_rtol  =>  specify residual rtol (default 1e-3)\n"
+		"  -u | --residual_atol  =>  specify residual atol (default 1e-9)\n"
 		"  -y | --bypass rtol  =>  specify bypass_rtol (default 1e-2)\n"
 		"  -s | --bypass atol  =>  specify bypass_atol (default 1e-3)\n"
-		"  -u | --residual  =>  specify residual tol (default 1e-9)\n"
 		"  -b | --max_dx  =>  maximum dx in damped newton (default unlimited)\n"
 		"  -j | --jmin  =>  specify minimum diagonal value of jacobian (default 0)\n"
 		"  -o | --output  =>  specify output file name (default terminal)\n"
@@ -114,11 +116,12 @@ void parse_cmd_options ( int argc, char **argv )
 			{"damped", required_argument, 0, 'f'},
 			{"rescue", required_argument, 0, 'c'},
 			{"derivative", required_argument, 0, 'e'},
-			{"rtol", required_argument, 0, 'r'},
-			{"atol", required_argument, 0, 'a'},
+			{"delta_rtol", required_argument, 0, 'r'},
+			{"delta_atol", required_argument, 0, 'a'},
+			{"residual_rtol", required_argument, 0, 'g'},
+			{"residual_atol", required_argument, 0, 'u'},
 			{"bypass_rtol", required_argument, 0, 'y'},
 			{"bypass_atol", required_argument, 0, 's'},
-			{"residual", required_argument, 0, 'u'},
 			{"max_dx", required_argument, 0, 'b'},
 			{"jmin", required_argument, 0, 'j'},
 			{"output", required_argument, 0, 'o'},
@@ -132,7 +135,7 @@ void parse_cmd_options ( int argc, char **argv )
 		// getopt_long stores the option index here
 		int option_index = 0;
 
-		c = getopt_long( argc, argv, "hdzi:f:c:e:r:a:y:s:t:o:m:n:u:b:j:p:x:", long_options, &option_index );
+		c = getopt_long( argc, argv, "hdzi:f:c:e:r:a:y:s:t:o:m:n:g:u:b:j:p:x:", long_options, &option_index );
 
 		// detect the end of the options
 		if ( -1 == c )
@@ -249,11 +252,11 @@ void parse_cmd_options ( int argc, char **argv )
 				break;
 				
 			case 'r':
-				g_opts.rtol = atof( optarg );
+				g_opts.delta_rtol = atof( optarg );
 				break;
 
 			case 'a':
-				g_opts.atol = atof( optarg );
+				g_opts.delta_atol = atof( optarg );
 				break;
 
 			case 'y':
@@ -264,8 +267,12 @@ void parse_cmd_options ( int argc, char **argv )
 				g_opts.bypass_atol = atof( optarg );
 				break;
 
+			case 'g':
+				g_opts.residual_rtol = atof( optarg );
+				break;
+
 			case 'u':
-				g_opts.residual_tol = atof( optarg );
+				g_opts.residual_atol = atof( optarg );
 				break;
 
 			case 'b':

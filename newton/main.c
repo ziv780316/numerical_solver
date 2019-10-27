@@ -124,11 +124,12 @@ int main ( int argc, char **argv )
 		memset( &nr_stat, 0, sizeof( performance_stat ) );
 		double *x_result = (double *) malloc ( sizeof(double) * n );
 		double *f_result = (double *) malloc ( sizeof(double) * n );
-		double rtol = g_opts.rtol;
-		double atol = g_opts.atol;
+		double delta_rtol = g_opts.delta_rtol;
+		double delta_atol = g_opts.delta_atol;
+		double residual_rtol = g_opts.residual_rtol;
+		double residual_atol = g_opts.residual_atol;
 		double bypass_rtol = g_opts.bypass_rtol;
 		double bypass_atol = g_opts.bypass_atol;
-		double residual_tol = g_opts.residual_tol;
 		double max_dx = g_opts.max_dx;
 		double jmin = g_opts.jmin;
 		bool random_initial = g_opts.random_initial;
@@ -150,11 +151,12 @@ int main ( int argc, char **argv )
 					  p_bypass_check,
 			       		  maxiter,
 			       		  miniter,
-			       		  rtol,
-			       		  atol,
+			       		  delta_rtol,
+			       		  delta_atol,
+			       		  residual_rtol,
+			       		  residual_atol,
 			       		  bypass_rtol,
 			       		  bypass_atol,
-			       		  residual_tol,
 					  max_dx,
 					  jmin,
 			       		  random_initial,

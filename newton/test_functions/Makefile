@@ -24,13 +24,13 @@ MOVE       = mv -f
 #=================================================
 # Build target
 #=================================================
-TEST_FUNCTION_OBJ := f1.so f2.so f3.so f4.so f5.so f6.so 
+TEST_FUNCTION_OBJ := f1.so f2.so f3.so f4.so f5.so f6.so f7.so
 
 #=================================================
 # Compile implicit rules
 #=================================================
 %.so:%.c
-	$(CC) -shared $< -o $@ $(CFLAGS) $(INCLUDE) 
+	$(CC) -shared $< -o $@ $(CFLAGS) $(INCLUDE) ${LIBS}
 
 
 #=================================================

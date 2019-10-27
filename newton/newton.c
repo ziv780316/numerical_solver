@@ -9,6 +9,16 @@
 #include "newton.h"
 #include "matrix_solver.h"
 
+// prevent double-free crash
+__attribute__((always_inline)) inline void free_with_set_null ( void *ptr )
+{
+	if ( ptr )
+	{
+		free( ptr );
+		ptr = NULL;
+	}
+}
+
 static void check_user_define_args ( double *x0,
 				     void (load_f) (double *x, double*f),
 				     void (load_jacobian) (double *x, double*J) );
@@ -31,11 +41,12 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		    bool (bypass_check) (double *x, double *f, double *dx),
 		    int maxiter,
 		    int miniter,
-		    double rtol,
-		    double atol,
+		    double delta_rtol,
+		    double delta_atol,
+		    double residual_rtol,
+		    double residual_atol,
 		    double bypass_rtol,
 		    double bypass_atol,
-		    double residual_tol,
 		    double max_dx,
 		    double jmin,
 		    bool random_initial,
@@ -54,7 +65,8 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	double *dx_old[2] = {0};
 	double *dx2 = NULL;
 	double *f = (double *) malloc ( sizeof(double) * n );
-	double *df = NULL;
+	double *f_old = (double *) malloc ( sizeof(double) * n );
+	double *df = (double *) malloc ( sizeof(double) * n );
 	double *f_delta_forward = NULL;
 	double *f_delta_backward = NULL;
 	double *rhs = (double *) malloc ( sizeof(double) * n );
@@ -71,6 +83,9 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	bool bypass_violate;
 	FILE *fout_debug = NULL;
 
+	// ---------------------------------
+	// necessarily memory allocation with different method
+	// ---------------------------------
 	if ( NEWTON_DIFF_JACOBIAN != diff_type )
 	{
 		f_delta_forward  = (double *) malloc ( sizeof(double) * n );
@@ -79,20 +94,25 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			f_delta_backward = (double *) malloc ( sizeof(double) * n );
 		}
 	}
+
 	if ( NEWTON_BROYDEN == iterative_type )
 	{
-		df = (double *) malloc ( sizeof(double) * n );
 		J_old = (double *) malloc ( sizeof(double) * J_size );
 	}
-	else if ( (NEWTON_BROYDEN_INVERTED == iterative_type) || 
-		  (NEWTON_BROYDEN_INVERTED_BAD == iterative_type) )
+	else if ( (NEWTON_CHORD == iterative_type) ||
+		  (NEWTON_CHORD_WITH_BYPASS_CHECK == iterative_type) )
 	{
-		df = (double *) malloc ( sizeof(double) * n );
+		dx_old[0] = (double *) malloc ( sizeof(double) * n );
+		dx_old[1] = (double *) malloc ( sizeof(double) * n );
 	}
-	if ( NEWTON_JACOBI == iterative_type )
+	else if ( NEWTON_JACOBI == iterative_type )
 	{
 		D = (double *) malloc ( sizeof(double) * n );
 	}
+
+	// ---------------------------------
+	// debug used memory allocation
+	// ---------------------------------
 	if ( debug )
 	{
 		dx_old[0] = (double *) malloc ( sizeof(double) * n );
@@ -103,7 +123,9 @@ bool newton_solve ( newton_iterative_type iterative_type,
 
 	newton_initialize( n, x, x0, random_initial );
 
+	// ---------------------------------
 	// use to output raw data for plot and analysis converge issue
+	// ---------------------------------
 	if ( debug_file )
 	{
 		char debug_file_name[BUFSIZ] = {0};
@@ -130,49 +152,99 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		fprintf( fout_debug, "\n" );
 	}
 
+	// ---------------------------------
 	// iterative procedure
+	// ---------------------------------
 	int iter = 1;
-	bool converge = false;
+	int max_dx_idx = -1;
+	int max_f_idx = -1;
+	double dx_max_norm = -1;
+	double f_max_norm = -1;
+	double local_norm;
 	double delta_ratio = 1e-9;
 	double delta;
 	double delta_inv;
+	double diff;
+	double tol;
 	double x_tmp;
-	while ( !converge )
+	bool delta_converge = false;
+	bool f_converge = false;
+	bool nr_converge = false;
+	while ( !nr_converge )
 	{
 		if ( (iter > maxiter) && (-1 != maxiter) && (iter >= miniter) )
 		{
 			break;
 		}
 
+		// ---------------------------------
 		// load RHS
-		if ( (NEWTON_BROYDEN == iterative_type) ||
-		     (NEWTON_BROYDEN_INVERTED == iterative_type) || 
-		     (NEWTON_BROYDEN_INVERTED_BAD == iterative_type) )
-		{
-			memcpy( df, f, sizeof(double) * n );	
-		}
+		// ---------------------------------
+		memcpy( f_old, f, sizeof(double) * n );	
 		load_f( x, f );
 		++(nr_stat->n_f_load);
 		memcpy( rhs, f, sizeof(double) * n );	
-		if ( (NEWTON_BROYDEN == iterative_type) ||
-		     (NEWTON_BROYDEN_INVERTED == iterative_type) || 
-		     (NEWTON_BROYDEN_INVERTED_BAD == iterative_type) )
+		for ( int i = 0; i < n; ++i )
 		{
-			for ( int i = 0; i < n; ++i )
-			{
-				df[i] = f[i] - df[i];
-			}
+			df[i] = f[i] - f_old[i];
 		}
-		if ( (1 == iter) && debug )
+		if ( debug )
 		{
-			printf( "------- initial -------\n" );
+			printf( "\n------- iter %d -------\n", iter );
 			for ( int i = 0; i < n; ++i )
 			{
-				printf( "x[%d]=%.15le f=%.15le\n", i, x[i], f[i] );
+				printf( "x[%d]=%.15le f[%d]=%.15le\n", i, x[i], i, f[i] );
 			}
 		}
 
+
+		// check residue converged after load f
+		// ‖.‖≡ ‖.‖∞
+		// ‖f‖ = ‖f/tol‖∞
+		if ( !f_converge )
+		{
+			max_f_idx = -1;
+			f_max_norm = -1;
+			for ( int i = 0; i < n; ++i )
+			{
+				// check residual converge 
+				local_norm = fabs(f[i]) / (residual_rtol * fabs(f[i]) + residual_atol);
+				if ( local_norm > f_max_norm )
+				{
+					f_max_norm = local_norm;
+					max_f_idx = i;
+				}
+			}
+			if ( f_max_norm > 1 )
+			{
+				f_converge = false;
+				if ( debug )
+				{
+					int i = max_f_idx;
+					tol = fabs(f[i]) * residual_rtol + residual_atol;
+					printf( "iter=%d norm=%.15le f[%d]=%.15le f_old[%d]=%.15le residue non-converged, df=%.15le, tol=%.15le\n", iter, f_max_norm, i, f[i], i, f[i] - df[i], df[i], tol );
+				}
+			}
+			else
+			{
+				f_converge = true;
+			}
+		}
+
+		// complete newton if both residue and delta converge 
+		nr_converge = (delta_converge && f_converge);
+		if ( nr_converge )
+		{
+			if ( debug )
+			{
+				printf( "[converge] iter=%d both delta and f converge, skip load jacobian and matrix solve\n", iter );
+			}
+			break;
+		}
+
+		// ---------------------------------
 		// construct jacobian matrix
+		// ---------------------------------
 		if ( NEWTON_CHORD_WITH_BYPASS_CHECK == iterative_type )
 		{
 			if ( 1 == iter )
@@ -309,7 +381,9 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			}
 		}
 
+		// ---------------------------------
 		// matrix factorization A = PLU
+		// ---------------------------------
 		bool matrix_factor_ok = false;
 		bool matrix_solve_ok = false;
 		if ( !(NEWTON_JACOBI == iterative_type) &&
@@ -327,10 +401,12 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			}
 		}
 
-		// solve J(dx) = -F
+		// ---------------------------------
+		// matix solve J*dx = -F
+		// ---------------------------------
 		if ( debug )
 		{
-			// use to esitimate converge rate
+			// use to estimate converge rate
 			memcpy( dx_old[1], dx_old[0], sizeof(double) * n ); 
 			memcpy( dx_old[0], dx, sizeof(double) * n ); 
 
@@ -380,7 +456,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 				dense_print_matrix ( n, n, J, REAL_NUMBER );
 			}
 
-			// dx = J^-1 * -f
+			// dx = J⁻¹ * -f
 			alpha = 1.0;
 			beta = 0.0;
 			dense_matrix_vector_multiply ( n, n, &alpha, J, rhs, &beta, dx, TRANS_NONE, REAL_NUMBER );
@@ -421,7 +497,6 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		// show solve results 
 		if ( debug )
 		{
-			printf( "\n------- iter %d -------\n", iter );
 			for ( int i = 0; i < n; ++i )
 			{
 				printf( "x[%d] new=%.15le old=%.15le dx=%.15le f=%.15le\n", i, x[i] + dx[i], x[i], dx[i], f[i] );
@@ -435,7 +510,9 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			printf( "[norm] |X|_max=%.15le <= |F|_max=%.15le * |J^-1|_norm=%.15le = %.15le --> %d\n", X_norm, F_norm, J_inv_norm, F_norm * J_inv_norm, F_norm * J_inv_norm > X_norm );
 		}
 
-		// modified newton 
+		// ---------------------------------
+		// damped newton, limit dx
+		// ---------------------------------
 		if ( DAMPED_DIRECT == damped_type )
 		{
 			// directly damped (change both direction and value)
@@ -452,75 +529,124 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			}
 		}
 
-		// check stop criteria
-		double diff;
-		double tol;
-		converge = true;
-		for ( int i = 0; i < n; ++i )
+		// ---------------------------------
+		// check delta converge after matrix solve
+		// ---------------------------------
+		if ( !delta_converge )
 		{
-			// check iteration converge
-			diff = fabs( dx[i] );
-			tol = fabs(x[i]) * rtol + atol;
-			if ( diff > tol )
-			{
-				if ( debug )
-				{
-					printf( "iter=%d x[%d]=%.15le x_new[%d]=%.15le does not converged, diff=%.15le, tol=%.15le\n", iter, i, x[i], i, x[i] + dx[i], diff, tol );
-				}
-				converge = false;
-				break;
-			}
-
-			// check residual converge (maximum norm)
-			if ( fabs(f[i]) > residual_tol )
-			{
-				if ( debug )
-				{
-					printf( "iter=%d f[%d]=%.15le does not converged residual_tol=%.15le\n", iter, i, f[i], residual_tol );
-				}
-				converge = false;
-				break;
-			}
-		}
-
-		// check converge rate
-		if ( debug && (iter > 2) )
-		{
-			double rate;
-			printf( "converge rate of each variable:\n" );
+			max_dx_idx = -1;
+			dx_max_norm = -1;
 			for ( int i = 0; i < n; ++i )
 			{
-				rate = fabs(log( fabs(dx[i]) / fabs(dx_old[0][i]) ) / log( fabs(dx_old[0][i]) / fabs(dx_old[1][i]) ));
-				printf( "x%d = %.15le (dx=%.15le dx_old0=%.15le dx_old1=%.15le\n", i, rate, dx[i], dx_old[0][i], dx_old[1][i] );
+				// check delta converge
+				// ‖.‖≡ ‖.‖∞
+				// ‖dx‖ = ‖dx/tol‖∞
+				diff = fabs( dx[i] );
+				tol = fabs(x[i]) * delta_rtol + delta_atol;
+				local_norm = (diff / tol);
+				if ( local_norm > dx_max_norm )
+				{
+					dx_max_norm = local_norm;
+					max_dx_idx = i;
+				}
+			}
+			if ( dx_max_norm > 1 )
+			{
+				delta_converge = false;
+				if ( debug )
+				{
+					int i = max_dx_idx;
+					tol = fabs(dx[i]) * delta_rtol + delta_atol;
+					printf( "iter=%d norm=%.15le x[%d]=%.15le x_new[%d]=%.15le delta non-converged, dx=%.15le, tol=%.15le\n", iter, dx_max_norm, i, x[i], i, x[i] + dx[i], dx[i], tol );
+				}
+			}
+			else
+			{
+				delta_converge = true;
 			}
 
-			if ( NEWTON_CHORD == iterative_type )
+
+		}
+
+		nr_converge = (delta_converge && f_converge);
+		if ( debug )
+		{
+			printf( "iter=%d nr_converge=%d delta_converge=%d f_converge=%d\n", iter, nr_converge, delta_converge, f_converge );
+		}
+
+		// ---------------------------------
+		// check converge order and chord newton linear rate
+		// ---------------------------------
+		if ( debug && (iter > 2) )
+		{
+			double converge_order;
+			printf( "converge order of each variable:\n" );
+			for ( int i = 0; i < n; ++i )
 			{
-				double rate_daspk;
-				double fixed_point_dist_esitimate;
-				double fixed_point_dist_esitimate_daspk;
-				double fixed_point_dist_exact;
-				printf( "linear converge rate and fixed-point distance of chord newton:\n" );
-				for ( int i = 0; i < n; ++i )
-				{
-					rate = fabs(dx[i]) / fabs(dx_old[0][i]);
-					rate_daspk = exp( (1.0/(iter-2)) * log(fabs(dx[i]) / fabs(dx2[i])) );
-					fixed_point_dist_esitimate = fabs((rate / (1 - rate)) * dx[i]);
-					fixed_point_dist_esitimate_daspk = fabs((rate_daspk / (1 - rate_daspk)) * dx[i]);
-					if ( NULL == x_ans )
-					{
-						printf( "rate%d = %.15le, rate_daspk = %.15le, dist_esitimate = %.15le, dist_esitimate_daspk = %.15le\n", i, rate, rate_daspk, fixed_point_dist_esitimate, fixed_point_dist_esitimate_daspk );
-					}
-					else
-					{
-						fixed_point_dist_exact = fabs((x[i] + dx[i]) - x_ans[i]);
-						printf( "rate%d = %.15le, rate_daspk = %.15le, dist_esitimate= %.15le, dist_esitimate_daspk = %.15le, dist_exact = %.15le\n", i, rate, rate_daspk, fixed_point_dist_esitimate, fixed_point_dist_esitimate_daspk, fixed_point_dist_exact );
-					}
-				}
+				converge_order = fabs(log( fabs(dx[i]) / fabs(dx_old[0][i]) ) / log( fabs(dx_old[0][i]) / fabs(dx_old[1][i]) ));
+				printf( "x%d = %.15le (dx=%.15le dx_old0=%.15le dx_old1=%.15le\n", i, converge_order, dx[i], dx_old[0][i], dx_old[1][i] );
 			}
 		}
 
+		if ( debug && (iter > 1) )
+		{
+			if ( NEWTON_CHORD == iterative_type )
+			{
+				// estimate linear rate
+				double rate_dx;
+				double rate_dx_avg;
+				double fixed_point_dist_estimate;
+				double fixed_point_dist_estimate_avg;
+				double fixed_point_dist_exact;
+				printf( "linear converge rate_dx and fixed-point distance of chord newton:\n" );
+				for ( int i = 0; i < n; ++i )
+				{
+					// ‖eₖ‖ = ‖x* - xₖ‖
+					// ‖eₖ₊₁‖ ≈ |ρ| * ‖eₖ‖
+					rate_dx = fabs(dx[i]) / fabs(dx_old[0][i]);
+					rate_dx_avg = exp( (1.0/(iter-2)) * log(fabs(dx[i]) / fabs(dx2[i])) );
+					fixed_point_dist_estimate = fabs((rate_dx / (1 - rate_dx)) * dx[i]);
+					fixed_point_dist_estimate_avg = fabs((rate_dx_avg / (1 - rate_dx_avg)) * dx[i]);
+					if ( NULL == x_ans )
+					{
+						printf( "rate_dx%d = %.15le, rate_dx_avg = %.15le, dist_estimate = %.15le, dist_estimate_avg = %.15le\n", i, rate_dx, rate_dx_avg, fixed_point_dist_estimate, fixed_point_dist_estimate_avg );
+					}
+					else
+					{ fixed_point_dist_exact = fabs((x[i] + dx[i]) - x_ans[i]);
+						printf( "rate_dx%d = %.15le, rate_dx_avg = %.15le, dist_estimate= %.15le, dist_estimate_avg = %.15le, dist_exact = %.15le\n", i, rate_dx, rate_dx_avg, fixed_point_dist_estimate, fixed_point_dist_estimate_avg, fixed_point_dist_exact );
+					}
+				}
+
+				double rate_f;
+				for ( int i = 0; i < n; ++i )
+				{
+					rate_f = fabs(f[i]) / fabs(f_old[i]);
+					printf( "rate_f%d = %.15le\n", i, rate_f );
+				}
+
+				// estimate need how many following iterations for statisfy converge criteria
+				int n_iter_for_delta_convege;
+				int n_iter_for_f_convege;
+				if ( !delta_converge )
+				{
+					// ‖dx‖ * |rate|ⁿ ≤ 1
+					n_iter_for_delta_convege = (int) ceil( log(1.0 / dx_max_norm) / log(rate_dx) );
+					printf( "[converge predict] need %d iter for delta norm converge to %.15le\n", n_iter_for_delta_convege, dx_max_norm * pow(rate_dx, n_iter_for_delta_convege) );
+				}
+				if ( !f_converge )
+				{
+					// ‖f‖ * |rate|ⁿ ≤ 1
+					n_iter_for_f_convege = (int) ceil( log(1.0 / f_max_norm) / log(rate_f) );
+					printf( "[converge predict] need %d iter for f norm converge to %.15le\n", n_iter_for_f_convege, f_max_norm * pow(rate_f, n_iter_for_f_convege) );
+				}
+
+				
+			}
+		}
+
+		// ---------------------------------
 		// modified newton for better performance or prevent too large step
+		// ---------------------------------
 		if ( DAMPED_LINE_SEARCH == damped_type )
 		{
 		}
@@ -544,7 +670,9 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		}
 
 
+		// ---------------------------------
 		// next iteration
+		// ---------------------------------
 		for ( int i = 0; i < n; ++i )
 		{
 			x[i] += dx[i];
@@ -553,64 +681,78 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		// for benchmark performance
 		if ( iter < miniter )
 		{
-			converge = false;
+			nr_converge = false;
+		}
+
+		if ( !nr_converge )
+		{
+			printf( "[converge] dx_norm=%.15le (id=%d), f_norm=%.15le (id=%d)\n", dx_max_norm, max_dx_idx, f_max_norm, max_f_idx );
 		}
 
 		++iter;
 		++(nr_stat->n_iter);
 	}
 
-	// store final results
+	// ---------------------------------
+	// complete newton iterations, store final results
+	// ---------------------------------
 	memcpy( x_result, x, sizeof(double) * n );	
 	memcpy( f_result, f, sizeof(double) * n );	
 
 	// show newton results
 	if ( debug )
 	{
-		printf( "\n========== Newton Converge %s in %d Iteration ==========\n", (converge ? "Success" : "Fail"), iter - 1 );
+		printf( "\n========== Newton Converge %s in %d Iteration ==========\n", (nr_converge ? "Success" : "Fail"), iter - 1 );
 		for ( int i = 0; i < n; ++i )
 		{
 			printf( "x[%d]=%.15le  f=%.15le\n", i, x[i], f[i] );
 		}
+		printf( "[norm] dx_norm=%.15le (id=%d), f_norm=%.15le (id=%d)\n", dx_max_norm, max_dx_idx, f_max_norm, max_f_idx );
 	}
 
+	// ---------------------------------
 	// release memory
-	free( perm );
-	free( x );
-	free( dx );
-	free( f );
-	free( rhs );
-	free( J );
+	// ---------------------------------
+	free_with_set_null( perm );
+	free_with_set_null( x );
+	free_with_set_null( dx );
+	free_with_set_null( f );
+	free_with_set_null( f_old );
+	free_with_set_null( df );
+	free_with_set_null( rhs );
+	free_with_set_null( J );
 	if ( diff_type != NEWTON_DIFF_JACOBIAN )
 	{
-		free( f_delta_forward  );
+		free_with_set_null( f_delta_forward  );
 		if ( diff_type == NEWTON_DIFF_CENTRAL )
 		{
-			free( f_delta_backward );
+			free_with_set_null( f_delta_backward );
 		}
 	}
+
 	if ( NEWTON_BROYDEN == iterative_type )
 	{
-		free( df );
-		free( J_old );
+		free_with_set_null( J_old );
 	}
-	else if ( (NEWTON_BROYDEN_INVERTED == iterative_type) || 
-		  (NEWTON_BROYDEN_INVERTED_BAD == iterative_type) )
+	else if ( (NEWTON_CHORD == iterative_type) ||
+		  (NEWTON_CHORD_WITH_BYPASS_CHECK == iterative_type) )
 	{
-		free( df );
+		free_with_set_null( dx_old[0] );
+		free_with_set_null( dx_old[1] );
 	}
-	if ( NEWTON_JACOBI == iterative_type )
+	else if ( NEWTON_JACOBI == iterative_type )
 	{
-		free( D );
-	}
-	if ( debug )
-	{
-		free( dx_old[0] );
-		free( dx_old[1] );
-		free( dx2 );
+		free_with_set_null( D );
 	}
 
-	return converge;
+	if ( debug )
+	{
+		free_with_set_null( dx_old[0] );
+		free_with_set_null( dx_old[1] );
+		free_with_set_null( dx2 );
+	}
+
+	return nr_converge;
 }
 
 static void check_user_define_args ( double *x0, 
@@ -638,7 +780,7 @@ static void newton_initialize ( int n, double *x, double *x0, bool random_initia
 	memcpy( x, x0, sizeof(double) * n );	
 }
 
-// J = J + (df - J*dx)*dxT / |dx|^2
+// J = J + ((Δf - J*Δx)*Δxᵀ) / ‖Δx‖²
 static void broyden_update ( int n, double *J, double *df, double *dx, bool debug )
 {
 	double alpha;
@@ -648,22 +790,23 @@ static void broyden_update ( int n, double *J, double *df, double *dx, bool debu
 	double *work = (double *) malloc ( sizeof(double) * n );
 	memcpy( work, df, sizeof(double) * n );
 
-	// |dx|^2
+	// ‖Δx‖²
 	dense_vector_inner_product ( n, dx, dx, &dx_square, conjugate, REAL_NUMBER );
 
-	// work = df - (J * dx)
+	// work = (Δf - J*Δx)
 	alpha = -1.0;
 	beta = 1.0;
 	dense_matrix_vector_multiply ( n, n, &alpha, J, dx, &beta, work, TRANS_NONE, REAL_NUMBER );
 
-	// J = J + (x . yT) / |dx|^2
+	// J = J + (work * Δxᵀ) / ‖Δx‖²
 	alpha = 1.0 / dx_square;
 	dense_maxtrix_rank_1_update ( n, n, J, &alpha, work, dx, TRANS_NONE, REAL_NUMBER );
 
 	free( work );
 }
 
-// J = J + (dx - J*df)*dxT*J / (dxT*J*df)
+// better numerical stability then bad broyden inverted method
+// J⁻¹ = J⁻¹ + ((Δx - J⁻¹*Δf)*Δxᵀ*J⁻¹) / (Δxᵀ*J⁻¹*Δf)
 static void broyden_update_sherman_morrison ( int n, double *J, double *df, double *dx, bool debug )
 {
 	double alpha;
@@ -673,21 +816,21 @@ static void broyden_update_sherman_morrison ( int n, double *J, double *df, doub
 	double *work1 = (double *) malloc ( sizeof(double) * n );
 	double *work2 = (double *) malloc ( sizeof(double) * n );
 
-	// work = dx - (J * df)
+	// work1 = (Δx - J⁻¹*Δf)
 	memcpy( work1, dx, sizeof(double) * n );
 	alpha = -1.0;
 	beta = 1.0;
 	dense_matrix_vector_multiply ( n, n, &alpha, J, df, &beta, work1, TRANS_NONE, REAL_NUMBER );
 
-	// dxT*J = JT*dx
+	// work2 = Δxᵀ*J⁻¹ = (J⁻¹ᵀ)*Δx
 	alpha = -1.0;
 	beta = 0.0;
 	dense_matrix_vector_multiply ( n, n, &alpha, J, dx, &beta, work2, true, REAL_NUMBER );
 
-	// (dxT*J) * df
+	// ‖Δx‖² = (Δxᵀ*J⁻¹*Δf) = work2 * Δf
 	dense_vector_inner_product ( n, work2, df, &dx_square, conjugate, REAL_NUMBER );
 
-	// J = J + (x . yT) / |dx|^2
+	// J⁻¹ = J⁻¹ + (work1⨯ work2) / ‖Δx‖² 
 	alpha = 1.0 / dx_square;
 	dense_maxtrix_rank_1_update ( n, n, J, &alpha, work1, work2, TRANS_NONE, REAL_NUMBER );
 

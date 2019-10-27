@@ -13,11 +13,12 @@ typedef struct
 	newton_derivative_type diff_type;		
 	int maxiter;	
 	int miniter;	
-	double rtol;	
-	double atol;	
+	double delta_rtol;	
+	double delta_atol;	
+	double residual_rtol;	
+	double residual_atol;	
 	double bypass_rtol;	
 	double bypass_atol;	
-	double residual_tol;	
 	double max_dx;
 	double jmin;
 	bool random_initial;
