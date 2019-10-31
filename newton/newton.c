@@ -23,8 +23,25 @@ static void check_user_define_args ( double *x0,
 				     void (load_f) (double *x, double*f),
 				     void (load_jacobian) (double *x, double*J) );
 static void newton_initialize ( int n, double *x, double *x0, bool random_initial );
+
+// general newton subroutines 
+__attribute__((always_inline)) inline static double eval_tol( double xref, double rtol, double atol )
+{
+	return (fabs(xref) * rtol) + atol;
+}
+__attribute__((always_inline)) static double eval_local_norm( double x, double xref, double rtol, double atol )
+{
+	return fabs(x) / eval_tol( xref, rtol, atol );
+}
+static void eval_max_norm( int n, double *x, double *xref, double rtol, double atol, double *max_norm, int *max_idx );
+
+// for broyden method, approximate jacobian
 static void broyden_update ( int n, double *J, double *df, double *dx, bool debug );
 static void broyden_update_sherman_morrison ( int n, double *J, double *df, double *dx, bool debug );
+
+// for chord newton
+static void chord_newton_converge_predict_iterative ( double rate, double x, double xref, double rtol, double atol, int *predict_iter, double *predict_norm );
+static void chord_newton_converge_predict_approximate ( double rate, double norm, int *predict_iter, double *predict_norm );
 static bool __bypass_check ( int n, double *x, double *f, double *dx, double bypass_rtol, double bypass_atol );
 
 bool newton_solve ( newton_iterative_type iterative_type, 
@@ -156,6 +173,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	// iterative procedure
 	// ---------------------------------
 	int iter = 1;
+	int idx;
 	int max_dx_idx = -1;
 	int max_f_idx = -1;
 	double dx_max_norm = -1;
@@ -203,26 +221,18 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		// ‖f‖ = ‖f/tol‖∞
 		if ( !f_converge )
 		{
-			max_f_idx = -1;
-			f_max_norm = -1;
-			for ( int i = 0; i < n; ++i )
-			{
-				// check residual converge 
-				local_norm = fabs(f[i]) / (residual_rtol * fabs(f[i]) + residual_atol);
-				if ( local_norm > f_max_norm )
-				{
-					f_max_norm = local_norm;
-					max_f_idx = i;
-				}
-			}
+			// check delta converge
+			// ‖.‖≡ ‖.‖∞
+			// ‖f‖ = ‖f/tol‖∞
+			eval_max_norm( n, f, f, residual_rtol, residual_atol, &f_max_norm, &max_f_idx );
 			if ( f_max_norm > 1 )
 			{
 				f_converge = false;
 				if ( debug )
 				{
-					int i = max_f_idx;
-					tol = fabs(f[i]) * residual_rtol + residual_atol;
-					printf( "iter=%d norm=%.15le f[%d]=%.15le f_old[%d]=%.15le residue non-converged, df=%.15le, tol=%.15le\n", iter, f_max_norm, i, f[i], i, f[i] - df[i], df[i], tol );
+					idx = max_f_idx;
+					tol = eval_tol( f[idx], residual_rtol, residual_atol );
+					printf( "iter=%d norm=%.15le f[%d]=%.15le f_old[%d]=%.15le residue non-converged, df=%.15le, tol=%.15le\n", iter, f_max_norm, idx, f[idx], idx, f[idx] - df[idx], df[idx], tol );
 				}
 			}
 			else
@@ -237,7 +247,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		{
 			if ( debug )
 			{
-				printf( "[converge] iter=%d both delta and f converge, skip load jacobian and matrix solve\n", iter );
+				printf( "[converge info] iter=%d both delta and f converge, skip load jacobian and matrix solve\n", iter );
 			}
 			break;
 		}
@@ -534,38 +544,24 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		// ---------------------------------
 		if ( !delta_converge )
 		{
-			max_dx_idx = -1;
-			dx_max_norm = -1;
-			for ( int i = 0; i < n; ++i )
-			{
-				// check delta converge
-				// ‖.‖≡ ‖.‖∞
-				// ‖dx‖ = ‖dx/tol‖∞
-				diff = fabs( dx[i] );
-				tol = fabs(x[i]) * delta_rtol + delta_atol;
-				local_norm = (diff / tol);
-				if ( local_norm > dx_max_norm )
-				{
-					dx_max_norm = local_norm;
-					max_dx_idx = i;
-				}
-			}
+			// check delta converge
+			// ‖.‖≡ ‖.‖∞
+			// ‖dx‖ = ‖dx/tol‖∞
+			eval_max_norm( n, dx, x, delta_rtol, delta_atol, &dx_max_norm, &max_dx_idx );
 			if ( dx_max_norm > 1 )
 			{
 				delta_converge = false;
 				if ( debug )
 				{
-					int i = max_dx_idx;
-					tol = fabs(dx[i]) * delta_rtol + delta_atol;
-					printf( "iter=%d norm=%.15le x[%d]=%.15le x_new[%d]=%.15le delta non-converged, dx=%.15le, tol=%.15le\n", iter, dx_max_norm, i, x[i], i, x[i] + dx[i], dx[i], tol );
+					idx = max_dx_idx;
+					tol = eval_tol( x[idx], residual_rtol, residual_atol );
+					printf( "iter=%d norm=%.15le x[%d]=%.15le x_new[%d]=%.15le delta non-converged, dx=%.15le, tol=%.15le\n", iter, dx_max_norm, idx, x[idx], idx, x[idx] + dx[idx], dx[idx], tol );
 				}
 			}
 			else
 			{
 				delta_converge = true;
 			}
-
-
 		}
 
 		nr_converge = (delta_converge && f_converge);
@@ -593,7 +589,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 			if ( NEWTON_CHORD == iterative_type )
 			{
 				// estimate linear rate
-				double rate_dx;
+				double rate_dx = NAN;
 				double rate_dx_avg;
 				double fixed_point_dist_estimate;
 				double fixed_point_dist_estimate_avg;
@@ -617,7 +613,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 					}
 				}
 
-				double rate_f;
+				double rate_f = NAN;
 				for ( int i = 0; i < n; ++i )
 				{
 					rate_f = fabs(f[i]) / fabs(f_old[i]);
@@ -625,22 +621,26 @@ bool newton_solve ( newton_iterative_type iterative_type,
 				}
 
 				// estimate need how many following iterations for statisfy converge criteria
-				int n_iter_for_delta_convege;
-				int n_iter_for_f_convege;
+				int n_iter_for_delta_converge;
+				double dx_predict_norm;
+				int n_iter_for_f_converge;
+				double f_predict_norm;
 				if ( !delta_converge )
 				{
 					// ‖dx‖ * |rate|ⁿ ≤ 1
-					n_iter_for_delta_convege = (int) ceil( log(1.0 / dx_max_norm) / log(rate_dx) );
-					printf( "[converge predict] need %d iter for delta norm converge to %.15le\n", n_iter_for_delta_convege, dx_max_norm * pow(rate_dx, n_iter_for_delta_convege) );
+					chord_newton_converge_predict_iterative( rate_dx, dx[max_dx_idx], x[max_dx_idx], delta_rtol, delta_atol, &n_iter_for_delta_converge, &dx_predict_norm );
+					printf( "[converge predict iterative]   need %d iter for delta norm converge to %.15le\n", n_iter_for_delta_converge, dx_predict_norm );
+					chord_newton_converge_predict_approximate( rate_dx, dx_max_norm, &n_iter_for_delta_converge, &dx_predict_norm );
+					printf( "[converge predict approximate] need %d iter for delta norm converge to %.15le\n", n_iter_for_delta_converge, dx_predict_norm );
 				}
 				if ( !f_converge )
 				{
 					// ‖f‖ * |rate|ⁿ ≤ 1
-					n_iter_for_f_convege = (int) ceil( log(1.0 / f_max_norm) / log(rate_f) );
-					printf( "[converge predict] need %d iter for f norm converge to %.15le\n", n_iter_for_f_convege, f_max_norm * pow(rate_f, n_iter_for_f_convege) );
+					chord_newton_converge_predict_iterative( rate_f, f[max_f_idx], NAN, residual_rtol, residual_atol, &n_iter_for_f_converge, &f_predict_norm );
+					printf( "[converge predict iterative]   need %d iter for f norm converge to %.15le\n", n_iter_for_f_converge, f_predict_norm );
+					chord_newton_converge_predict_approximate( rate_f, f_max_norm, &n_iter_for_f_converge, &f_predict_norm );
+					printf( "[converge predict approximate] need %d iter for f norm converge to %.15le\n", n_iter_for_f_converge, f_predict_norm );
 				}
-
-				
 			}
 		}
 
@@ -686,7 +686,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 
 		if ( !nr_converge )
 		{
-			printf( "[converge] dx_norm=%.15le (id=%d), f_norm=%.15le (id=%d)\n", dx_max_norm, max_dx_idx, f_max_norm, max_f_idx );
+			printf( "[converge info] iter=%-3d dx_norm=%.15le (id=%-3d), f_norm=%.15le (id=%-3d)\n", iter, dx_max_norm, max_dx_idx, f_max_norm, max_f_idx );
 		}
 
 		++iter;
@@ -702,7 +702,7 @@ bool newton_solve ( newton_iterative_type iterative_type,
 	// show newton results
 	if ( debug )
 	{
-		printf( "\n========== Newton Converge %s in %d Iteration ==========\n", (nr_converge ? "Success" : "Fail"), iter - 1 );
+		printf( "\n========== Newton Converge %s in %d Iteration ==========\n", (nr_converge ? "Success" : "Fail"), iter );
 		for ( int i = 0; i < n; ++i )
 		{
 			printf( "x[%d]=%.15le  f=%.15le\n", i, x[i], f[i] );
@@ -780,6 +780,24 @@ static void newton_initialize ( int n, double *x, double *x0, bool random_initia
 	memcpy( x, x0, sizeof(double) * n );	
 }
 
+static void eval_max_norm( int n, double *x, double *xref, double rtol, double atol, double *max_norm, int *max_idx )
+{
+	double local_norm;
+	double _max_norm = -1;
+	int _max_idx = -1;
+	for ( int i = 0; i < n; ++i )
+	{
+		local_norm = eval_local_norm( x[i], xref[i], rtol, atol );
+		if ( local_norm > _max_norm )
+		{
+			_max_norm = local_norm;
+			_max_idx = i;
+		}
+	}
+	*max_norm = _max_norm;
+	*max_idx = _max_idx;
+}
+
 // J = J + ((Δf - J*Δx)*Δxᵀ) / ‖Δx‖²
 static void broyden_update ( int n, double *J, double *df, double *dx, bool debug )
 {
@@ -838,6 +856,51 @@ static void broyden_update_sherman_morrison ( int n, double *J, double *df, doub
 	free( work2 );
 }
 
+static void chord_newton_converge_predict_iterative ( double rate, double x, double xref, double rtol, double atol, int *predict_iter, double *predict_norm )
+{
+	double norm;
+	int iter = 0;
+	bool xref_use_x = false;
+
+	if ( rate >= 1 )
+	{
+		*predict_iter = 0xffffffff; // INT_MAX
+		*predict_norm = NAN; 
+		return;
+	}
+
+	if ( isnan( xref ) )
+	{
+		xref_use_x = true;	
+	}
+
+	if ( xref_use_x )
+	{
+		xref = x;
+	}
+	norm = eval_local_norm( x, xref, rtol, atol );
+	while ( norm > 1 )
+	{
+		x *= rate;
+		++iter;
+		if ( xref_use_x )
+		{
+			xref = x;
+		}
+		norm = eval_local_norm( x, xref, rtol, atol );
+	}
+
+	*predict_iter = iter;
+	*predict_norm = norm;
+}
+
+static void chord_newton_converge_predict_approximate ( double rate, double norm, int *predict_iter, double *predict_norm )
+{
+	// ‖f‖ * |rate|ⁿ ≤ 1
+	*predict_iter = (int) ceil( log(1.0 / norm) / log(rate) );
+	*predict_norm = norm * exp( *predict_iter * log( rate ) );
+}
+
 static bool __bypass_check ( int n, double *x, double *f, double *dx, double bypass_rtol, double bypass_atol )
 {
 	bool bypass_violate = false;
@@ -854,4 +917,3 @@ static bool __bypass_check ( int n, double *x, double *f, double *dx, double byp
 
 	return bypass_violate;
 }
-
