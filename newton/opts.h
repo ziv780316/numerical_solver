@@ -7,22 +7,7 @@
 
 typedef struct
 {
-	newton_iterative_type iterative_type;		
-	newton_damped_type damped_type;		
-	newton_rescue_type rescue_type;		
-	newton_derivative_type diff_type;		
-	int maxiter;	
-	int miniter;	
-	double delta_rtol;	
-	double delta_atol;	
-	double residual_rtol;	
-	double residual_atol;	
-	double bypass_rtol;	
-	double bypass_atol;	
-	double max_dx;
-	double jmin;
-	bool random_initial;
-	bool debug;
+	newton_param_t newton_param;
 	char *output_file;
 	char *problem_so;
 	char *initial_x0_file;

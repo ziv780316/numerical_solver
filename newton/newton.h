@@ -35,14 +35,36 @@ typedef struct
 	int n_mat_solve;
 	int n_f_load;
 	int n_jac_load;
-} performance_stat;
+} performance_stat_t;
+
+typedef struct
+{
+	newton_iterative_type iterative_type;		
+	newton_damped_type damped_type;		
+	newton_rescue_type rescue_type;		
+	newton_derivative_type diff_type;		
+
+	int n;
+	int maxiter;	
+	int miniter;	
+
+	double delta_rtol;	
+	double delta_atol;	
+	double residual_rtol;	
+	double residual_atol;	
+	double bypass_rtol;	
+	double bypass_atol;	
+	double max_dx;
+	double jmin;
+
+	bool random_initial;
+	bool debug;
+
+	performance_stat_t nr_stat;
+} newton_param_t;
 
 // perform Newton-Raphson iterations 
-bool newton_solve ( newton_iterative_type iterative_type, 
-		    newton_damped_type damped_type,
-		    newton_rescue_type rescue_type,
-		    newton_derivative_type diff_type,
-		    int n,
+bool newton_solve ( newton_param_t *newton_param,
 		    double *x0, // initial x
 		    double *x_ans, // user give solution x*
 		    double *x_result, // final x
@@ -50,19 +72,6 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		    void (load_f) (double *x, double*f),
 		    void (load_jacobian) (double *x, double*J),
 		    bool (bypass_check) (double *x, double *f, double *dx),
-		    int maxiter,
-		    int miniter,
-		    double delta_rtol,
-		    double delta_atol,
-		    double residual_rtol,
-		    double residual_atol,
-		    double bypass_rtol,
-		    double bypass_atol,
-		    double max_dx,
-		    double jmin,
-		    bool random_initial,
-		    performance_stat *nr_stat,
-		    bool debug,
 		    char *debug_file );
 
 #endif

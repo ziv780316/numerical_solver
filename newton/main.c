@@ -74,7 +74,7 @@ int main ( int argc, char **argv )
 		dlerror(); // clear error
 
 		bool (*p_bypass_check) (double *, double *, double *) = NULL;
-		if ( NEWTON_CHORD_WITH_BYPASS_CHECK == g_opts.iterative_type )
+		if ( NEWTON_CHORD_WITH_BYPASS_CHECK == g_opts.newton_param.iterative_type )
 		{
 			p_bypass_check = (bool (*)(double *, double *, double *)) dlsym ( handle, "bypass_check" );
 			if ( !p_bypass_check )
@@ -88,6 +88,7 @@ int main ( int argc, char **argv )
 		// read initial_x0_file
 		int n = *pn;
 		double *x_init;
+		g_opts.newton_param.n = n;
 		if ( g_opts.initial_x0_file )
 		{
 			FILE *fin = fopen( g_opts.initial_x0_file, "r" );	
@@ -114,34 +115,13 @@ int main ( int argc, char **argv )
 			x_init = px0;
 		}
 
-		newton_iterative_type iterative_type = g_opts.iterative_type;
-		newton_damped_type damped_type = g_opts.damped_type;
-		newton_rescue_type rescue_type = g_opts.rescue_type;
-		newton_derivative_type derivative_type = g_opts.diff_type;
-		int maxiter = g_opts.maxiter;
-		int miniter = g_opts.miniter;
-		performance_stat nr_stat;
-		memset( &nr_stat, 0, sizeof( performance_stat ) );
+		newton_param_t *newton_param = &(g_opts.newton_param);
 		double *x_result = (double *) malloc ( sizeof(double) * n );
 		double *f_result = (double *) malloc ( sizeof(double) * n );
-		double delta_rtol = g_opts.delta_rtol;
-		double delta_atol = g_opts.delta_atol;
-		double residual_rtol = g_opts.residual_rtol;
-		double residual_atol = g_opts.residual_atol;
-		double bypass_rtol = g_opts.bypass_rtol;
-		double bypass_atol = g_opts.bypass_atol;
-		double max_dx = g_opts.max_dx;
-		double jmin = g_opts.jmin;
-		bool random_initial = g_opts.random_initial;
-		bool debug = g_opts.debug;
 		bool converge;
 		char *debug_file = g_opts.output_file;
 
-		converge = newton_solve ( iterative_type, 
-			       		  damped_type,
-			       		  rescue_type,
-			       		  derivative_type,
-					  n,
+		converge = newton_solve ( newton_param,
 			       		  x_init,
 			       		  px_ans,
 			       		  x_result,
@@ -149,35 +129,22 @@ int main ( int argc, char **argv )
 			       		  p_load_f,
 			       		  p_load_jacobian,
 					  p_bypass_check,
-			       		  maxiter,
-			       		  miniter,
-			       		  delta_rtol,
-			       		  delta_atol,
-			       		  residual_rtol,
-			       		  residual_atol,
-			       		  bypass_rtol,
-			       		  bypass_atol,
-					  max_dx,
-					  jmin,
-			       		  random_initial,
-					  &nr_stat,
-			       		  debug,
 					  debug_file );
 
-		if ( !debug )
+		if ( !g_opts.newton_param.debug )
 		{
-			printf( "\n========== Newton Converge %s in %d Iteration ==========\n", (converge ? "Success" : "Fail"), nr_stat.n_iter );
+			printf( "\n========== Newton Converge %s in %d Iteration ==========\n", (converge ? "Success" : "Fail"), newton_param->nr_stat.n_iter );
 			for ( int i = 0; i < n; ++i )
 			{
 				printf( "x[%d]=%.10e  f=%.10e\n", i, x_result[i], f_result[i] );
 			}
 		}
 		printf( "* performance summary:\n" );
-		printf( "n_iter       = %d\n", nr_stat.n_iter );
-		printf( "n_mat_factor = %d\n", nr_stat.n_mat_factor );
-		printf( "n_mat_solve  = %d\n", nr_stat.n_mat_solve );
-		printf( "n_f_load     = %d\n", nr_stat.n_f_load );
-		printf( "n_jac_load   = %d\n", nr_stat.n_jac_load );
+		printf( "n_iter       = %d\n", newton_param->nr_stat.n_iter );
+		printf( "n_mat_factor = %d\n", newton_param->nr_stat.n_mat_factor );
+		printf( "n_mat_solve  = %d\n", newton_param->nr_stat.n_mat_solve );
+		printf( "n_f_load     = %d\n", newton_param->nr_stat.n_f_load );
+		printf( "n_jac_load   = %d\n", newton_param->nr_stat.n_jac_load );
 
 		free( x_result );
 		free( f_result );

@@ -29,7 +29,7 @@ __attribute__((always_inline)) inline static double eval_tol( double xref, doubl
 {
 	return (fabs(xref) * rtol) + atol;
 }
-__attribute__((always_inline)) static double eval_local_norm( double x, double xref, double rtol, double atol )
+__attribute__((always_inline)) inline static double eval_local_norm( double x, double xref, double rtol, double atol )
 {
 	return fabs(x) / eval_tol( xref, rtol, atol );
 }
@@ -44,11 +44,11 @@ static void chord_newton_converge_predict_iterative ( double rate, double x, dou
 static void chord_newton_converge_predict_approximate ( double rate, double norm, int *predict_iter, double *predict_norm );
 static bool __bypass_check ( int n, double *x, double *f, double *dx, double bypass_rtol, double bypass_atol );
 
-bool newton_solve ( newton_iterative_type iterative_type, 
-		    newton_damped_type damped_type,
-		    newton_rescue_type rescue_type,
-		    newton_derivative_type diff_type,
-		    int n,
+// for line-search modify newton
+static double eval_f_optimization ( void (load_f) (double *x, double*f), double *x, double *dx, double a, newton_param_t *newton_param );
+static double interval_halving ( void (load_f) (double *v, double*f), double *v, double *dv, double a, double b, double tol, newton_param_t *newton_param );
+
+bool newton_solve ( newton_param_t *newton_param,
 		    double *x0,
 		    double *x_ans,
 		    double *x_result,
@@ -56,21 +56,28 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		    void (load_f) (double *x, double*f),
 		    void (load_jacobian) (double *x, double*J),
 		    bool (bypass_check) (double *x, double *f, double *dx),
-		    int maxiter,
-		    int miniter,
-		    double delta_rtol,
-		    double delta_atol,
-		    double residual_rtol,
-		    double residual_atol,
-		    double bypass_rtol,
-		    double bypass_atol,
-		    double max_dx,
-		    double jmin,
-		    bool random_initial,
-		    performance_stat *nr_stat,
-		    bool debug,
 		    char *debug_file )
 {
+	// assign newton parameters to local
+	newton_iterative_type iterative_type = newton_param->iterative_type;
+	newton_damped_type damped_type = newton_param->damped_type;
+	newton_rescue_type rescue_type = newton_param->rescue_type;
+	newton_derivative_type diff_type = newton_param->diff_type;
+	int n = newton_param->n;
+	int maxiter = newton_param->maxiter;
+	int miniter = newton_param->miniter;
+	double delta_rtol = newton_param->delta_rtol;
+	double delta_atol = newton_param->delta_atol;
+	double residual_rtol = newton_param->residual_rtol;
+	double residual_atol = newton_param->residual_atol;
+	double bypass_rtol = newton_param->bypass_rtol;
+	double bypass_atol = newton_param->bypass_atol;
+	double max_dx = newton_param->max_dx;
+	double jmin = newton_param->jmin;
+	bool debug = newton_param->debug;
+	bool random_initial = newton_param->random_initial;
+	performance_stat_t *nr_stat = &(newton_param->nr_stat);
+
 	// check load_f exist or not
 	check_user_define_args( x0, load_f, load_jacobian );
 
@@ -649,6 +656,25 @@ bool newton_solve ( newton_iterative_type iterative_type,
 		// ---------------------------------
 		if ( DAMPED_LINE_SEARCH == damped_type )
 		{
+			// xₖ₊₁ = xₖ + 𝛼*dx, line search 𝛼 cause minimum ‖f(xₖ₊₁)‖ 
+			double optima_a = interval_halving ( load_f, x, dx, 0, 1, 1e-1, newton_param );
+			if ( optima_a < 1 )
+			{
+				if ( newton_param->debug )
+				{
+					printf( "[line_search] optimized a=%.10le\n", optima_a );
+				}
+
+				// scale dx
+				for ( int i = 0; i < n; ++i )
+				{
+					if ( newton_param->debug )
+					{
+						printf( "[damped newton] modify dx[%d] %.10le -> %.10le\n", i, dx[i], optima_a * dx[i]);
+					}
+					dx[i] *= optima_a;
+				}
+			}
 		}
 
 		if ( debug && fout_debug )
@@ -916,4 +942,130 @@ static bool __bypass_check ( int n, double *x, double *f, double *dx, double byp
 	}
 
 	return bypass_violate;
+}
+
+static double eval_f_optimization ( void (load_f) (double *x, double*f), double *x, double *dx, double a, newton_param_t *newton_param )
+{
+	static double *x_buf = NULL;
+	static double *f_buf = NULL;
+	int n = newton_param->n;
+	if ( !x_buf )
+	{
+		x_buf = malloc( sizeof(double) * n );
+		f_buf = malloc( sizeof(double) * n );
+	}
+
+	double f_max_norm = -DBL_MAX;
+	int max_f_idx = -1;
+	for ( int i = 0; i < n; ++i )
+	{
+		x_buf[i] = x[i] + (a * dx[i]);
+	}
+	load_f( x_buf, f_buf );
+	++(newton_param->nr_stat.n_f_load);
+	//eval_max_norm( n, f_buf, f_buf, newton_param->residual_rtol, newton_param->residual_atol, &f_max_norm, &max_f_idx );
+	for ( int i = 0; i < n; ++i )
+	{
+		if ( fabs(f_buf[i]) > f_max_norm )
+		{
+			f_max_norm = fabs(f_buf[i]);
+			max_f_idx = i;
+		}
+		
+	}
+	return f_max_norm;
+}
+
+// <------  L  ------>
+// a____x₁_____x₂____b
+// 
+// assume problem is convex hull, then
+// if f(x₁) < f(x₂) then prun x₂ ~ b
+// if f(x₂) < f(x₁) then prun a ~ x₁ 
+// if f(x₁) = f(x₂) then prun a ~ x₁ and x₂ ~ b
+// 
+// each iteration call two f(x)
+// linear converge rate 0.75
+//
+static double interval_halving ( void (load_f) (double *v, double*f), double *v, double *dv, double a, double b, double tol, newton_param_t *newton_param )
+{
+	int iter;
+	double x_optima = NAN;
+	double f_optima = NAN;
+	double f1;
+	double f2;
+	double x1;
+	double x2;
+	double a_last;
+	double b_last;
+	double x_origin;
+	double f_origin;
+	double l;
+	double delta;
+
+	iter = 0;
+	a_last = a;
+	b_last = b;
+	x_origin = b;
+	f_origin = eval_f_optimization ( load_f, v, dv, b, newton_param );
+
+	do 
+	{
+		++iter;
+		l = b - a;
+		delta = l / 4;
+		x1 = a + delta;
+		x2 = b - delta;
+		f1 = eval_f_optimization ( load_f, v, dv, x1, newton_param );
+		f2 = eval_f_optimization ( load_f, v, dv, x2, newton_param );
+
+		if ( f1 < f2 )
+		{
+			x_optima = x1;
+			f_optima = f1;
+			b_last = b;
+			b = x2;
+		}
+		else if ( f2 < f1 )
+		{
+			x_optima = x2;
+			f_optima = f2;
+			a_last = a;
+			a = x1;
+		}
+		else
+		{
+			a = x1;
+			b = x2;
+			a_last = a;
+			b_last = b;
+			x_optima = x1;
+			f_optima = f1;
+		}
+
+		if ( newton_param->debug )
+		{
+			printf( "[line_search] i=%d l=%.10le a=%.10le b=%.10le x1=%.10le x2=%.10le f1=%.10le f2=%.10le f_optima=%.10le\n", iter, l, a_last, b_last, x1, x2, f1, f2, f_optima );
+		}
+
+	} while ( l > tol );
+
+	if ( f_origin < f_optima )
+	{
+		x_optima = x_origin;
+		if ( newton_param->debug )
+		{
+			printf( "[line_search] non-optimizion\n", f_origin, x_optima, f_optima );
+		}
+	}
+	else
+	{
+		if ( newton_param->debug )
+		{
+			printf( "[line_search] reduce f_norm(1)=%.10le --> f_norm(%.15le)=%.10le\n", f_origin, x_optima, f_optima );
+		}
+	}
+
+
+	return x_optima;
 }

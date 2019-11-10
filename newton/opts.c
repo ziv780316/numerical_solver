@@ -12,22 +12,27 @@ static void str_to_lower ( char *str );
 static int is_str_nocase_match ( const char *str_a, const char *str_b );
 
 opt_t g_opts = {
-	.iterative_type = NEWTON_NORMAL,
-	.damped_type = DAMPED_NONE,
-	.rescue_type = RESCUE_NONE,
-	.diff_type = NEWTON_DIFF_FORWARD,		
-	.maxiter = -1, 	
-	.miniter = 0, 	
-	.delta_rtol = 1e-3,	
-	.delta_atol = 1e-6,
-	.bypass_rtol = 1e-2,	
-	.bypass_atol = 1e-3,
-	.max_dx = DBL_MAX,
-	.jmin = 0.0,
-	.residual_rtol = 1e-3,
-	.residual_atol = 1e-9,
-	.random_initial = false,
-	.debug = false,
+	.newton_param = 
+	{
+		.iterative_type = NEWTON_NORMAL,
+		.damped_type = DAMPED_NONE,
+		.rescue_type = RESCUE_NONE,
+		.diff_type = NEWTON_DIFF_FORWARD,		
+		.n = -1,
+		.maxiter = -1, 	
+		.miniter = 0, 	
+		.delta_rtol = 1e-3,	
+		.delta_atol = 1e-6,
+		.bypass_rtol = 1e-2,	
+		.bypass_atol = 1e-3,
+		.max_dx = DBL_MAX,
+		.jmin = 0.0,
+		.residual_rtol = 1e-3,
+		.residual_atol = 1e-9,
+		.random_initial = false,
+		.debug = false,
+		.nr_stat = {0}
+	},
 	.output_file = NULL,
 	.problem_so = NULL,
 	.initial_x0_file = NULL
@@ -151,50 +156,41 @@ void parse_cmd_options ( int argc, char **argv )
 				break;
 
 			case 'd':
-				g_opts.debug = true;
+				g_opts.newton_param.debug = true;
 				break;
 
 			case 'z':
-				g_opts.random_initial = true;
-				break;
-
-			case 'o':
-				g_opts.output_file = optarg;
-				if ( !freopen( g_opts.output_file, "w", stdout ) )
-				{
-					fprintf( stderr, "[Error] open file fail --> %s\n", strerror(errno) );
-					abort();
-				}
+				g_opts.newton_param.random_initial = true;
 				break;
 
 			case 'i':
 				if ( is_str_nocase_match( "normal", optarg ) )
 				{
-					g_opts.iterative_type = NEWTON_NORMAL;
+					g_opts.newton_param.iterative_type = NEWTON_NORMAL;
 				}
 				else if ( is_str_nocase_match( "jacobi", optarg ) )
 				{
-					g_opts.iterative_type = NEWTON_JACOBI;
+					g_opts.newton_param.iterative_type = NEWTON_JACOBI;
 				}
 				else if ( is_str_nocase_match( "chord", optarg ) )
 				{
-					g_opts.iterative_type = NEWTON_CHORD;
+					g_opts.newton_param.iterative_type = NEWTON_CHORD;
 				}
 				else if ( is_str_nocase_match( "chord_bypass_check", optarg ) )
 				{
-					g_opts.iterative_type = NEWTON_CHORD_WITH_BYPASS_CHECK;
+					g_opts.newton_param.iterative_type = NEWTON_CHORD_WITH_BYPASS_CHECK;
 				}
 				else if ( is_str_nocase_match( "broyden", optarg ) )
 				{
-					g_opts.iterative_type = NEWTON_BROYDEN;
+					g_opts.newton_param.iterative_type = NEWTON_BROYDEN;
 				}
 				else if ( is_str_nocase_match( "broyden_inverted", optarg ) )
 				{
-					g_opts.iterative_type = NEWTON_BROYDEN_INVERTED;
+					g_opts.newton_param.iterative_type = NEWTON_BROYDEN_INVERTED;
 				}
 				else if ( is_str_nocase_match( "broyden_inverted_bad", optarg ) )
 				{
-					g_opts.iterative_type = NEWTON_BROYDEN_INVERTED_BAD;
+					g_opts.newton_param.iterative_type = NEWTON_BROYDEN_INVERTED_BAD;
 				}
 				else
 				{
@@ -206,11 +202,11 @@ void parse_cmd_options ( int argc, char **argv )
 			case 'f':
 				if ( is_str_nocase_match( "damped", optarg ) )
 				{
-					g_opts.damped_type = DAMPED_DIRECT;
+					g_opts.newton_param.damped_type = DAMPED_DIRECT;
 				}
 				else if ( is_str_nocase_match( "line_search", optarg ) )
 				{
-					g_opts.damped_type = DAMPED_LINE_SEARCH;
+					g_opts.newton_param.damped_type = DAMPED_LINE_SEARCH;
 				}
 				else
 				{
@@ -222,7 +218,7 @@ void parse_cmd_options ( int argc, char **argv )
 			case 'c':
 				if ( is_str_nocase_match( "diagonal", optarg ) )
 				{
-					g_opts.rescue_type = RESCUE_DIAGONAL;
+					g_opts.newton_param.rescue_type = RESCUE_DIAGONAL;
 				}
 				else
 				{
@@ -234,15 +230,15 @@ void parse_cmd_options ( int argc, char **argv )
 			case 'e':
 				if ( is_str_nocase_match( "jacobian", optarg ) )
 				{
-					g_opts.diff_type = NEWTON_DIFF_JACOBIAN;
+					g_opts.newton_param.diff_type = NEWTON_DIFF_JACOBIAN;
 				}
 				else if ( is_str_nocase_match( "forward", optarg ) )
 				{
-					g_opts.diff_type = NEWTON_DIFF_FORWARD;
+					g_opts.newton_param.diff_type = NEWTON_DIFF_FORWARD;
 				}
 				else if ( is_str_nocase_match( "central", optarg ) )
 				{
-					g_opts.diff_type = NEWTON_DIFF_CENTRAL;
+					g_opts.newton_param.diff_type = NEWTON_DIFF_CENTRAL;
 				}
 				else
 				{
@@ -252,43 +248,52 @@ void parse_cmd_options ( int argc, char **argv )
 				break;
 				
 			case 'r':
-				g_opts.delta_rtol = atof( optarg );
+				g_opts.newton_param.delta_rtol = atof( optarg );
 				break;
 
 			case 'a':
-				g_opts.delta_atol = atof( optarg );
+				g_opts.newton_param.delta_atol = atof( optarg );
 				break;
 
 			case 'y':
-				g_opts.bypass_rtol = atof( optarg );
+				g_opts.newton_param.bypass_rtol = atof( optarg );
 				break;
 
 			case 's':
-				g_opts.bypass_atol = atof( optarg );
+				g_opts.newton_param.bypass_atol = atof( optarg );
 				break;
 
 			case 'g':
-				g_opts.residual_rtol = atof( optarg );
+				g_opts.newton_param.residual_rtol = atof( optarg );
 				break;
 
 			case 'u':
-				g_opts.residual_atol = atof( optarg );
+				g_opts.newton_param.residual_atol = atof( optarg );
 				break;
 
 			case 'b':
-				g_opts.max_dx = atof( optarg );
+				g_opts.newton_param.max_dx = atof( optarg );
 				break;
 
 			case 'j':
-				g_opts.jmin = atof( optarg );
+				g_opts.newton_param.jmin = atof( optarg );
 				break;
 
 			case 'm':
-				g_opts.maxiter = atoi( optarg );
+				g_opts.newton_param.maxiter = atoi( optarg );
 				break;
 
 			case 'n':
-				g_opts.miniter = atoi( optarg );
+				g_opts.newton_param.miniter = atoi( optarg );
+				break;
+
+			case 'o':
+				g_opts.output_file = optarg;
+				if ( !freopen( g_opts.output_file, "w", stdout ) )
+				{
+					fprintf( stderr, "[Error] open file fail --> %s\n", strerror(errno) );
+					abort();
+				}
 				break;
 
 			case 'p':

@@ -15,8 +15,8 @@ SHELL=/bin/bash
 CC         = gcc
 LINKER     = $(CC)
 DEFINES    = 
-BUILD_TYPE = -O3
-CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -Wextra -Wenum-compare -std=gnu99 -fPIC 
+BUILD_TYPE = -g3
+CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -Wextra -Wenum-compare -std=gnu99 -fPIC -Wno-unused-parameter -Wno-unused-variable
 MAT_SOLVER_PATH = /home/lintu/baba/numerical/matrix_solver/lib
 LIBS       = -L$(MAT_SOLVER_PATH) -lmatrix_solver -llapack -lblas -lgfortran -lm -ldl
 INCLUDE    = -I../matrix_solver -I. 
