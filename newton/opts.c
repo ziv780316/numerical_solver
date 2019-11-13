@@ -308,6 +308,7 @@ void parse_cmd_options ( int argc, char **argv )
 
 			case 'x':
 				g_opts.initial_x0_file = optarg;
+				break;
 
 			case '?':
 				/* getopt_long already printed an error message. */
