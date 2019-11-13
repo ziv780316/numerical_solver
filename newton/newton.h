@@ -56,6 +56,7 @@ typedef struct
 	double bypass_atol;	
 	double max_dx;
 	double jmin;
+	double line_search_tol;
 
 	bool random_initial;
 	bool debug;

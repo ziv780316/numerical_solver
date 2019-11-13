@@ -46,7 +46,8 @@ static bool __bypass_check ( int n, double *x, double *f, double *dx, double byp
 
 // for line-search modify newton
 static double eval_f_optimization ( void (load_f) (double *x, double*f), double *x, double *dx, double a, newton_param_t *newton_param );
-static double interval_halving ( void (load_f) (double *v, double*f), double *v, double *dv, double a, double b, double tol, newton_param_t *newton_param );
+static double interval_halving ( void (load_f) (double *v, double*f), double *v, double *dv, double a, double b, newton_param_t *newton_param );
+static double golden_section ( void (load_f) (double *v, double*f), double *v, double *dv, double a, double b, newton_param_t *newton_param );
 
 bool newton_solve ( newton_param_t *newton_param,
 		    double *x0,
@@ -657,7 +658,8 @@ bool newton_solve ( newton_param_t *newton_param,
 		if ( DAMPED_LINE_SEARCH == damped_type )
 		{
 			// xₖ₊₁ = xₖ + 𝛼*dx, line search 𝛼 cause minimum ‖f(xₖ₊₁)‖ 
-			double optima_a = interval_halving ( load_f, x, dx, 0, 1, 1e-1, newton_param );
+			//double optima_a = interval_halving ( load_f, x, dx, 0, 1, newton_param );
+			double optima_a = golden_section ( load_f, x, dx, 0, 1, newton_param );
 			if ( optima_a < 1 )
 			{
 				if ( newton_param->debug )
@@ -976,10 +978,12 @@ static double eval_f_optimization ( void (load_f) (double *x, double*f), double 
 	return f_max_norm;
 }
 
-// <------  L  ------>
-// a____x₁_____x₂____b
+// <------  L  ----->
+// a___x₁______x₂___b
 // 
 // assume problem is convex hull, then
+// x₁ = a + 0.25*L
+// x₂ = b - 0.25*L
 // if f(x₁) < f(x₂) then prun x₂ ~ b
 // if f(x₂) < f(x₁) then prun a ~ x₁ 
 // if f(x₁) = f(x₂) then prun a ~ x₁ and x₂ ~ b
@@ -987,7 +991,124 @@ static double eval_f_optimization ( void (load_f) (double *x, double*f), double 
 // each iteration call two f(x)
 // linear converge rate 0.75
 //
-static double interval_halving ( void (load_f) (double *v, double*f), double *v, double *dv, double a, double b, double tol, newton_param_t *newton_param )
+static double interval_halving ( void (load_f) (double *v, double*f), double *v, double *dv, double a, double b, newton_param_t *newton_param )
+{
+	int iter;
+	double x_optima = NAN;
+	double f_optima = NAN;
+	double f1;
+	double f2;
+	double x1;
+	double x2;
+	double x_origin;
+	double f_origin;
+	double l;
+	double delta;
+	double halving_ratio = 0.25;
+	double tol = newton_param->line_search_tol;
+
+	x_origin = b;
+	f_origin = eval_f_optimization ( load_f, v, dv, b, newton_param );
+
+	iter = 1;
+	l = b - a;
+	delta = l * halving_ratio;
+	x1 = a + delta;
+	x2 = b - delta;
+	f1 = eval_f_optimization ( load_f, v, dv, x1, newton_param );
+	f2 = eval_f_optimization ( load_f, v, dv, x2, newton_param );
+
+	if ( f1 <= f2 )
+	{
+		x_optima = x1;
+		f_optima = f1;
+	}
+	else if ( f2 < f1 )
+	{
+		x_optima = x2;
+		f_optima = f2;
+	}
+
+	while( l > tol ) 
+	{
+		if ( newton_param->debug )
+		{
+			printf( "[line_search] i=%d l=%.10le a=%.10le b=%.10le x1=%.10le x2=%.10le f1=%.10le f2=%.10le f_optima=%.10le\n", iter, l, a, b, x1, x2, f1, f2, f_optima );
+		}
+
+		if ( f1 < f2 )
+		{
+			if ( f1 < f_optima )
+			{
+				x_optima = x1;
+				f_optima = f1;
+			}
+			b = x2;
+		}
+		else if ( f2 < f1 )
+		{
+			if ( f2 < f_optima )
+			{
+				x_optima = x2;
+				f_optima = f2;
+			}
+			a = x1;
+		}
+		else
+		{
+			a = x1;
+			b = x2;
+		}
+
+		++iter;
+		l = b - a;
+		delta = l * halving_ratio;
+		x1 = a + delta;
+		x2 = b - delta;
+		f1 = eval_f_optimization ( load_f, v, dv, x1, newton_param );
+		f2 = eval_f_optimization ( load_f, v, dv, x2, newton_param );
+	}
+
+	if ( f_origin < f_optima )
+	{
+		x_optima = x_origin;
+		if ( newton_param->debug )
+		{
+			printf( "[line_search] non-optimizion\n" );
+		}
+	}
+	else
+	{
+		if ( newton_param->debug )
+		{
+			printf( "[line_search] reduce f_norm(1)=%.10le --> f_norm(%.15le)=%.10le\n", f_origin, x_optima, f_optima );
+		}
+	}
+
+
+	return x_optima;
+}
+
+// <-----   L  ----->
+// a____x₁____x₂____b
+// 
+// assume problem is convex hull, then
+// x₁ = b - 𝜏*L
+// x₂ = a + 𝜏*L
+// if f(x₂) > f(x₁) then
+// pruning x₂ ~ b and x₂ = a + 𝜏*(L - (b - (a + 𝜏*L))) = a + 𝜏*𝜏*L
+// then solve algebra b - 𝜏*L = a + 𝜏*𝜏*L
+// L*𝜏² + L*𝜏 - L = 𝜏² + 𝜏 - 1 = 0
+// 𝜏 = (-1 ± √sqrt(5)) / 2 
+// 𝜏 = (-1 + sqrt(5)) / 2 ≈ 0.618 (golden ratio)
+// if f(x₁) < f(x₂) then prun x₂ = x₁, x₁ = b - 𝜏*L
+// if f(x₂) < f(x₁) then prun x₁ = x₂, x₂ = a + 𝜏*L
+// if f(x₁) = f(x₂) then prun a ~ x₁ and x₂ ~ b
+// 
+// almostly each iteration call only one f(x)
+// linear converge rate fast then interval halving
+//
+static double golden_section ( void (load_f) (double *v, double*f), double *v, double *dv, double a, double b, newton_param_t *newton_param )
 {
 	int iter;
 	double x_optima = NAN;
@@ -1002,60 +1123,100 @@ static double interval_halving ( void (load_f) (double *v, double*f), double *v,
 	double f_origin;
 	double l;
 	double delta;
+	double golden_ratio = (-1 + sqrt(5)) / 2;
+	double tol = newton_param->line_search_tol;
 
-	iter = 0;
-	a_last = a;
-	b_last = b;
 	x_origin = b;
 	f_origin = eval_f_optimization ( load_f, v, dv, b, newton_param );
 
-	do 
+	iter = 1;
+	l = b - a;
+	delta = l * golden_ratio;
+	x1 = b - delta;
+	x2 = a + delta;
+	f1 = eval_f_optimization ( load_f, v, dv, x1, newton_param );
+	f2 = eval_f_optimization ( load_f, v, dv, x2, newton_param );
+
+	if ( f1 <= f2 )
 	{
-		++iter;
-		l = b - a;
-		delta = l / 4;
-		x1 = a + delta;
-		x2 = b - delta;
-		f1 = eval_f_optimization ( load_f, v, dv, x1, newton_param );
-		f2 = eval_f_optimization ( load_f, v, dv, x2, newton_param );
+		x_optima = x1;
+		f_optima = f1;
+	}
+	else if ( f2 < f1 )
+	{
+		x_optima = x2;
+		f_optima = f2;
+	}
+
+	while( l > tol ) 
+	{
+		if ( newton_param->debug )
+		{
+			printf( "[line_search] i=%d l=%.10le a=%.10le b=%.10le x1=%.10le x2=%.10le f1=%.10le f2=%.10le f_optima=%.10le\n", iter, l, a, b, x1, x2, f1, f2, f_optima );
+		}
 
 		if ( f1 < f2 )
 		{
-			x_optima = x1;
-			f_optima = f1;
-			b_last = b;
+			if ( f1 < f_optima )
+			{
+				x_optima = x1;
+				f_optima = f1;
+			}
 			b = x2;
+			x2 = x1;
+			f2 = f1;
+
+			l = b - a;
+			delta = l * golden_ratio;
+			x1 = b - delta;
+			f1 = eval_f_optimization ( load_f, v, dv, x1, newton_param );
 		}
 		else if ( f2 < f1 )
 		{
-			x_optima = x2;
-			f_optima = f2;
-			a_last = a;
+			if ( f2 < f_optima )
+			{
+				x_optima = x2;
+				f_optima = f2;
+			}
 			a = x1;
+			x1 = x2;
+			f1 = f2;
+
+			l = b - a;
+			delta = l * golden_ratio;
+			x2 = a + delta;
+			f2 = eval_f_optimization ( load_f, v, dv, x2, newton_param );
 		}
 		else
 		{
 			a = x1;
 			b = x2;
-			a_last = a;
-			b_last = b;
-			x_optima = x1;
-			f_optima = f1;
+
+			if ( f1 < f_optima )
+			{
+				x_optima = x1;
+				f_optima = f1;
+			}
+
+			l = b - a;
+			delta = l * golden_ratio;
+			x1 = b - delta;
+			x2 = a + delta;
+			f1 = eval_f_optimization ( load_f, v, dv, x1, newton_param );
+			f2 = eval_f_optimization ( load_f, v, dv, x2, newton_param );
 		}
 
-		if ( newton_param->debug )
-		{
-			printf( "[line_search] i=%d l=%.10le a=%.10le b=%.10le x1=%.10le x2=%.10le f1=%.10le f2=%.10le f_optima=%.10le\n", iter, l, a_last, b_last, x1, x2, f1, f2, f_optima );
-		}
+		++iter;
 
-	} while ( l > tol );
+		l = b - a;
+	}
 
 	if ( f_origin < f_optima )
 	{
 		x_optima = x_origin;
 		if ( newton_param->debug )
 		{
-			printf( "[line_search] non-optimizion\n", f_origin, x_optima, f_optima );
+			printf( "[line_search] non-optimizion\n" );
 		}
 	}
 	else

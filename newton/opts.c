@@ -27,6 +27,7 @@ opt_t g_opts = {
 		.bypass_atol = 1e-3,
 		.max_dx = DBL_MAX,
 		.jmin = 0.0,
+		.line_search_tol = 1e-3,
 		.residual_rtol = 1e-3,
 		.residual_atol = 1e-9,
 		.random_initial = false,
@@ -129,6 +130,7 @@ void parse_cmd_options ( int argc, char **argv )
 			{"bypass_atol", required_argument, 0, 's'},
 			{"max_dx", required_argument, 0, 'b'},
 			{"jmin", required_argument, 0, 'j'},
+			{"line_search_tol", required_argument, 0, 'l'},
 			{"output", required_argument, 0, 'o'},
 			{"maxiter", required_argument, 0, 'm'},
 			{"miniter", required_argument, 0, 'n'},
@@ -140,7 +142,7 @@ void parse_cmd_options ( int argc, char **argv )
 		// getopt_long stores the option index here
 		int option_index = 0;
 
-		c = getopt_long( argc, argv, "hdzi:f:c:e:r:a:y:s:t:o:m:n:g:u:b:j:p:x:", long_options, &option_index );
+		c = getopt_long( argc, argv, "hdzi:f:c:e:r:a:y:s:t:o:m:n:g:u:b:j:l:p:x:", long_options, &option_index );
 
 		// detect the end of the options
 		if ( -1 == c )
@@ -277,6 +279,10 @@ void parse_cmd_options ( int argc, char **argv )
 
 			case 'j':
 				g_opts.newton_param.jmin = atof( optarg );
+				break;
+
+			case 'l':
+				g_opts.newton_param.line_search_tol = atof( optarg );
 				break;
 
 			case 'm':
