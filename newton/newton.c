@@ -50,6 +50,7 @@ static double interval_halving ( void (load_f) (double *v, double*f), double *v,
 static double golden_section ( void (load_f) (double *v, double*f), double *v, double *dv, double a, double b, newton_param_t *newton_param );
 
 bool newton_solve ( newton_param_t *newton_param,
+		    double *J,
 		    double *x0,
 		    double *x_ans,
 		    double *x_result,
@@ -95,7 +96,6 @@ bool newton_solve ( newton_param_t *newton_param,
 	double *f_delta_forward = NULL;
 	double *f_delta_backward = NULL;
 	double *rhs = (double *) malloc ( sizeof(double) * n );
-	double *J = (double *) malloc ( sizeof(double) * J_size );
 	double *J_inv = NULL;
 	double *J_old = NULL;
 	double *D = NULL;
@@ -107,6 +107,10 @@ bool newton_solve ( newton_param_t *newton_param,
 	double X_norm;
 	bool bypass_violate;
 	FILE *fout_debug = NULL;
+	if ( NULL == J )
+	{
+		J = (double *) malloc ( sizeof(double) * J_size );
+	}
 
 	// ---------------------------------
 	// necessarily memory allocation with different method
@@ -748,7 +752,6 @@ bool newton_solve ( newton_param_t *newton_param,
 	free_with_set_null( f_old );
 	free_with_set_null( df );
 	free_with_set_null( rhs );
-	free_with_set_null( J );
 	if ( diff_type != NEWTON_DIFF_JACOBIAN )
 	{
 		free_with_set_null( f_delta_forward  );

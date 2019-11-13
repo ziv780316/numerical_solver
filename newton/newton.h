@@ -66,6 +66,7 @@ typedef struct
 
 // perform Newton-Raphson iterations 
 bool newton_solve ( newton_param_t *newton_param,
+		    double *J, // jacobian
 		    double *x0, // initial x
 		    double *x_ans, // user give solution x*
 		    double *x_result, // final x

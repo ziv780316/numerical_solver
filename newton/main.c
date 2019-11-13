@@ -116,12 +116,14 @@ int main ( int argc, char **argv )
 		}
 
 		newton_param_t *newton_param = &(g_opts.newton_param);
+		double *J;
 		double *x_result = (double *) malloc ( sizeof(double) * n );
 		double *f_result = (double *) malloc ( sizeof(double) * n );
 		bool converge;
 		char *debug_file = g_opts.output_file;
 
 		converge = newton_solve ( newton_param,
+			       		  J,
 			       		  x_init,
 			       		  px_ans,
 			       		  x_result,

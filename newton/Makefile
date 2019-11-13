@@ -29,7 +29,7 @@ LIBRARY_DIR       := library
 TEST_FUNCTION_DIR := test_functions
 BIN_DIR       	  := bin
 OBJS              := newton.o main.o opts.o
-TARGET            := newton_solver
+TARGET            := newton_solver libnewton.a
 
 #=================================================
 # Compile implicit rules
@@ -56,6 +56,10 @@ TARGET            := newton_solver
 #=================================================
 default: $(TARGET)
 
+libnewton.a: newton.o
+	ar -rv $@ $^
+	mv $@ lib
+
 newton_solver: create_dir $(OBJS) make_test_functions
 	cd $(LIBRARY_DIR);\
 	$(LINKER) -o $@ $(OBJS) $(LIBS);\
@@ -68,6 +72,7 @@ debug: BUILD_TYPE:=-g3
 debug: default
 
 create_dir:
+	@mkdir -p lib
 	@mkdir -p $(LIBRARY_DIR)
 	@mkdir -p $(BIN_DIR)
 
