@@ -129,9 +129,11 @@ int main ( int argc, char **argv )
 		double *f_result = (double *) malloc ( sizeof(double) * n );
 		double *s0 = (double *) malloc ( sizeof(double) * n );
 		double *s1 = (double *) malloc ( sizeof(double) * n );
+		double *s_extrapolate = (double *) malloc ( sizeof(double) * n );
 		double p0 = NAN;
 		double p1 = NAN;
 		bool converge;
+		bool use_extrapolation = false;
 		char *debug_file = g_opts.output_file;
 		int success_cnt = 0;
 
@@ -146,15 +148,32 @@ int main ( int argc, char **argv )
 
 			if ( success_cnt >= 2)
 			{
-				if ( HOMOTOPY_EXTRAPOLATE_DIFFERENCE == g_opts.homotopy_param.extrapolate_type )
+				if ( HOMOTOPY_EXTRAPOLATE_NONE != g_opts.homotopy_param.extrapolate_type )
 				{
-					double l1 = (lamda - p0) / (p1 - p0);
-					double l2 = (lamda - p1) / (p0 - p1);
-					printf( "* Difference Extrapolation p0=%.10le p1=%.10le\n", p0, p1 );
-					for ( int i = 0; i < n; ++i )
+					use_extrapolation = true;
+					if ( HOMOTOPY_EXTRAPOLATE_DIFFERENCE == g_opts.homotopy_param.extrapolate_type )
 					{
-						x_init[i] = l1 * s1[i] + l2 * s0[i];
-						printf( "x[%d]=%.10e  xpred[%d]=%.10le\n", i, s0[i], i, x_init[i] );
+						double l1 = (lamda - p0) / (p1 - p0);
+						double l2 = (lamda - p1) / (p0 - p1);
+						for ( int i = 0; i < n; ++i )
+						{
+							s_extrapolate[i] = l1 * s1[i] + l2 * s0[i];
+						}
+					}
+					else if ( HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL == g_opts.homotopy_param.extrapolate_type )
+					{
+					}
+
+					memcpy( x_init, s_extrapolate, sizeof(double) * n );
+
+					if ( g_opts.homotopy_param.debug )
+					{
+						printf( "* Extrapolation p0=%.10le p1=%.10le\n", p0, p1 );
+						for ( int i = 0; i < n; ++i )
+						{
+							printf( "x[%d]=%.10e  xpred[%d]=%.10le\n", i, s0[i], i, s_extrapolate[i] );
+						}
+						printf( "\n" );
 					}
 				}
 			}
@@ -170,7 +189,7 @@ int main ( int argc, char **argv )
 					p_bypass_check,
 					debug_file );
 
-			printf( "* λ=%.10le NR Converge %s in %d Iteration\n", lamda, (converge ? "Success" : "Fail"), newton_param->nr_stat.n_iter );
+			printf( "\n* λ=%.10le NR Converge %s in %d Iteration\n", lamda, (converge ? "Success" : "Fail"), newton_param->nr_stat.n_iter );
 			for ( int i = 0; i < n; ++i )
 			{
 				printf( "x[%d]=%.10e  f=%.10e\n", i, x_result[i], f_result[i] );
@@ -179,6 +198,34 @@ int main ( int argc, char **argv )
 
 			if ( converge )
 			{
+				if ( g_opts.homotopy_param.debug && use_extrapolation )
+				{
+					if ( HOMOTOPY_EXTRAPOLATE_NONE != g_opts.homotopy_param.extrapolate_type )
+					{
+						double diff_none;
+						double diff_pred;
+						double ratio_none;
+						double ratio_pred;
+						printf( "* Extrapolation Enhance Ratio\n" );
+						for ( int i = 0; i < n; ++i )
+						{
+							diff_none = x_result[i] - s0[i];
+							diff_pred = x_result[i] - s_extrapolate[i];
+							ratio_none = fabs(diff_none / x_result[i]) * 100;
+							ratio_pred = fabs(diff_pred / x_result[i]) * 100;
+							if ( ratio_none >= ratio_pred )
+							{
+								printf( "%d: diff_none=%.10e  diff_pred=%.10le enhace_ratio=%.10g%%\n", i, diff_none, diff_pred, ratio_none - ratio_pred );
+							}
+							else
+							{
+								printf( "%d: diff_none=%.10e  diff_pred=%.10le enhace_ratio=fail\n" );
+							}
+						}
+						printf( "\n" );
+					}
+				}
+
 				++success_cnt; 
 				memcpy( s1, s0, sizeof(double) * n );
 				memcpy( s0, x_result, sizeof(double) * n );

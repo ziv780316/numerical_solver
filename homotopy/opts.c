@@ -17,6 +17,7 @@ opt_t g_opts = {
 		.extrapolate_type = HOMOTOPY_EXTRAPOLATE_NONE,
 		.lamda_start = 0,
 		.lamda_stop = 1,
+		.debug = false,
 	},
 	.newton_param = 
 	{
@@ -52,8 +53,11 @@ void show_help ()
 		"*------------------------------------*\n" 
 		"[Newton Options]\n"
 		"  -h  =>  show help\n"
-		"  -d  =>  enable debug information\n"
 		"  -z  =>  randomize x0\n"
+		"  -d | --debug =>  enable debug information (default none)\n"
+		"    newton\n"
+		"    homotopy\n"
+		"    all\n"
 		"  -i | --iterative  =>  specify iterative method (default normal)\n"
 		"    normal\n"
 		"    chord\n"
@@ -87,7 +91,6 @@ void show_help ()
 		"\n"
 		"[Homotopy Options]\n"
 		"  -t | --extrapolation_type  =>  specify extrapolate type (default none)\n"
-		"    none\n"
 		"    difference\n"
 		"    differential\n"
 		);
@@ -126,10 +129,10 @@ void parse_cmd_options ( int argc, char **argv )
 		{
 			// flag options
 			{"help", no_argument, 0, 'h'},
-			{"debug", no_argument, 0, 'd'},
 			{"random_initial", no_argument, 0, 'z'},
 
 			// setting options
+			{"debug", required_argument, 0, 'd'},
 			{"iterative", required_argument, 0, 'i'},
 			{"damped", required_argument, 0, 'f'},
 			{"rescue", required_argument, 0, 'c'},
@@ -157,7 +160,7 @@ void parse_cmd_options ( int argc, char **argv )
 		// getopt_long stores the option index here
 		int option_index = 0;
 
-		c = getopt_long( argc, argv, "hdzi:f:c:e:r:a:y:s:t:o:m:n:g:u:b:j:l:p:x:t:", long_options, &option_index );
+		c = getopt_long( argc, argv, "hzd:i:f:c:e:r:a:y:s:t:o:m:n:g:u:b:j:l:p:x:t:", long_options, &option_index );
 
 		// detect the end of the options
 		if ( -1 == c )
@@ -173,7 +176,19 @@ void parse_cmd_options ( int argc, char **argv )
 				break;
 
 			case 'd':
-				g_opts.newton_param.debug = true;
+				if ( is_str_nocase_match( "newton", optarg ) )
+				{
+					g_opts.newton_param.debug = true;
+				}
+				else if ( is_str_nocase_match( "homotopy", optarg ) )
+				{
+					g_opts.homotopy_param.debug = true;
+				}
+				else if ( is_str_nocase_match( "all", optarg ) )
+				{
+					g_opts.newton_param.debug = true;
+					g_opts.homotopy_param.debug = true;
+				}
 				break;
 
 			case 'z':

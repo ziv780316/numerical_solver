@@ -14,6 +14,8 @@ typedef struct
 	double lamda_start;
 	double lamda_stop;
 
+	bool debug;
+
 } homotopy_param_t;
 
 
