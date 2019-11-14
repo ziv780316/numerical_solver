@@ -716,14 +716,13 @@ bool newton_solve ( newton_param_t *newton_param,
 			nr_converge = false;
 		}
 
-		if ( !nr_converge )
-		{
-			printf( "[converge info] iter=%-3d dx_norm=%.15le (id=%-3d), f_norm=%.15le (id=%-3d)\n", iter, dx_max_norm, max_dx_idx, f_max_norm, max_f_idx );
-		}
+		printf( "[converge info] iter=%-3d dx_norm=%.15le (id=%-3d), f_norm=%.15le (id=%-3d)\n", iter, dx_max_norm, max_dx_idx, f_max_norm, max_f_idx );
 
 		++iter;
 		++(nr_stat->n_iter);
 	}
+
+	printf( "[converge info] iter=%-3d dx_norm=%.15le (id=%-3d), f_norm=%.15le (id=%-3d)\n", iter, dx_max_norm, max_dx_idx, f_max_norm, max_f_idx );
 
 	// ---------------------------------
 	// complete newton iterations, store final results

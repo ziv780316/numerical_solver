@@ -18,8 +18,9 @@ DEFINES    =
 BUILD_TYPE = -g3
 CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -Wextra -Wenum-compare -std=gnu99 -fPIC -Wno-unused-parameter -Wno-unused-variable
 MAT_SOLVER_PATH = /home/lintu/baba/numerical/matrix_solver/lib
-LIBS       = -L$(MAT_SOLVER_PATH) -lmatrix_solver -llapack -lblas -lgfortran -lm -ldl
-INCLUDE    = -I../matrix_solver -I. 
+NEWTON_SOLVER_PATH = /home/lintu/baba/numerical/newton/lib
+LIBS       = -L$(NEWTON_SOLVER_PATH) -lnewton -L$(MAT_SOLVER_PATH) -lmatrix_solver -llapack -lblas -lgfortran -lm -ldl 
+INCLUDE    = -I../matrix_solver -I../newton -I. 
 MOVE       = mv -f
 
 #=================================================
@@ -28,8 +29,8 @@ MOVE       = mv -f
 LIBRARY_DIR       := library
 TEST_FUNCTION_DIR := test_functions
 BIN_DIR       	  := bin
-OBJS              := newton.o main.o opts.o
-TARGET            := newton_solver libnewton.a
+OBJS              := homotopy.o main.o opts.o
+TARGET            := homotopy_solver 
 
 #=================================================
 # Compile implicit rules
@@ -56,11 +57,7 @@ TARGET            := newton_solver libnewton.a
 #=================================================
 default: $(TARGET)
 
-libnewton.a: $(LIBRARY_DIR)/newton.o
-	ar -rv $@ $^
-	mv $@ lib
-
-newton_solver: create_dir $(OBJS) make_test_functions
+homotopy_solver: create_dir $(OBJS) make_test_functions
 	cd $(LIBRARY_DIR);\
 	$(LINKER) -o $@ $(OBJS) $(LIBS);\
 	$(MOVE) $@ ../$(BIN_DIR)
