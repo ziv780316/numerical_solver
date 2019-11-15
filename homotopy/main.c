@@ -131,11 +131,14 @@ int main ( int argc, char **argv )
 		double *f_delta = (double *) malloc ( sizeof(double) * n );
 		double *df_dp = (double *) malloc ( sizeof(double) * n );
 		double *dx_dp = (double *) malloc ( sizeof(double) * n );
+		double *dx_dp_difference = (double *) malloc ( sizeof(double) * n );
 		double *s0 = (double *) malloc ( sizeof(double) * n );
 		double *s1 = (double *) malloc ( sizeof(double) * n );
 		double *s_extrapolate = (double *) malloc ( sizeof(double) * n );
+		double *s_extrapolate_difference = (double *) malloc ( sizeof(double) * n );
 		double p0 = NAN;
 		double p1 = NAN;
+		double dp;
 		bool converge;
 		bool use_extrapolation = false;
 		char *debug_file = g_opts.output_file;
@@ -155,13 +158,17 @@ int main ( int argc, char **argv )
 				if ( HOMOTOPY_EXTRAPOLATE_NONE != g_opts.homotopy_param.extrapolate_type )
 				{
 					use_extrapolation = true;
+					dp = lamda - p0;
+					for ( int i = 0; i < n; ++i )
+					{
+						dx_dp_difference[i] = (s0[i] - s1[i]) / (p0 - p1);
+					}
+
 					if ( HOMOTOPY_EXTRAPOLATE_DIFFERENCE == g_opts.homotopy_param.extrapolate_type )
 					{
-						double l1 = (lamda - p0) / (p1 - p0);
-						double l2 = (lamda - p1) / (p0 - p1);
 						for ( int i = 0; i < n; ++i )
 						{
-							s_extrapolate[i] = l1 * s1[i] + l2 * s0[i];
+							s_extrapolate[i] = s0[i] + dx_dp_difference[i] * dp;
 						}
 					}
 					else if ( HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL == g_opts.homotopy_param.extrapolate_type )
@@ -194,16 +201,15 @@ int main ( int argc, char **argv )
 						// xₖ₊₁ = xₖ + ∂x/∂p * Δp
 						for ( int i = 0; i < n; ++i )
 						{
-							s_extrapolate[i] = s0[i] + dx_dp[i] * (lamda - p0);
+							s_extrapolate[i] = s0[i] + dx_dp[i] * dp;
+							s_extrapolate_difference[i] = s0[i] + dx_dp_difference[i] * dp;
 						}
 						if ( g_opts.homotopy_param.debug )
 						{
-							double difference;
 							printf( "* Sensitivity ∂x/∂λ\n" );
 							for ( int i = 0; i < n; ++i )
 							{
-								difference = (s0[i] - s1[i]) / (p0 - p1);
-								printf( "%d: ∂x/∂λ=%.10e Δx/Δλ=%.10le\n", i, dx_dp[i], difference );
+								printf( "%d: ∂x/∂λ=%.10e Δx/Δλ=%.10le\n", i, dx_dp[i], dx_dp_difference[i] );
 							}
 							printf( "\n" );
 						}
@@ -250,22 +256,35 @@ int main ( int argc, char **argv )
 					{
 						double diff_none;
 						double diff_pred;
+						double diff_pred_difference;
 						double ratio_none;
 						double ratio_pred;
+						double ratio_pred_difference;
 						printf( "* Extrapolation Enhance Ratio\n" );
-						for ( int i = 0; i < n; ++i )
+						if ( HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL == g_opts.homotopy_param.extrapolate_type )
 						{
-							diff_none = x_result[i] - s0[i];
-							diff_pred = x_result[i] - s_extrapolate[i];
-							ratio_none = fabs(diff_none / x_result[i]) * 100;
-							ratio_pred = fabs(diff_pred / x_result[i]) * 100;
-							if ( ratio_none >= ratio_pred )
+							for ( int i = 0; i < n; ++i )
 							{
-								printf( "%d: diff_none=%.10e  diff_pred=%.10le enhace_ratio=%.10g%%\n", i, diff_none, diff_pred, ratio_none - ratio_pred );
+								diff_none = x_result[i] - s0[i];
+								diff_pred = x_result[i] - s_extrapolate[i];
+								diff_pred_difference = x_result[i] - s_extrapolate_difference[i];
+								ratio_none = fabs(diff_none / x_result[i]) * 100;
+								ratio_pred = fabs(diff_pred / x_result[i]) * 100;
+								ratio_pred_difference = fabs(diff_pred_difference / x_result[i]) * 100;
+								printf( "%d: sol=%.10e  xp=%.10le xpd=%.10le\n", i, x_result[i], s_extrapolate[i], s_extrapolate_difference[i] );
+								printf( "%d: dnone=%.10e  dpred=%.10le ddpred=%.10le dratio=%.10g%% ddratio=%.10g%%\n", i, diff_none, diff_pred, diff_pred_difference, ratio_none - ratio_pred, ratio_none - ratio_pred_difference );
 							}
-							else
+						}
+						else
+						{
+							for ( int i = 0; i < n; ++i )
 							{
-								printf( "%d: diff_none=%.10e  diff_pred=%.10le enhace_ratio=fail\n",  i, diff_none, diff_pred );
+								diff_none = x_result[i] - s0[i];
+								diff_pred = x_result[i] - s_extrapolate[i];
+								ratio_none = fabs(diff_none / x_result[i]) * 100;
+								ratio_pred = fabs(diff_pred / x_result[i]) * 100;
+								printf( "%d: sol=%.10e  xp=%.10le\n", i, x_result[i], s_extrapolate[i] );
+								printf( "%d: diff_none=%.10e  diff_pred=%.10le enhace_ratio=%.10g%%\n", i, diff_none, diff_pred, ratio_none - ratio_pred );
 							}
 						}
 						printf( "\n" );
