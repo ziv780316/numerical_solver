@@ -50,6 +50,7 @@ static double interval_halving ( void (load_f) (double *v, double*f), double *v,
 static double golden_section ( void (load_f) (double *v, double*f), double *v, double *dv, double a, double b, newton_param_t *newton_param );
 
 bool newton_solve ( newton_param_t *newton_param,
+		    int *perm,
 		    double *J,
 		    double *x0,
 		    double *x_ans,
@@ -85,7 +86,6 @@ bool newton_solve ( newton_param_t *newton_param,
 
 	// initialize memory
 	int J_size = n * n;
-	int *perm = (int *) malloc ( sizeof(int) * n ); // use in lapack LU factorization
 	double *x = (double *) malloc ( sizeof(double) * n );
 	double *dx = (double *) malloc ( sizeof(double) * n );
 	double *dx_old[2] = {0};
@@ -110,6 +110,10 @@ bool newton_solve ( newton_param_t *newton_param,
 	if ( NULL == J )
 	{
 		J = (double *) malloc ( sizeof(double) * J_size );
+	}
+	if ( NULL == perm )
+	{
+		perm = (int *) malloc ( sizeof(int) * n ); // use in lapack LU factorization
 	}
 
 	// ---------------------------------
@@ -744,7 +748,6 @@ bool newton_solve ( newton_param_t *newton_param,
 	// ---------------------------------
 	// release memory
 	// ---------------------------------
-	free_with_set_null( perm );
 	free_with_set_null( x );
 	free_with_set_null( dx );
 	free_with_set_null( f );

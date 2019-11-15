@@ -66,6 +66,7 @@ typedef struct
 
 // perform Newton-Raphson iterations 
 bool newton_solve ( newton_param_t *newton_param,
+		    int *perm, // permuation for matrix ordering
 		    double *J, // jacobian
 		    double *x0, // initial x
 		    double *x_ans, // user give solution x*

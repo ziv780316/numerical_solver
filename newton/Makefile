@@ -80,5 +80,6 @@ unit_test: create_dir $(UNIT_TEST_OBJ)
 
 clean:
 	rm -rf $(LIBRARY_DIR)/*
+	rm -rf $(BIN_DIR)/*
 
 

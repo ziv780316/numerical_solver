@@ -124,9 +124,13 @@ int main ( int argc, char **argv )
 		}
 
 		newton_param_t *newton_param = &(g_opts.newton_param);
-		double *J;
+		int *perm = (int *) malloc ( sizeof(int) * n );
+		double *J = (double *) malloc ( sizeof(double) * (n * n) );
 		double *x_result = (double *) malloc ( sizeof(double) * n );
 		double *f_result = (double *) malloc ( sizeof(double) * n );
+		double *f_delta = (double *) malloc ( sizeof(double) * n );
+		double *df_dp = (double *) malloc ( sizeof(double) * n );
+		double *dx_dp = (double *) malloc ( sizeof(double) * n );
 		double *s0 = (double *) malloc ( sizeof(double) * n );
 		double *s1 = (double *) malloc ( sizeof(double) * n );
 		double *s_extrapolate = (double *) malloc ( sizeof(double) * n );
@@ -162,6 +166,47 @@ int main ( int argc, char **argv )
 					}
 					else if ( HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL == g_opts.homotopy_param.extrapolate_type )
 					{
+						// forward difference to approximate derivative
+						double delta_ratio = 1e-6;
+						double delta_lamda = lamda * delta_ratio;
+						*plamda = p0 + delta_lamda;
+						p_load_f( s0, f_delta );
+						*plamda = lamda;
+						for ( int i = 0; i < n; ++i )
+						{
+							df_dp[i] = (f_delta[i] - f_result[i]) / delta_lamda;
+						}
+						memcpy( dx_dp, df_dp, sizeof(double) * n );
+						for ( int i = 0; i < n; ++i )
+						{
+							dx_dp[i] *= -1;
+						}
+
+						// solve ∂x/∂p
+						bool matrix_solve_ok = dense_solve ( n, 1, J, dx_dp, perm, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, REAL_NUMBER );
+						++(g_opts.newton_param.nr_stat.n_mat_solve);
+						if ( !matrix_solve_ok )
+						{
+							fprintf( stderr, "[Error] sensitivity LU solve fail\n" );
+							abort();
+						}
+
+						// xₖ₊₁ = xₖ + ∂x/∂p * Δp
+						for ( int i = 0; i < n; ++i )
+						{
+							s_extrapolate[i] = s0[i] + dx_dp[i] * (lamda - p0);
+						}
+						if ( g_opts.homotopy_param.debug )
+						{
+							double difference;
+							printf( "* Sensitivity ∂x/∂λ\n" );
+							for ( int i = 0; i < n; ++i )
+							{
+								difference = (s0[i] - s1[i]) / (p0 - p1);
+								printf( "%d: ∂x/∂λ=%.10e Δx/Δλ=%.10le\n", i, dx_dp[i], difference );
+							}
+							printf( "\n" );
+						}
 					}
 
 					memcpy( x_init, s_extrapolate, sizeof(double) * n );
@@ -179,6 +224,7 @@ int main ( int argc, char **argv )
 			}
 
 			converge = newton_solve ( newton_param,
+					perm,
 					J,
 					x_init,
 					px_ans,
@@ -219,7 +265,7 @@ int main ( int argc, char **argv )
 							}
 							else
 							{
-								printf( "%d: diff_none=%.10e  diff_pred=%.10le enhace_ratio=fail\n" );
+								printf( "%d: diff_none=%.10e  diff_pred=%.10le enhace_ratio=fail\n",  i, diff_none, diff_pred );
 							}
 						}
 						printf( "\n" );
