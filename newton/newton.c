@@ -204,7 +204,7 @@ bool newton_solve ( newton_param_t *newton_param,
 	bool delta_converge = false;
 	bool f_converge = false;
 	bool nr_converge = false;
-	while ( !nr_converge )
+	while ( true )
 	{
 		if ( (iter > maxiter) && (-1 != maxiter) && (iter >= miniter) )
 		{
@@ -580,10 +580,29 @@ bool newton_solve ( newton_param_t *newton_param,
 			}
 		}
 
-		nr_converge = (delta_converge && f_converge);
-		if ( debug )
+		if ( iter < miniter )
 		{
-			printf( "iter=%d nr_converge=%d delta_converge=%d f_converge=%d\n", iter, nr_converge, delta_converge, f_converge );
+			// for benchmark performance
+			nr_converge = false;
+		}
+		else
+		{
+			nr_converge = (delta_converge && f_converge);
+
+		}
+
+		if ( nr_converge )
+		{
+			printf( "[converge info] iter=%d both delta and f converge\n", iter );
+			break;
+		}
+		else
+		{
+			printf( "[converge info] iter=%-3d dx_norm=%.15le (id=%-3d), f_norm=%.15le (id=%-3d)\n", iter, dx_max_norm, max_dx_idx, f_max_norm, max_f_idx );
+			if ( debug )
+			{
+				printf( "iter=%d nr_converge=%d delta_converge=%d f_converge=%d\n", iter, nr_converge, delta_converge, f_converge );
+			}
 		}
 
 		// ---------------------------------
@@ -713,14 +732,6 @@ bool newton_solve ( newton_param_t *newton_param,
 		{
 			x[i] += dx[i];
 		}
-
-		// for benchmark performance
-		if ( iter < miniter )
-		{
-			nr_converge = false;
-		}
-
-		printf( "[converge info] iter=%-3d dx_norm=%.15le (id=%-3d), f_norm=%.15le (id=%-3d)\n", iter, dx_max_norm, max_dx_idx, f_max_norm, max_f_idx );
 
 		++iter;
 		++(nr_stat->n_iter);
