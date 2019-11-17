@@ -15,9 +15,11 @@ opt_t g_opts = {
 	.homotopy_param = 
 	{
 		.extrapolate_type = HOMOTOPY_EXTRAPOLATE_NONE,
+		.df_dp_type = HOMOTOPY_DF_DP_FORWARD,
 		.lamda_start = 0,
 		.lamda_stop = 1,
 		.debug = false,
+		.hom_stat = {0}
 	},
 	.newton_param = 
 	{
@@ -71,7 +73,7 @@ void show_help ()
 		"    line_search\n"
 		"  -c | --rescue  =>  specify rescue method (default none)\n"
 		"    diagonal\n"
-		"  -e | --derivative  =>  specify derivative type (default forward)\n"
+		"  -e | --derivative  =>  specify ∂f/∂x type (default forward)\n"
 		"    jacobian\n"
 		"    forward\n"
 		"    central\n"
@@ -93,6 +95,10 @@ void show_help ()
 		"  -t | --extrapolation_type  =>  specify extrapolate type (default none)\n"
 		"    difference\n"
 		"    differential\n"
+		"  -k | --derivative  =>  specify ∂f/∂p type (default forward)\n"
+		"    exact\n"
+		"    forward\n"
+		"    central\n"
 		);
 }
 
@@ -154,13 +160,14 @@ void parse_cmd_options ( int argc, char **argv )
 
 			// homotopy options
 			{"extrapolate_type", required_argument, 0, 't'},
+			{"df_dp_derivative", required_argument, 0, 'k'},
 			{0, 0, 0, 0}
 		};
 
 		// getopt_long stores the option index here
 		int option_index = 0;
 
-		c = getopt_long( argc, argv, "hzd:i:f:c:e:r:a:y:s:t:o:m:n:g:u:b:j:l:p:x:t:", long_options, &option_index );
+		c = getopt_long( argc, argv, "hzd:i:f:c:e:r:a:y:s:t:o:m:n:g:u:b:j:l:p:x:t:k:", long_options, &option_index );
 
 		// detect the end of the options
 		if ( -1 == c )
@@ -352,6 +359,25 @@ void parse_cmd_options ( int argc, char **argv )
 				else if ( is_str_nocase_match( "differential", optarg ) )
 				{
 					g_opts.homotopy_param.extrapolate_type = HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL;
+				}
+				break;
+
+			case 'k':
+				if ( is_str_nocase_match( "exact", optarg ) )
+				{
+					g_opts.homotopy_param.df_dp_type = HOMOTOPY_DF_DP_EXACT;
+				} else if ( is_str_nocase_match( "forward", optarg ) )
+				{
+					g_opts.homotopy_param.df_dp_type = HOMOTOPY_DF_DP_FORWARD;
+				}
+				else if ( is_str_nocase_match( "central", optarg ) )
+				{
+					g_opts.homotopy_param.df_dp_type = HOMOTOPY_DF_DP_CENTRAL;
+				}
+				else
+				{
+					fprintf( stderr, "[Error] unknown ∂f/∂p approximation method %s\n", optarg );
+					abort();
 				}
 				break;
 

@@ -188,7 +188,7 @@ bool newton_solve ( newton_param_t *newton_param,
 	// ---------------------------------
 	// iterative procedure
 	// ---------------------------------
-	int iter = 1;
+	int iter = 0;
 	int idx;
 	int max_dx_idx = -1;
 	int max_f_idx = -1;
@@ -206,6 +206,9 @@ bool newton_solve ( newton_param_t *newton_param,
 	bool nr_converge = false;
 	while ( true )
 	{
+		++iter;
+		++(nr_stat->n_iter);
+
 		if ( (iter > maxiter) && (-1 != maxiter) && (iter >= miniter) )
 		{
 			break;
@@ -732,9 +735,6 @@ bool newton_solve ( newton_param_t *newton_param,
 		{
 			x[i] += dx[i];
 		}
-
-		++iter;
-		++(nr_stat->n_iter);
 	}
 
 	printf( "[converge info] iter=%-3d dx_norm=%.15le (id=%-3d), f_norm=%.15le (id=%-3d)\n", iter, dx_max_norm, max_dx_idx, f_max_norm, max_f_idx );

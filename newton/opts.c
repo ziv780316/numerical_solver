@@ -61,7 +61,7 @@ void show_help ()
 		"    line_search\n"
 		"  -c | --rescue  =>  specify rescue method (default none)\n"
 		"    diagonal\n"
-		"  -e | --derivative  =>  specify derivative type (default forward)\n"
+		"  -e | --derivative  =>  specify ∂f/∂x type (default forward)\n"
 		"    jacobian\n"
 		"    forward\n"
 		"    central\n"
@@ -244,7 +244,7 @@ void parse_cmd_options ( int argc, char **argv )
 				}
 				else
 				{
-					fprintf( stderr, "[Error] unknown derivative approximation method %s\n", optarg );
+					fprintf( stderr, "[Error] unknown ∂f/∂x approximation method %s\n", optarg );
 					abort();
 				}
 				break;

@@ -38,8 +38,8 @@ void load_f ( double *x, double *f )
 	f[2] = v1 - v;
 
 	// homotopy variable
-	f[1] += (1 - lamda) * gshunt * v1;
-	f[2] += (1 - lamda) * gshunt * v2;
+	f[0] += (1 - lamda) * gshunt * v1;
+	f[1] += (1 - lamda) * gshunt * v2;
 }
 
 
@@ -70,3 +70,12 @@ void load_jacobian ( double *x, double *J )
 	*(J + nf*1 + 1) += (1 - lamda) * gshunt; // (2,2)
 }
 
+void load_df_dp ( double *x, double *df_dp, double p )
+{
+	double v1 = x[0];
+	double v2 = x[1];
+	double i  = x[2];
+
+	df_dp[0] = -gshunt * v1;
+	df_dp[1] = -gshunt * v2;
+}
