@@ -10,6 +10,8 @@
 #include "matrix_solver.h"
 #include "opts.h"
 
+void update_homotopy_stat( homotopy_param_t *homotopy_param, newton_param_t *newton_param );
+
 int main ( int argc, char **argv )
 {
 	if ( 1 == argc )
@@ -130,6 +132,35 @@ int main ( int argc, char **argv )
 			x_init = px0;
 		}
 
+		// use to output raw data for plot and analysis converge issue
+		char *debug_file = g_opts.output_file;
+		FILE *fout_debug = NULL;
+		if ( g_opts.homotopy_param.debug && debug_file )
+		{
+			char debug_file_name[BUFSIZ] = {0};
+			sprintf( debug_file_name, "%s.trace", debug_file );
+			fout_debug = fopen( debug_file_name, "w" );
+			if ( !fout_debug )
+			{
+				fprintf( stderr, "[Error] open debug file %s fail --> %s\n", debug_file_name, strerror(errno) );
+				abort();
+			}
+			fprintf( fout_debug, "# lamda " );
+			for ( int i = 0; i < n; ++i )
+			{
+				fprintf( fout_debug, "x_%d ", i );
+			}
+			for ( int i = 0; i < n; ++i )
+			{
+				fprintf( fout_debug, "sp_%d ", i );
+			}
+			for ( int i = 0; i < n; ++i )
+			{
+				fprintf( fout_debug, "s0_%d ", i );
+			}
+			fprintf( fout_debug, "\n" );
+		}
+
 		newton_param_t *newton_param = &(g_opts.newton_param);
 		homotopy_param_t *homotopy_param = &(g_opts.homotopy_param);
 		int *perm = (int *) malloc ( sizeof(int) * n );
@@ -149,7 +180,6 @@ int main ( int argc, char **argv )
 		double dp;
 		bool converge;
 		bool use_extrapolation = false;
-		char *debug_file = g_opts.output_file;
 
 		double lamda = 0;
 		double lamda_old = 0;
@@ -268,20 +298,19 @@ int main ( int argc, char **argv )
 					p_load_f,
 					p_load_jacobian,
 					p_bypass_check,
-					debug_file );
+					NULL );
 
-			homotopy_param->hom_stat.n_iter += newton_param->nr_stat.n_iter;
-			homotopy_param->hom_stat.n_mat_factor += newton_param->nr_stat.n_mat_factor;
-			homotopy_param->hom_stat.n_mat_solve += newton_param->nr_stat.n_mat_solve;
-			homotopy_param->hom_stat.n_f_load += newton_param->nr_stat.n_f_load;
-			homotopy_param->hom_stat.n_jac_load += newton_param->nr_stat.n_jac_load;
+			update_homotopy_stat( homotopy_param, newton_param );
 
 			printf( "\n* λ=%.10le NR Converge %s in %d Iteration\n", lamda, (converge ? "Success" : "Fail"), newton_param->nr_stat.n_iter );
-			for ( int i = 0; i < n; ++i )
+			if ( homotopy_param->debug )
 			{
-				printf( "x[%d]=%.10e  f=%.10e\n", i, x_result[i], f_result[i] );
+				for ( int i = 0; i < n; ++i )
+				{
+					printf( "x[%d]=%.10e  f=%.10e\n", i, x_result[i], f_result[i] );
+				}
+				printf( "\n" );
 			}
-			printf( "\n" );
 
 			if ( converge )
 			{
@@ -331,6 +360,27 @@ int main ( int argc, char **argv )
 				memcpy( s0, x_result, sizeof(double) * n );
 				p1 = p0;
 				p0 = lamda;
+
+				// ---------------------------------
+				// use to output raw data for plot and analysis converge issue
+				// ---------------------------------
+				if ( fout_debug )
+				{
+					fprintf( fout_debug, "%.15le ", lamda );
+					for ( int i = 0; i < n; ++i )
+					{
+						fprintf( fout_debug, "%.15le ", x_result[i] );
+					}
+					for ( int i = 0; i < n; ++i )
+					{
+						fprintf( fout_debug, "%.15le ", s_extrapolate[i] );
+					}
+					for ( int i = 0; i < n; ++i )
+					{
+						fprintf( fout_debug, "%.15le ", s0[i] );
+					}
+					fprintf( fout_debug, "\n" );
+				}
 			}
 			else
 			{
@@ -381,7 +431,7 @@ int main ( int argc, char **argv )
 		printf( "n_mat_factor     = %d\n", homotopy_param->hom_stat.n_mat_factor );
 		printf( "n_mat_solve      = %d\n", homotopy_param->hom_stat.n_mat_solve );
 		printf( "n_mat_solve_sens = %d\n", homotopy_param->hom_stat.n_mat_solve_sensitivity );
-		printf( "toal_mat_solve   = %d\n", homotopy_param->hom_stat.n_mat_solve + homotopy_param->hom_stat.n_mat_solve );
+		printf( "toal_mat_solve   = %d\n", homotopy_param->hom_stat.n_mat_solve + homotopy_param->hom_stat.n_mat_solve_sensitivity );
 		printf( "n_f_load         = %d\n", homotopy_param->hom_stat.n_f_load );
 		printf( "n_f_load_sens    = %d\n", homotopy_param->hom_stat.n_f_load_sensitivity );
 		printf( "total_f_load     = %d\n", homotopy_param->hom_stat.n_f_load + homotopy_param->hom_stat.n_f_load_sensitivity );
@@ -402,6 +452,13 @@ int main ( int argc, char **argv )
 	return EXIT_SUCCESS;
 }
 
-
+void update_homotopy_stat( homotopy_param_t *homotopy_param, newton_param_t *newton_param )
+{
+	homotopy_param->hom_stat.n_iter += newton_param->nr_stat.n_iter;
+	homotopy_param->hom_stat.n_mat_factor += newton_param->nr_stat.n_mat_factor;
+	homotopy_param->hom_stat.n_mat_solve += newton_param->nr_stat.n_mat_solve;
+	homotopy_param->hom_stat.n_f_load += newton_param->nr_stat.n_f_load;
+	homotopy_param->hom_stat.n_jac_load += newton_param->nr_stat.n_jac_load;
+}
 
 

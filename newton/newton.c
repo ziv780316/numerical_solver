@@ -49,6 +49,9 @@ static double eval_f_optimization ( void (load_f) (double *x, double*f), double 
 static double interval_halving ( void (load_f) (double *v, double*f), double *v, double *dv, double a, double b, newton_param_t *newton_param );
 static double golden_section ( void (load_f) (double *v, double*f), double *v, double *dv, double a, double b, newton_param_t *newton_param );
 
+// dump debug
+static void dump_debug_data ( FILE *fout, int n, int iter, double *x, double *dx, double *f );
+
 bool newton_solve ( newton_param_t *newton_param,
 		    int *perm,
 		    double *J,
@@ -159,10 +162,10 @@ bool newton_solve ( newton_param_t *newton_param,
 	// ---------------------------------
 	// use to output raw data for plot and analysis converge issue
 	// ---------------------------------
-	if ( debug_file )
+	if ( debug && debug_file )
 	{
 		char debug_file_name[BUFSIZ] = {0};
-		sprintf( debug_file_name, "%s.raw", debug_file );
+		sprintf( debug_file_name, "%s.nr", debug_file );
 		fout_debug = fopen( debug_file_name, "w" );
 		if ( !fout_debug )
 		{
@@ -268,6 +271,7 @@ bool newton_solve ( newton_param_t *newton_param,
 			{
 				printf( "[converge info] iter=%d both delta and f converge, skip load jacobian and matrix solve\n", iter );
 			}
+			dump_debug_data( fout_debug, n, iter, x, dx, f );
 			break;
 		}
 
@@ -597,6 +601,7 @@ bool newton_solve ( newton_param_t *newton_param,
 		if ( nr_converge )
 		{
 			printf( "[converge info] iter=%d both delta and f converge\n", iter );
+			dump_debug_data( fout_debug, n, iter, x, dx, f );
 			break;
 		}
 		else
@@ -708,29 +713,12 @@ bool newton_solve ( newton_param_t *newton_param,
 				}
 			}
 		}
-
-		if ( debug && fout_debug )
-		{
-			fprintf( fout_debug, "%d ", iter );
-			for ( int i = 0; i < n; ++i )
-			{
-				fprintf( fout_debug, "%.15le ", x[i] );
-			}
-			for ( int i = 0; i < n; ++i )
-			{
-				fprintf( fout_debug, "%.15le ", dx[i] );
-			}
-			for ( int i = 0; i < n; ++i )
-			{
-				fprintf( fout_debug, "%.15le ", f[i] );
-			}
-			fprintf( fout_debug, "\n" );
-		}
-
+		
 
 		// ---------------------------------
 		// next iteration
 		// ---------------------------------
+		dump_debug_data( fout_debug, n, iter, x, dx, f );
 		for ( int i = 0; i < n; ++i )
 		{
 			x[i] += dx[i];
@@ -1245,4 +1233,24 @@ static double golden_section ( void (load_f) (double *v, double*f), double *v, d
 
 
 	return x_optima;
+}
+
+static void dump_debug_data ( FILE *fout, int n, int iter, double *x, double *dx, double *f )
+{
+	if ( fout )
+	{
+		for ( int i = 0; i < n; ++i )
+		{
+			fprintf( fout, "%.15le ", x[i] );
+		}
+		for ( int i = 0; i < n; ++i )
+		{
+			fprintf( fout, "%.15le ", dx[i] );
+		}
+		for ( int i = 0; i < n; ++i )
+		{
+			fprintf( fout, "%.15le ", f[i] );
+		}
+		fprintf( fout, "\n" );
+	}
 }

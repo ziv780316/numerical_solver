@@ -14,7 +14,7 @@ static int is_str_nocase_match ( const char *str_a, const char *str_b );
 opt_t g_opts = {
 	.homotopy_param = 
 	{
-		.extrapolate_type = HOMOTOPY_EXTRAPOLATE_NONE,
+		.extrapolate_type = HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL,
 		.df_dp_type = HOMOTOPY_DF_DP_FORWARD,
 		.lamda_start = 0,
 		.lamda_stop = 1,
