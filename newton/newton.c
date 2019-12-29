@@ -1239,6 +1239,7 @@ static void dump_debug_data ( FILE *fout, int n, int iter, double *x, double *dx
 {
 	if ( fout )
 	{
+		fprintf( fout, "%d ", iter );
 		for ( int i = 0; i < n; ++i )
 		{
 			fprintf( fout, "%.15le ", x[i] );
