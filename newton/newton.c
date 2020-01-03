@@ -265,7 +265,7 @@ bool newton_solve ( newton_param_t *newton_param,
 
 		// complete newton if both residue and delta converge 
 		nr_converge = (delta_converge && f_converge);
-		if ( nr_converge )
+		if ( nr_converge && (iter < miniter) )
 		{
 			if ( debug )
 			{
@@ -598,7 +598,7 @@ bool newton_solve ( newton_param_t *newton_param,
 
 		}
 
-		if ( nr_converge )
+		if ( nr_converge && (iter < miniter) )
 		{
 			printf( "[converge info] iter=%d both delta and f converge\n", iter );
 			dump_debug_data( fout_debug, n, iter, x, dx, f );
