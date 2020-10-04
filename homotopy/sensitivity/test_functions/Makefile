@@ -17,8 +17,10 @@ LINKER     = $(CC)
 DEFINES    = 
 BUILD_TYPE = -O3
 CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -Wextra -std=gnu99 -fPIC 
-LIBS       = -lm
-INCLUDE    = -I.
+MAT_SOLVER_PATH = /home/lintu/baba/numerical/matrix_solver/lib
+MAT_SOLVER_INC = /home/lintu/baba/numerical/matrix_solver
+LIBS       = -lm -L$(MAT_SOLVER_PATH) -lmatrix_solver /home/lintu/baba/numerical/matrix_solver/lib/libblas.so /home/lintu/baba/numerical/matrix_solver/lib/liblapack.so -lgfortran -ldl 
+INCLUDE    = -I. -I$(MAT_SOLVER_INC)
 MOVE       = mv -f
 
 #=================================================
