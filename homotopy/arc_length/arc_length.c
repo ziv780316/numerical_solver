@@ -121,7 +121,6 @@ bool arc_length_bbd_newton_solve (
 	FILE *fout_debug = NULL;
 
 	// BBD 
-	bool backtrace;
 	double dp_unlimited;
 	double *bbd_tmp_rhs = (double *) malloc ( sizeof(double) * n );
 	double bbd_ext_J;
@@ -543,14 +542,6 @@ bool arc_length_bbd_newton_solve (
 				dp_unlimited = dp;
 				printf( "limit Δp=%.15le -> %.15le, pₖ₊₁=1 pₖ=%.15le\n", dp, 1 - dp );
 				dp = 1 - p;
-			}
-			if ( dp < 0 )
-			{
-				backtrace = true;
-			}
-			else
-			{
-				backtrace = false;
 			}
 			if ( debug )
 			{

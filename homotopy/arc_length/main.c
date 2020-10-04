@@ -181,7 +181,6 @@ int main ( int argc, char **argv )
 		double dt = homotopy_param->arc_length;
 		double dt0 = homotopy_param->arc_length;
 		double dp;
-		bool backtrace = false;
 		bool converge;
 		bool use_extrapolation = false;
 
@@ -408,15 +407,6 @@ int main ( int argc, char **argv )
 
 			if ( converge )
 			{
-				if ( p < p0 )
-				{
-					backtrace = true;
-				}
-				else
-				{
-					backtrace = false;
-				}
-
 				if ( homotopy_param->debug && use_extrapolation )
 				{
 					if ( HOMOTOPY_EXTRAPOLATE_NONE != homotopy_param->extrapolate_type )
