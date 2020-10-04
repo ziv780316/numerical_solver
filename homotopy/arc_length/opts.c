@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <float.h>
+#include <limits.h>
 #include "opts.h"
 
 static void str_to_lower ( char *str );
@@ -19,6 +20,7 @@ opt_t g_opts = {
 		.lamda_start = 0,
 		.lamda_stop = 1,
 		.arc_length = 1e-3,
+		.maxsteps = INT_MAX,
 		.debug = false,
 		.hom_stat = {0}
 	},
@@ -95,7 +97,8 @@ void show_help ()
 		"    exact\n"
 		"    forward\n"
 		"    central\n"
-		"  -l | --arc_length  =>  specify arc length (default is adaptive step)\n"
+		"  -w | --arc_length  =>  specify arc length (default is adaptive step)\n"
+		"  -y | --max steps  =>  specify maximum arc length step (default unlimited)\n"
 		);
 }
 
@@ -157,13 +160,14 @@ void parse_cmd_options ( int argc, char **argv )
 			{"extrapolate_type", required_argument, 0, 't'},
 			{"df_dp_derivative", required_argument, 0, 'k'},
 			{"arc_length", required_argument, 0, 'w'},
+			{"maxsteps", required_argument, 0, 'y'},
 			{0, 0, 0, 0}
 		};
 
 		// getopt_long stores the option index here
 		int option_index = 0;
 
-		c = getopt_long( argc, argv, "hzd:i:f:c:e:r:a:y:s:o:m:n:g:u:b:j:l:p:x:t:k:w:", long_options, &option_index );
+		c = getopt_long( argc, argv, "hzd:i:f:c:e:r:a:s:o:m:n:g:u:b:j:l:p:x:t:k:w:y:", long_options, &option_index );
 
 		// detect the end of the options
 		if ( -1 == c )
@@ -367,6 +371,10 @@ void parse_cmd_options ( int argc, char **argv )
 
 			case 'w':
 				g_opts.homotopy_param.arc_length = atof( optarg );
+				break;
+
+			case 'y':
+				g_opts.homotopy_param.maxsteps = atoi( optarg );
 				break;
 
 			case '?':

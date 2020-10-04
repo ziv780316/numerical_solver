@@ -121,6 +121,8 @@ bool arc_length_bbd_newton_solve (
 	FILE *fout_debug = NULL;
 
 	// BBD 
+	bool backtrace;
+	double dp_unlimited;
 	double *bbd_tmp_rhs = (double *) malloc ( sizeof(double) * n );
 	double bbd_ext_J;
 	double bbd_ext_f;
@@ -288,42 +290,33 @@ bool arc_length_bbd_newton_solve (
 		// check residue converged after load f
 		// ‖.‖≡ ‖.‖∞
 		// ‖f‖ = ‖f/tol‖∞
-		if ( !f_converge )
+		eval_max_norm( n, f, f, residual_rtol, residual_atol, &f_max_norm, &max_f_idx );
+		if ( f_max_norm > 1 )
 		{
-			// check delta converge
-			// ‖.‖≡ ‖.‖∞
-			// ‖f‖ = ‖f/tol‖∞
-			eval_max_norm( n, f, f, residual_rtol, residual_atol, &f_max_norm, &max_f_idx );
-			if ( f_max_norm > 1 )
+			f_converge = false;
+			if ( debug )
 			{
-				f_converge = false;
-				if ( debug )
-				{
-					idx = max_f_idx;
-					tol = eval_tol( f[idx], residual_rtol, residual_atol );
-					printf( "iter=%d norm=%.15le f[%d]=%.15le f_old[%d]=%.15le residue non-converged, df=%.15le, tol=%.15le\n", iter, f_max_norm, idx, f[idx], idx, f[idx] - df[idx], df[idx], tol );
-				}
-			}
-			else
-			{
-				f_converge = true;
+				idx = max_f_idx;
+				tol = eval_tol( f[idx], residual_rtol, residual_atol );
+				printf( "iter=%d norm=%.15le f[%d]=%.15le f_old[%d]=%.15le residue non-converged, df=%.15le, tol=%.15le\n", iter, f_max_norm, idx, f[idx], idx, f[idx] - df[idx], df[idx], tol );
 			}
 		}
-		if ( !g_converge )
+		else
 		{
-			g_norm = eval_local_norm( g, g, residual_rtol, residual_atol );
-			if ( g_norm > 1 )
+			f_converge = true;
+		}
+		g_norm = eval_local_norm( g, g, residual_rtol, residual_atol );
+		if ( g_norm > 1 )
+		{
+			g_converge = false;
+			if ( debug )
 			{
-				g_converge = false;
-				if ( debug )
-				{
-					printf( "iter=%d g non-converged, norm=%.15le\n", iter, g_norm );
-				}
+				printf( "iter=%d g non-converged, norm=%.15le\n", iter, g_norm );
 			}
-			else
-			{
-				g_converge = true;
-			}
+		}
+		else
+		{
+			g_converge = true;
 		}
 
 		// complete newton if both residue and delta converge 
@@ -336,6 +329,23 @@ bool arc_length_bbd_newton_solve (
 			}
 			dump_debug_data( fout_debug, n, iter, x, dx, f );
 			break;
+		}
+		else
+		{
+			if ( iter > 1 )
+			{
+				if ( debug )
+				{
+					if ( dt > 0 )
+					{
+						printf( "iter=%d nr_converge=%d delta_converge=%d f_converge=%d p_converge=%d g_converge=%d\n", iter, nr_converge, delta_converge, f_converge, p_converge, g_converge );
+					}
+					else
+					{
+						printf( "[converge info] iter=%-3d dx_norm=%.15le (id=%-3d), f_norm=%.15le (id=%-3d)\n", iter, dx_max_norm, max_dx_idx, f_max_norm, max_f_idx );
+					}
+				}
+			}
 		}
 
 		// ---------------------------------
@@ -523,6 +533,25 @@ bool arc_length_bbd_newton_solve (
 			}
 			bbd_ext_f = -g + bbd_ext_f;
 			dp = bbd_ext_f / bbd_ext_J;
+			if ( isnan(dp) )
+			{
+				printf( "NR fail due to dp=NAN\n" );
+				break;
+			}
+			if ( p + dp > 1 )
+			{
+				dp_unlimited = dp;
+				printf( "limit Δp=%.15le -> %.15le, pₖ₊₁=1 pₖ=%.15le\n", dp, 1 - dp );
+				dp = 1 - p;
+			}
+			if ( dp < 0 )
+			{
+				backtrace = true;
+			}
+			else
+			{
+				backtrace = false;
+			}
 			if ( debug )
 			{
 				printf( "==================== BBD ====================\n" );
@@ -575,6 +604,14 @@ bool arc_length_bbd_newton_solve (
 				for ( int i = 0; i < n; ++i )
 				{
 					printf( "x[%d] new=%.15le old=%.15le dx=%.15le f=%.15le\n", i, x[i] + dx[i], x[i], dx[i], f[i] );
+					if ( isnan(dx[i]) )
+					{
+						if ( debug )
+						{
+							printf( "NR fail due to dx=NAN occurred\n" );
+						}
+						break;
+					}
 				}
 				dense_vector_norm ( -1, n, dx, &X_norm, REAL_NUMBER );
 				dense_vector_norm ( -1, n, f, &F_norm, REAL_NUMBER );
@@ -751,23 +788,6 @@ bool arc_length_bbd_newton_solve (
 			}
 		}
 
-		nr_converge = (delta_converge && f_converge && p_converge && g_converge);
-
-		if ( nr_converge && (iter >= miniter) )
-		{
-			printf( "[converge info] iter=%d both delta and f converge\n", iter );
-			dump_debug_data( fout_debug, n, iter, x, dx, f );
-			break;
-		}
-		else
-		{
-			printf( "[converge info] iter=%-3d dx_norm=%.15le (id=%-3d), f_norm=%.15le (id=%-3d)\n", iter, dx_max_norm, max_dx_idx, f_max_norm, max_f_idx );
-			if ( debug )
-			{
-				printf( "iter=%d nr_converge=%d delta_converge=%d f_converge=%d\n", iter, nr_converge, delta_converge, f_converge );
-			}
-		}
-
 		// ---------------------------------
 		// check converge order and chord newton linear rate
 		// ---------------------------------
@@ -881,7 +901,14 @@ bool arc_length_bbd_newton_solve (
 		}
 	}
 
-	printf( "[converge info] iter=%-3d dx_norm=%.15le (id=%-3d), f_norm=%.15le (id=%-3d)\n", iter, dx_max_norm, max_dx_idx, f_max_norm, max_f_idx );
+	if ( dt > 0 )
+	{
+		printf( "iter=%d nr_converge=%d delta_converge=%d f_converge=%d p_converge=%d g_converge=%d\n", iter, nr_converge, delta_converge, f_converge, p_converge, g_converge );
+	}
+	else
+	{
+		printf( "[converge info] iter=%-3d dx_norm=%.15le (id=%-3d), f_norm=%.15le (id=%-3d)\n", iter, dx_max_norm, max_dx_idx, f_max_norm, max_f_idx );
+	}
 
 	// ---------------------------------
 	// complete newton iterations, store final results
@@ -937,6 +964,13 @@ bool arc_length_bbd_newton_solve (
 	else if ( NEWTON_JACOBI == iterative_type )
 	{
 		free_with_set_null( D );
+	}
+
+	if ( dt > 0 )
+	{
+		free_with_set_null( bbd_tmp_rhs );
+		free_with_set_null( A21 );
+		free_with_set_null( A12 );
 	}
 
 	if ( debug )

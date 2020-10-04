@@ -41,6 +41,8 @@ typedef struct
 	double lamda_stop;
 	double arc_length;
 
+	int maxsteps;
+
 	bool debug;
 
 	homotopy_performance_stat_t hom_stat;

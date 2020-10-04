@@ -181,6 +181,7 @@ int main ( int argc, char **argv )
 		double dt = homotopy_param->arc_length;
 		double dt0 = homotopy_param->arc_length;
 		double dp;
+		bool backtrace = false;
 		bool converge;
 		bool use_extrapolation = false;
 
@@ -235,7 +236,7 @@ int main ( int argc, char **argv )
 			exit(1);
 		}
 
-		while ( p <= 1 )
+		while ( (p <= 1) && (homotopy_param->hom_stat.n_step < homotopy_param->maxsteps) )
 		{
 			++homotopy_param->hom_stat.n_step; 
 
@@ -407,6 +408,15 @@ int main ( int argc, char **argv )
 
 			if ( converge )
 			{
+				if ( p < p0 )
+				{
+					backtrace = true;
+				}
+				else
+				{
+					backtrace = false;
+				}
+
 				if ( homotopy_param->debug && use_extrapolation )
 				{
 					if ( HOMOTOPY_EXTRAPOLATE_NONE != homotopy_param->extrapolate_type )
@@ -446,6 +456,12 @@ int main ( int argc, char **argv )
 						}
 						printf( "\n" );
 					}
+				}
+
+				if ( p > 1 )
+				{
+					printf( "cut p from %.15le to 1\n", p );
+					p = 1;
 				}
 
 				++homotopy_param->hom_stat.n_success; 
