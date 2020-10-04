@@ -22,7 +22,7 @@ void load_f ( double *x, double *f )
 {
 	double x1 = x[0];
 	double c = (1 - p);
-	f[0] = (x1 - c) * (x1 - c);
+	f[0] = x1*x1 - c*c;
 }
 
 
@@ -30,13 +30,13 @@ void load_jacobian ( double *x, double *J )
 {
 	double x1 = x[0];
 	double c = (1 - p);
-	*(J + nf*0 + 0) = 2.0 * (x1 - c); // (1,1)
+	*(J + nf*0 + 0) = 2.0 * x1; // (1,1)
 }
 
 void load_df_dp ( double *x, double *df_dp )
 {
 	double x1 = x[0];
 	double c = (1 - p);
-	df_dp[0] = -2.0 * (x1 - c);
+	df_dp[0] = 2.0 *  c;
 }
 

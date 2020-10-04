@@ -189,7 +189,7 @@ int main ( int argc, char **argv )
 		int maxiter_origin = newton_param->maxiter;
 		newton_param->maxiter = 150;
 
-		arc_length_bbd_newton_solve ( 
+		converge = arc_length_bbd_newton_solve ( 
 				newton_param,
 				perm, // permuation for matrix ordering
 				J, // jacobian
@@ -251,6 +251,7 @@ int main ( int argc, char **argv )
 				{
 					dx_dt_difference[i] = (s0[i] - s1[i]) / dt0;
 				}
+				dp_dt_difference = (p0 - p1) / dt0;
 
 				if ( HOMOTOPY_EXTRAPOLATE_DIFFERENCE == homotopy_param->extrapolate_type )
 				{
@@ -275,7 +276,15 @@ int main ( int argc, char **argv )
 					{
 						// forward difference to approximate ∂f/∂p
 						double delta_ratio = 1e-6;
-						double delta_p = p0 * delta_ratio;
+						double delta_p;
+						if ( p0 == 0 )
+						{
+							delta_p = 1e-6;
+						}
+						else
+						{
+							delta_p = p0 * delta_ratio;
+						}
 						*pp = p0 + delta_p;
 						p_load_f( s0, f_delta );
 						++(homotopy_param->hom_stat.n_f_load_sensitivity);
@@ -334,12 +343,13 @@ int main ( int argc, char **argv )
 					p_extrapolate = p0 + dp_dt * dt;
 					if ( homotopy_param->debug )
 					{
-						printf( "* Sensitivity ∂x/∂λ\n" );
+						printf( "\n==================== Sensitivity ====================\n" );
 						for ( int i = 0; i < n; ++i )
 						{
-							printf( "%d: ∂x/∂λ=%.10le Δx/Δλ=%.10le\n", i, dx_dp[i], dx_dt_difference[i] );
+							printf( "%d: ∂x/∂t=%.10le Δx/Δt=%.10le ∂x/∂p=%.10le ∂f/∂p=%.10le\n", i, dx_dt[i], dx_dt_difference[i], dx_dp[i], df_dp[i] );
 						}
-						printf( "\n" );
+						printf( "%d: ∂p/∂t=%.10le Δp/Δt=%.10le\n", n, dp_dt, dp_dt_difference );
+						printf( "=====================================================\n" );
 					}
 				}
 
@@ -349,18 +359,20 @@ int main ( int argc, char **argv )
 
 				if ( homotopy_param->debug )
 				{
-					printf( "* Extrapolation p0=%.10le p1=%.10le\n", p0, p1 );
+					printf( "\n==================== Extrapolation ====================\n" );
 					for ( int i = 0; i < n; ++i )
 					{
 						printf( "x[%d]=%.10le  xpred[%d]=%.10le\n", i, s0[i], i, s_extrapolate[i] );
 					}
-					printf( "\n" );
+					printf( "p=%.10le  ppred=%.10le\n", p0, p_extrapolate );
+					printf( "=====================================================\n" );
 				}
 			}
 
 			memset( &(newton_param->nr_stat), 0, sizeof( performance_stat_t ) );
 
-			arc_length_bbd_newton_solve ( 
+			printf( "* solve NR λ=%.10le ...\n", p );
+			converge = arc_length_bbd_newton_solve ( 
 					newton_param,
 					perm, // permuation for matrix ordering
 					J, // jacobian
@@ -392,8 +404,6 @@ int main ( int argc, char **argv )
 				printf( "p=%.10le g=%.10le\n", p, g );
 				printf( "\n" );
 			}
-
-			exit(0);
 
 			if ( converge )
 			{

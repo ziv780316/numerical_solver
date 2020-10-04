@@ -24,6 +24,9 @@ static void check_user_define_args ( double *x0,
 				     void (load_jacobian) (double *x, double*J) );
 static void newton_initialize ( int n, double *x, double *x0, bool random_initial );
 
+// load arc length constrain
+static double eval_arc_length_constrain ( int n, double *x, double *xc, double p, double pc, double dt );
+
 // general newton subroutines 
 __attribute__((always_inline)) inline static double eval_tol( double xref, double rtol, double atol )
 {
@@ -175,6 +178,18 @@ bool arc_length_bbd_newton_solve (
 	newton_initialize( n, x, x0, random_initial );
 	p = p0;
 	*pp = p;
+	if ( debug )
+	{
+		if ( dt > 0 )
+		{
+			printf( "dt=%.15le\n", dt );
+			for ( int i = 0; i < n; ++i )
+			{
+				printf( "xc[%d]=%.15le\n", i, xc[i] );
+			}
+			printf( "pc=%.15le", pc );
+		}
+	}
 
 	// ---------------------------------
 	// use to output raw data for plot and analysis converge issue
@@ -212,8 +227,10 @@ bool arc_length_bbd_newton_solve (
 	int idx;
 	int max_dx_idx = -1;
 	int max_f_idx = -1;
-	double dx_max_norm = -1;
-	double f_max_norm = -1;
+	double dx_max_norm = NAN;
+	double f_max_norm = NAN;
+	double dp_norm = NAN;
+	double g_norm = NAN;
 	double local_norm;
 	double delta_ratio = 1e-9;
 	double delta;
@@ -247,12 +264,23 @@ bool arc_length_bbd_newton_solve (
 		{
 			df[i] = f[i] - f_old[i];
 		}
+
+		// load arc length constrain
+		if ( dt > 0 )
+		{
+			g = eval_arc_length_constrain( n, x, xc, p, pc, dt );
+		}
+
 		if ( debug )
 		{
 			printf( "\n------- iter %d -------\n", iter );
 			for ( int i = 0; i < n; ++i )
 			{
 				printf( "x[%d]=%.15le f[%d]=%.15le\n", i, x[i], i, f[i] );
+			}
+			if ( dt > 0 )
+			{
+				printf( "p=%.15le g=%.15le\n", p, g );
 			}
 		}
 
@@ -283,7 +311,6 @@ bool arc_length_bbd_newton_solve (
 		}
 		if ( !g_converge )
 		{
-			double g_norm;
 			g_norm = eval_local_norm( g, g, residual_rtol, residual_atol );
 			if ( g_norm > 1 )
 			{
@@ -455,7 +482,7 @@ bool arc_length_bbd_newton_solve (
 			// A₁₂ = ∂f/∂p
 			// A₂₁ = ∂g/∂x
 			// A₂₂ = ∂g/∂p
-			// Δp = 1/(A₂₂  - A₂₁*A₁₁⁻¹*A₁₂)*(-g + A₂₁*A₁₁⁻¹*f)
+			// Δp = 1/(A₂₂ - A₂₁*A₁₁⁻¹*A₁₂)*(-g + A₂₁*A₁₁⁻¹*f)
 			// Δx = A₁₁⁻¹*(-f - A₁₂*Δp)
 			// g(x,p) = (‖x-xc‖² + ‖p-pc‖²) - Δt² 
 			// ---------------------------------
@@ -467,15 +494,9 @@ bool arc_length_bbd_newton_solve (
 				A21[i] = 2 * (x[i] - xc[i]);
 			}
 			A22 = 2 * (p - pc);
-			g = 0;
-			for ( int i = 0; i < n; ++i )
-			{
-				g += (x[i] - xc[i]) * (x[i] - xc[i]);
-			}
-			g += (p - pc) * (p - pc);
-			g -= dt * dt;
 			memcpy( bbd_tmp_rhs, A12, sizeof(double) * n ); 
 			matrix_solve_ok = dense_solve ( n, 1, J, bbd_tmp_rhs, perm, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, REAL_NUMBER );
+			++(nr_stat->n_mat_solve);
 			if ( !matrix_solve_ok )
 			{
 				fprintf( stderr, "[Error] LU solve fail\n" );
@@ -488,7 +509,8 @@ bool arc_length_bbd_newton_solve (
 			}
 			bbd_ext_J = A22 - bbd_ext_J;
 			memcpy( bbd_tmp_rhs, f, sizeof(double) * n ); 
-			matrix_solve_ok = dense_solve ( n, 1, bbd_tmp_rhs, bbd_tmp_rhs, perm, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, REAL_NUMBER );
+			matrix_solve_ok = dense_solve ( n, 1, J, bbd_tmp_rhs, perm, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, REAL_NUMBER );
+			++(nr_stat->n_mat_solve);
 			if ( !matrix_solve_ok )
 			{
 				fprintf( stderr, "[Error] LU solve fail\n" );
@@ -503,7 +525,23 @@ bool arc_length_bbd_newton_solve (
 			dp = bbd_ext_f / bbd_ext_J;
 			if ( debug )
 			{
-				printf( "BBD external J=%.15le f=%.15le Δp=%.15le pₖ₊₁=%.15le pₖ=%.15le\n", bbd_ext_J, bbd_ext_f, dp, p + dp, p );
+				printf( "==================== BBD ====================\n" );
+				printf( "J_external=%.15le f_external=%.15le g=%.15le\n", bbd_ext_J, bbd_ext_f, g );
+				printf( "Δp=%.15le pₖ₊₁=%.15le pₖ=%.15le\n", dp, p + dp, p );
+				printf( "A12=" );
+				for ( int i = 0; i < n; ++i )
+				{
+					printf( " %.15le", A12[i] );
+				}
+				printf( "\n" );
+				printf( "A21=" );
+				for ( int i = 0; i < n; ++i )
+				{
+					printf( " %.15le", A21[i] );
+				}
+				printf( "\n" );
+				printf( "A22= %.15le\n", A22 );
+				printf( "=============================================\n" );
 			}
 			p += dp;
 			*pp = p;
@@ -524,7 +562,8 @@ bool arc_length_bbd_newton_solve (
 			{
 				bbd_tmp_rhs[i] = -f[i] - A12[i] * dp;
 			}
-			matrix_solve_ok = dense_solve ( n, 1, bbd_tmp_rhs, bbd_tmp_rhs, perm, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, REAL_NUMBER );
+			matrix_solve_ok = dense_solve ( n, 1, J, bbd_tmp_rhs, perm, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, REAL_NUMBER );
+			++(nr_stat->n_mat_solve);
 			if ( !matrix_solve_ok )
 			{
 				fprintf( stderr, "[Error] LU solve fail\n" );
@@ -697,7 +736,6 @@ bool arc_length_bbd_newton_solve (
 		}
 		if ( !p_converge)
 		{
-			double dp_norm;
 			dp_norm = eval_local_norm( dp, p, delta_rtol, delta_atol );
 			if ( dp_norm > 1 )
 			{
@@ -850,6 +888,11 @@ bool arc_length_bbd_newton_solve (
 	// ---------------------------------
 	memcpy( x_result, x, sizeof(double) * n );	
 	memcpy( f_result, f, sizeof(double) * n );	
+	if ( dt > 0 )
+	{
+		*p_result = p;
+		*g_result = g;
+	}
 
 	// show newton results
 	if ( debug )
@@ -860,6 +903,7 @@ bool arc_length_bbd_newton_solve (
 			printf( "x[%d]=%.15le  f=%.15le\n", i, x[i], f[i] );
 		}
 		printf( "[norm] dx_norm=%.15le (id=%d), f_norm=%.15le (id=%d)\n", dx_max_norm, max_dx_idx, f_max_norm, max_f_idx );
+		printf( "[norm] dp_norm=%.15le, g_norm=%.15le\n", dp_norm, g_norm );
 	}
 
 	// ---------------------------------
@@ -1355,4 +1399,16 @@ static void dump_debug_data ( FILE *fout, int n, int iter, double *x, double *dx
 		}
 		fprintf( fout, "\n" );
 	}
+}
+
+static double eval_arc_length_constrain ( int n, double *x, double *xc, double p, double pc, double dt )
+{
+	double g = 0;
+	for ( int i = 0; i < n; ++i )
+	{
+		g += (x[i] - xc[i]) * (x[i] - xc[i]);
+	}
+	g += (p - pc) * (p - pc);
+	g -= dt * dt;
+	return g;
 }
