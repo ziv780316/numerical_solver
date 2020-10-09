@@ -26,7 +26,7 @@ int main ( int argc, char **argv )
 		if ( !g_opts.problem_so )
 		{
 			fprintf( stderr, "[Error] please specify test function by '-p *.so'\n" );
-			abort();
+			exit(1);
 		}
 
 		// dynamic link test function
@@ -34,7 +34,7 @@ int main ( int argc, char **argv )
 		if ( !handle )
 		{
 			fprintf( stderr, "[Error] dlopen '%s' fail --> %s\n", g_opts.problem_so, dlerror() );
-			abort();
+			exit(1);
 		}
 		dlerror(); // clear error
 
@@ -42,21 +42,28 @@ int main ( int argc, char **argv )
 		if ( !pn )
 		{
 			fprintf( stderr, "[Error] load symbol 'nf' fail --> %s\n", dlerror() );
-			abort();
+			exit(1);
 		}
 
 		double *px0 = (double *) dlsym ( handle, "x0" );
 		if ( !px0 )
 		{
 			fprintf( stderr, "[Error] load symbol 'x0' fail --> %s\n", dlerror() );
-			abort();
+			exit(1);
 		}
 
 		double *pp = (double *) dlsym ( handle, "p" );
 		if ( !pp )
 		{
 			fprintf( stderr, "[Error] load symbol 'p' fail --> %s\n", dlerror() );
-			abort();
+			exit(1);
+		}
+
+		double *pp0 = (double *) dlsym ( handle, "p0" );
+		if ( !pp0 )
+		{
+			pp0 = NULL;
+			dlerror(); 
 		}
 
 		double *px_ans = (double *) dlsym ( handle, "x_ans" );
@@ -66,18 +73,11 @@ int main ( int argc, char **argv )
 			dlerror(); 
 		}
 
-		double *plamda = (double *) dlsym ( handle, "p" );
-		if ( !plamda )
-		{
-			plamda = NULL;
-			dlerror(); 
-		}
-
 		void (*p_load_f) (double *, double *) = (void (*)(double *, double *)) dlsym ( handle, "load_f" );
 		if ( !p_load_f )
 		{
 			fprintf( stderr, "[Error] load symbol 'load_f' fail --> %s\n", dlerror() );
-			abort();
+			exit(1);
 		}
 		dlerror(); // clear error
 
@@ -92,7 +92,7 @@ int main ( int argc, char **argv )
 		if ( !p_load_jacobian )
 		{
 			fprintf( stderr, "[Error] load symbol 'load_jacobian' fail --> %s\n", dlerror() );
-			abort();
+			exit(1);
 		}
 		dlerror(); // clear error
 
@@ -106,7 +106,7 @@ int main ( int argc, char **argv )
 			if ( !fin )
 			{
 				fprintf( stderr, "[Error] fopen '%s' fail --> %s\n", g_opts.initial_x0_file, strerror(errno) );
-				abort();
+				exit(1);
 			}
 
 			int ret;
@@ -117,7 +117,7 @@ int main ( int argc, char **argv )
 				if ( EOF == ret && ((i + 1) <= n) )
 				{
 					fprintf( stderr, "[Error] initial x0 length %d < %d\n",  i, n );
-					abort();
+					exit(1);
 				}
 			}
 		}
@@ -137,7 +137,7 @@ int main ( int argc, char **argv )
 			if ( !fout_debug )
 			{
 				fprintf( stderr, "[Error] open debug file %s fail --> %s\n", debug_file_name, strerror(errno) );
-				abort();
+				exit(1);
 			}
 			fprintf( fout_debug, "# lamda " );
 			for ( int i = 0; i < n; ++i )
@@ -174,7 +174,7 @@ int main ( int argc, char **argv )
 		double *s_extrapolate = (double *) malloc ( sizeof(double) * n );
 		double *s_extrapolate_difference = (double *) malloc ( sizeof(double) * n );
 		double p_extrapolate;
-		double p_init = 0;
+		double p_init = (pp0 ? *pp0 : 0);
 		double p = p_init;
 		double p0 = NAN;
 		double p1 = NAN;
@@ -190,6 +190,7 @@ int main ( int argc, char **argv )
 		newton_param->maxiter = 150;
 
 		converge = arc_length_bbd_newton_solve ( 
+				homotopy_param,
 				newton_param,
 				perm, // permuation for matrix ordering
 				J, // jacobian
@@ -197,6 +198,8 @@ int main ( int argc, char **argv )
 				x_init, // initial x
 				NULL,
 				p_init, // initial p
+				NULL,
+				NAN,
 				x_result, // final x
 				NULL, // final p
 				f_result, // final f(x)
@@ -239,6 +242,11 @@ int main ( int argc, char **argv )
 		{
 			++homotopy_param->hom_stat.n_step; 
 
+			if ( p < 0 )
+			{
+				break;
+			}
+
 			if ( HOMOTOPY_EXTRAPOLATE_NONE == homotopy_param->extrapolate_type )
 			{
 				memcpy( x_init, s0, sizeof(double) * n );
@@ -246,101 +254,117 @@ int main ( int argc, char **argv )
 			}
 			else
 			{
-				use_extrapolation = true;
-				for ( int i = 0; i < n; ++i )
+				if ( converge )
 				{
-					dx_dt_difference[i] = (s0[i] - s1[i]) / dt0;
-				}
-				dp_dt_difference = (p0 - p1) / dt0;
-
-				if ( HOMOTOPY_EXTRAPOLATE_DIFFERENCE == homotopy_param->extrapolate_type )
-				{
+					use_extrapolation = true;
 					for ( int i = 0; i < n; ++i )
 					{
-						s_extrapolate[i] = s0[i] + dx_dt_difference[i] * dt;
+						dx_dt_difference[i] = (s0[i] - s1[i]) / dt0;
 					}
-				}
-				else if ( HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL == homotopy_param->extrapolate_type )
-				{
-					// use sensitivity to extrapolate 
-					// 0 = (∂f/∂p) * ∂x/∂p + ∂f/∂p
-					// ∂x/∂p = (∂f/∂p)⁻¹ * -∂f/∂p
-					// 
-					if ( p_load_df_dp && (HOMOTOPY_DF_DP_EXACT == homotopy_param->df_dp_type) )
+					dp_dt_difference = (p0 - p1) / dt0;
+
+					if ( HOMOTOPY_EXTRAPOLATE_DIFFERENCE == homotopy_param->extrapolate_type )
 					{
-						*pp = p0;
-						p_load_df_dp( s0, df_dp );
-						++(homotopy_param->hom_stat.n_df_dp_load);
-					}
-					else
-					{
-						// forward difference to approximate ∂f/∂p
-						double delta_ratio = 1e-6;
-						double delta_p;
-						if ( p0 == 0 )
+						for ( int i = 0; i < n; ++i )
 						{
-							delta_p = 1e-6;
+							s_extrapolate[i] = s0[i] + dx_dt_difference[i] * dt;
+						}
+					}
+					else if ( HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL == homotopy_param->extrapolate_type )
+					{
+						// use sensitivity to extrapolate 
+						// 0 = (∂f/∂p) * ∂x/∂p + ∂f/∂p
+						// ∂x/∂p = (∂f/∂p)⁻¹ * -∂f/∂p
+						// 
+						if ( p_load_df_dp && (HOMOTOPY_DF_DP_EXACT == homotopy_param->df_dp_type) )
+						{
+							*pp = p0;
+							p_load_df_dp( s0, df_dp );
+							++(homotopy_param->hom_stat.n_df_dp_load);
 						}
 						else
 						{
-							delta_p = p0 * delta_ratio;
+							// forward difference to approximate ∂f/∂p
+							double delta_ratio = 1e-6;
+							double delta_p;
+							if ( p0 == 0 )
+							{
+								delta_p = 1e-6;
+							}
+							else
+							{
+								delta_p = p0 * delta_ratio;
+							}
+							*pp = p0 + delta_p;
+							p_load_f( s0, f_delta );
+							++(homotopy_param->hom_stat.n_f_load_sensitivity);
+							*pp = p0;
+							for ( int i = 0; i < n; ++i )
+							{
+								df_dp[i] = (f_delta[i] - f_result[i]) / delta_p;
+							}
 						}
-						*pp = p0 + delta_p;
-						p_load_f( s0, f_delta );
-						++(homotopy_param->hom_stat.n_f_load_sensitivity);
-						*pp = p0;
+
+						// prepare right hand side
+						memcpy( dx_dp, df_dp, sizeof(double) * n );
 						for ( int i = 0; i < n; ++i )
 						{
-							df_dp[i] = (f_delta[i] - f_result[i]) / delta_p;
+							dx_dp[i] *= -1;
+						}
+
+						// solve ∂x/∂p
+						bool matrix_solve_ok = dense_solve ( n, 1, J, dx_dp, perm, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, REAL_NUMBER );
+						++(homotopy_param->hom_stat.n_mat_solve_sensitivity);
+						if ( !matrix_solve_ok )
+						{
+							fprintf( stderr, "[Error] sensitivity LU solve fail\n" );
+							exit(1);
+						}
+
+						// Δt is incremental arc length
+						// xₖ₊₁ = xₖ + ∂x/∂t * Δt
+						// pₖ₊₁ = pₖ + ∂p/∂t * Δt
+						// --------------------------
+						// sensitivity derive:
+						// dx² + dp² = dt² 
+						// ‖∂x/∂t‖² + ‖∂p/∂t‖² = 1
+						// ‖∂x/∂p * ∂p/∂t‖² + ‖∂p/∂t‖² = 1
+						// (‖∂x/∂p‖² * ‖∂p/∂t‖²) + ‖∂p/∂t‖² = 1
+						// (1 + ‖∂x/∂p‖²) * ‖∂p/∂t‖² = 1
+						// ‖∂p/∂t‖² = 1 / (1 + ‖∂x/∂p‖²)
+						// ∂p/∂t = + 1 / sqrt(1 + ‖∂x/∂p‖²)
+						// ∂x/∂t = ∂x/∂p * ∂p/∂t
+						double s_norm_2 = 0;
+						for ( int i = 0; i < n; ++i )
+						{
+							s_norm_2 += dx_dp[i] * dx_dp[i];
+						}
+						dp_dt = 1 / sqrt(1 + s_norm_2);
+						for ( int i = 0; i < n; ++i )
+						{
+							dx_dt[i] = dx_dp[i] * dp_dt;
+						}
+
+						for ( int i = 0; i < n; ++i )
+						{
+							s_extrapolate[i] = s0[i] + dx_dt[i] * dt;
+							s_extrapolate_difference[i] = s0[i] + dx_dt_difference[i] * dt;
+						}
+						p_extrapolate = p0 + dp_dt * dt;
+						if ( homotopy_param->debug )
+						{
+							printf( "\n==================== Sensitivity ====================\n" );
+							for ( int i = 0; i < n; ++i )
+							{
+								printf( "%d: ∂x/∂t=%.10le Δx/Δt=%.10le ∂x/∂p=%.10le ∂f/∂p=%.10le\n", i, dx_dt[i], dx_dt_difference[i], dx_dp[i], df_dp[i] );
+							}
+							printf( "%d: ∂p/∂t=%.10le Δp/Δt=%.10le\n", n, dp_dt, dp_dt_difference );
+							printf( "=====================================================\n" );
 						}
 					}
-
-					// prepare right hand side
-					memcpy( dx_dp, df_dp, sizeof(double) * n );
-					for ( int i = 0; i < n; ++i )
-					{
-						dx_dp[i] *= -1;
-					}
-
-					// solve ∂x/∂p
-					bool matrix_solve_ok = dense_solve ( n, 1, J, dx_dp, perm, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, REAL_NUMBER );
-					++(homotopy_param->hom_stat.n_mat_solve_sensitivity);
-					if ( !matrix_solve_ok )
-					{
-						fprintf( stderr, "[Error] sensitivity LU solve fail\n" );
-						abort();
-					}
-
-					// Δt is incremental arc length
-					// xₖ₊₁ = xₖ + ∂x/∂t * Δt
-					// pₖ₊₁ = pₖ + ∂p/∂t * Δt
-					// --------------------------
-					// sensitivity derive:
-					// dx² + dp² = dt² 
-					// ‖∂x/∂t‖² + ‖∂p/∂t‖² = 1
-					// ‖∂x/∂p * ∂p/∂t‖² + ‖∂p/∂t‖² = 1
-					// (‖∂x/∂p‖² * ‖∂p/∂t‖²) + ‖∂p/∂t‖² = 1
-					// (1 + ‖∂x/∂p‖²) * ‖∂p/∂t‖² = 1
-					// ‖∂p/∂t‖² = 1 / (1 + ‖∂x/∂p‖²)
-					// ∂p/∂t = + 1 / sqrt(1 + ‖∂x/∂p‖²)
-					// ∂x/∂t = ∂x/∂p * ∂p/∂t
-					double s_norm_2 = 0;
-					for ( int i = 0; i < n; ++i )
-					{
-						s_norm_2 += dx_dp[i] * dx_dp[i];
-					}
-					dp_dt = 1 / sqrt(1 + s_norm_2);
-					for ( int i = 0; i < n; ++i )
-					{
-						dx_dt[i] = dx_dp[i] * dp_dt;
-					}
-
-					for ( int i = 0; i < n; ++i )
-					{
-						s_extrapolate[i] = s0[i] + dx_dt[i] * dt;
-						s_extrapolate_difference[i] = s0[i] + dx_dt_difference[i] * dt;
-					}
-					p_extrapolate = p0 + dp_dt * dt;
+				}
+				else
+				{
 					if ( homotopy_param->debug )
 					{
 						printf( "\n==================== Sensitivity ====================\n" );
@@ -351,11 +375,24 @@ int main ( int argc, char **argv )
 						printf( "%d: ∂p/∂t=%.10le Δp/Δt=%.10le\n", n, dp_dt, dp_dt_difference );
 						printf( "=====================================================\n" );
 					}
+
+					// use last successful sensitivity results
+					for ( int i = 0; i < n; ++i )
+					{
+						s_extrapolate[i] = s0[i] + dx_dt[i] * dt;
+						s_extrapolate_difference[i] = s0[i] + dx_dt_difference[i] * dt;
+					}
+					p_extrapolate = p0 + dp_dt * dt;
+				}
+
+				if ( p_extrapolate > 1 )
+				{
+					printf( "cut ppred from %.15le to 1\n", p_extrapolate );
+					p_extrapolate = 1;
 				}
 
 				memcpy( x_init, s_extrapolate, sizeof(double) * n );
 				p_init = p_extrapolate;
-				
 
 				if ( homotopy_param->debug )
 				{
@@ -371,8 +408,10 @@ int main ( int argc, char **argv )
 
 			memset( &(newton_param->nr_stat), 0, sizeof( performance_stat_t ) );
 
+			p = p_init;
 			printf( "* solve NR λ=%.10le ...\n", p );
 			converge = arc_length_bbd_newton_solve ( 
+					homotopy_param,
 					newton_param,
 					perm, // permuation for matrix ordering
 					J, // jacobian
@@ -380,6 +419,8 @@ int main ( int argc, char **argv )
 					x_init, // initial x
 					NULL,
 					p_init, // initial p
+					dx_dt,
+					dp_dt,
 					x_result, // final x
 					&p, // final p
 					f_result, // final f(x)
@@ -459,7 +500,7 @@ int main ( int argc, char **argv )
 				memcpy( s0, x_result, sizeof(double) * n );
 				p1 = p0;
 				p0 = p;
-				dt *= 2;
+				dt = dt * 2;
 				dt = fmin( dt, homotopy_param->arc_length );
 
 				// ---------------------------------
@@ -494,6 +535,15 @@ int main ( int argc, char **argv )
 					break;
 				}
 			}
+		}
+
+		if ( p < 0 )
+		{
+			printf( "\n* Final λ=%.10le < 0, Homotopy Fail (there is no path to λ=1)\n", p );
+		}
+		else
+		{
+			printf( "\n* Final λ=%.10le Homotopy Converge %s in %d Iteration\n", p, (converge ? "Success" : "Fail"), homotopy_param->hom_stat.n_iter );
 		}
 
 		printf( "* Newton performance summary:\n" );

@@ -265,7 +265,7 @@ bool newton_solve ( newton_param_t *newton_param,
 
 		// complete newton if both residue and delta converge 
 		nr_converge = (delta_converge && f_converge);
-		if ( nr_converge && (iter < miniter) )
+		if ( nr_converge && (iter >= miniter) )
 		{
 			if ( debug )
 			{
@@ -587,18 +587,9 @@ bool newton_solve ( newton_param_t *newton_param,
 			}
 		}
 
-		if ( iter < miniter )
-		{
-			// for benchmark performance
-			nr_converge = false;
-		}
-		else
-		{
-			nr_converge = (delta_converge && f_converge);
+		nr_converge = (delta_converge && f_converge);
 
-		}
-
-		if ( nr_converge && (iter < miniter) )
+		if ( nr_converge && (iter >= miniter) )
 		{
 			printf( "[converge info] iter=%d both delta and f converge\n", iter );
 			dump_debug_data( fout_debug, n, iter, x, dx, f );
@@ -651,7 +642,8 @@ bool newton_solve ( newton_param_t *newton_param,
 						printf( "rate_dx%d = %.15le, rate_dx_avg = %.15le, dist_estimate = %.15le, dist_estimate_avg = %.15le\n", i, rate_dx, rate_dx_avg, fixed_point_dist_estimate, fixed_point_dist_estimate_avg );
 					}
 					else
-					{ fixed_point_dist_exact = fabs((x[i] + dx[i]) - x_ans[i]);
+					{ 
+						fixed_point_dist_exact = fabs((x[i] + dx[i]) - x_ans[i]);
 						printf( "rate_dx%d = %.15le, rate_dx_avg = %.15le, dist_estimate= %.15le, dist_estimate_avg = %.15le, dist_exact = %.15le\n", i, rate_dx, rate_dx_avg, fixed_point_dist_estimate, fixed_point_dist_estimate_avg, fixed_point_dist_exact );
 					}
 				}

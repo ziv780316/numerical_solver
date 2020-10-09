@@ -4,6 +4,12 @@
 #include "newton.h"
 
 typedef enum {
+	HOMOTOPY_ARC_LENGTH_CONSTRAINT_NONE,
+	HOMOTOPY_ARC_LENGTH_CONSTRAINT_TANGENT,
+	HOMOTOPY_ARC_LENGTH_CONSTRAINT_CIRCLE,
+} homotopy_arc_length_constrain_type;
+
+typedef enum {
 	HOMOTOPY_EXTRAPOLATE_NONE,
 	HOMOTOPY_EXTRAPOLATE_DIFFERENCE,
 	HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL,
@@ -34,6 +40,7 @@ typedef struct
 
 typedef struct
 {
+	homotopy_arc_length_constrain_type arc_length_constrain_type;
 	homotopy_extrapolate_type extrapolate_type;
 	homotopy_df_dp_type df_dp_type;
 
@@ -51,6 +58,7 @@ typedef struct
 
 // perform BBD Newton-Raphson iterations 
 bool arc_length_bbd_newton_solve ( 
+		homotopy_param_t *homotopy_param,
 		newton_param_t *newton_param,
 		int *perm, // permuation for matrix ordering
 		double *J, // jacobian
@@ -58,6 +66,8 @@ bool arc_length_bbd_newton_solve (
 		double *x0, // initial x
 	        double *x_ans, // user give solution x*
 		double p0, // initial p
+		double *dx_dt, // use in arc length constrain
+		double dp_dt, //  use in arc length constrain
 		double *x_result, // final x
 		double *p_result, // final x
 		double *f_result, // final f(x)

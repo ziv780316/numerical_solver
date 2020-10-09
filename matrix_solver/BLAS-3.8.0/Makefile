@@ -143,6 +143,9 @@ $(BLASLIB): $(ALLOBJ)
 	$(ARCH) $(ARCHFLAGS) $@ $(ALLOBJ)
 	$(RANLIB) $@
 
+$(BLASLIB_SO): $(ALLOBJ)
+	gcc -shared -o $@ $^
+
 single: $(SBLAS1) $(ALLBLAS) $(SBLAS2) $(SBLAS3)
 	$(ARCH) $(ARCHFLAGS) $(BLASLIB) $(SBLAS1) $(ALLBLAS) \
 	$(SBLAS2) $(SBLAS3)

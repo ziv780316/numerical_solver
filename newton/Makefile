@@ -5,7 +5,7 @@
 
 .DEFAULT_GOAL=default # specify default target if there is no target specified
 
-VPATH=library # specify directory where to check target file update to date or not
+#VPATH=library # specify directory where to check target file update to date or not
 
 SHELL=/bin/bash
 

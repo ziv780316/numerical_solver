@@ -25,7 +25,8 @@ static void check_user_define_args ( double *x0,
 static void newton_initialize ( int n, double *x, double *x0, bool random_initial );
 
 // load arc length constrain
-static double eval_arc_length_constrain ( int n, double *x, double *xc, double p, double pc, double dt );
+static double load_arc_length_constrain_RHS ( homotopy_param_t *homotopy_param, int n, double *dx_dt, double dp_dt, double *x, double *xc, double p, double pc, double dt );
+static void load_arc_length_constrain_jacobian ( homotopy_param_t *homotopy_param, int n, double *dg_dx, double *dg_dp, double *dx_dt, double dp_dt, double *x, double *xc, double p, double pc, double dt );
 
 // general newton subroutines 
 __attribute__((always_inline)) inline static double eval_tol( double xref, double rtol, double atol )
@@ -54,6 +55,7 @@ static double golden_section ( void (load_f) (double *v, double*f), double *v, d
 // dump debug
 static void dump_debug_data ( FILE *fout, int n, int iter, double *x, double *dx, double *f );
 bool arc_length_bbd_newton_solve ( 
+		homotopy_param_t *homotopy_param,
 		newton_param_t *newton_param,
 		int *perm, // permuation for matrix ordering
 		double *J, // jacobian
@@ -61,6 +63,8 @@ bool arc_length_bbd_newton_solve (
 		double *x0, // initial x
 	        double *x_ans, // user give solution x*
 		double p0, // initial p
+		double *dx_dt, // use in arc length constrain
+		double dp_dt, // use in arc length constrain
 		double *x_result, // final x
 		double *p_result, // final x
 		double *f_result, // final f(x)
@@ -188,7 +192,7 @@ bool arc_length_bbd_newton_solve (
 			{
 				printf( "xc[%d]=%.15le\n", i, xc[i] );
 			}
-			printf( "pc=%.15le", pc );
+			printf( "pc=%.15le\n", pc );
 		}
 	}
 
@@ -203,7 +207,7 @@ bool arc_length_bbd_newton_solve (
 		if ( !fout_debug )
 		{
 			fprintf( stderr, "[Error] open debug file %s fail --> %s\n", debug_file_name, strerror(errno) );
-			abort();
+			exit(1);
 		}
 		fprintf( fout_debug, "# iter " );
 		for ( int i = 0; i < n; ++i )
@@ -269,7 +273,7 @@ bool arc_length_bbd_newton_solve (
 		// load arc length constrain
 		if ( dt > 0 )
 		{
-			g = eval_arc_length_constrain( n, x, xc, p, pc, dt );
+			g = load_arc_length_constrain_RHS( homotopy_param, n, dx_dt, dp_dt, x, xc, p, pc, dt );
 		}
 
 		if ( debug )
@@ -476,7 +480,7 @@ bool arc_length_bbd_newton_solve (
 			if ( !matrix_factor_ok )
 			{
 				fprintf( stderr, "[Error] LU factorization fail\n" );
-				abort();
+				exit(1);
 			}
 		}
 
@@ -493,23 +497,20 @@ bool arc_length_bbd_newton_solve (
 			// A₂₂ = ∂g/∂p
 			// Δp = 1/(A₂₂ - A₂₁*A₁₁⁻¹*A₁₂)*(-g + A₂₁*A₁₁⁻¹*f)
 			// Δx = A₁₁⁻¹*(-f - A₁₂*Δp)
-			// g(x,p) = (‖x-xc‖² + ‖p-pc‖²) - Δt² 
+			// g(x,p) = <[∂x/∂t,∂p/∂t]),[x-xc,p-pc]>/sqrt(‖∂x/∂t‖²+‖∂p/∂t‖²) - Δt --> force along arc length tangent direction (will not cause backtrace)
+			// g(x,p) = (‖x-xc‖² + ‖p-pc‖²) - Δt² --> this will cause backtrace
 			// ---------------------------------
 
-			// solve Δp = 1/(A₂₂  - A₂₁*A₁₁⁻¹*A₁₂)*(-g + A₂₁*A₁₁⁻¹*f)
+			// solve Δp = 1/(A₂₂ - A₂₁*A₁₁⁻¹*A₁₂)*(-g + A₂₁*A₁₁⁻¹*f)
 			load_df_dp ( x, A12 ); 
-			for ( int i = 0; i < n; ++i )
-			{
-				A21[i] = 2 * (x[i] - xc[i]);
-			}
-			A22 = 2 * (p - pc);
+			load_arc_length_constrain_jacobian( homotopy_param, n, A21, &A22, dx_dt, dp_dt, x, xc, p, pc, dt );
 			memcpy( bbd_tmp_rhs, A12, sizeof(double) * n ); 
 			matrix_solve_ok = dense_solve ( n, 1, J, bbd_tmp_rhs, perm, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, REAL_NUMBER );
 			++(nr_stat->n_mat_solve);
 			if ( !matrix_solve_ok )
 			{
 				fprintf( stderr, "[Error] LU solve fail\n" );
-				abort();
+				exit(1);
 			}
 			bbd_ext_J = 0;
 			for ( int i = 0; i < n; ++i )
@@ -523,7 +524,7 @@ bool arc_length_bbd_newton_solve (
 			if ( !matrix_solve_ok )
 			{
 				fprintf( stderr, "[Error] LU solve fail\n" );
-				abort();
+				exit(1);
 			}
 			bbd_ext_f = 0;
 			for ( int i = 0; i < n; ++i )
@@ -540,7 +541,7 @@ bool arc_length_bbd_newton_solve (
 			if ( p + dp > 1 )
 			{
 				dp_unlimited = dp;
-				printf( "limit Δp=%.15le -> %.15le, pₖ₊₁=1 pₖ=%.15le\n", dp, 1 - dp );
+				printf( "limit Δp=%.15le -> %.15le, pₖ₊₁=1 pₖ=%.15le\n", dp, 1 - dp, p );
 				dp = 1 - p;
 			}
 			if ( debug )
@@ -587,7 +588,7 @@ bool arc_length_bbd_newton_solve (
 			if ( !matrix_solve_ok )
 			{
 				fprintf( stderr, "[Error] LU solve fail\n" );
-				abort();
+				exit(1);
 			}
 			memcpy( dx, bbd_tmp_rhs, sizeof(double) * n );
 			if ( debug )
@@ -635,7 +636,7 @@ bool arc_length_bbd_newton_solve (
 					if ( !matrix_factor_ok )
 					{
 						fprintf( stderr, "[Error] inverse jacobian matrix fail\n" );
-						abort();
+						exit(1);
 					}
 				}
 				else 
@@ -683,7 +684,7 @@ bool arc_length_bbd_newton_solve (
 					if ( 0.0 == D[i] )
 					{
 						fprintf( stderr, "[Error] Newton-Jacobi fail due to D[%d]=0\n", i );
-						abort();
+						exit(1);
 					}
 					rhs[i] /= D[i];
 				}
@@ -696,7 +697,7 @@ bool arc_length_bbd_newton_solve (
 				if ( !matrix_solve_ok )
 				{
 					fprintf( stderr, "[Error] LU solve fail\n" );
-					abort();
+					exit(1);
 				}
 				memcpy( dx, rhs, sizeof(double) * n );
 			}
@@ -981,12 +982,12 @@ static void check_user_define_args ( double *x0,
 	if ( !x0 )
 	{
 		printf( "[Error] x0 is undefined\n" );
-		abort();
+		exit(1);
 	}
 	if ( !load_f )
 	{
 		printf( "[Error] cannot find F(x)\n" );
-		abort();
+		exit(1);
 	}
 	if ( !load_jacobian )
 	{
@@ -1426,14 +1427,109 @@ static void dump_debug_data ( FILE *fout, int n, int iter, double *x, double *dx
 	}
 }
 
-static double eval_arc_length_constrain ( int n, double *x, double *xc, double p, double pc, double dt )
+static double load_arc_length_constrain_RHS ( homotopy_param_t *homotopy_param, int n, double *dx_dt, double dp_dt, double *x, double *xc, double p, double pc, double dt )
 {
 	double g = 0;
-	for ( int i = 0; i < n; ++i )
+	if ( homotopy_param->arc_length_constrain_type == HOMOTOPY_ARC_LENGTH_CONSTRAINT_TANGENT )
 	{
-		g += (x[i] - xc[i]) * (x[i] - xc[i]);
+		// g(x,p) = <[∂x/∂t,∂p/∂t]),[x-xc,p-pc]>/sqrt(‖∂x/∂t‖²+‖∂p/∂t‖²) - Δt --> force along arc length tangent direction (will not cause backtrace)
+		// dx² + dp² = dt² 
+		// ‖∂x/∂t‖² + ‖∂p/∂t‖² = 1
+		double tangent_length = 0;
+		for ( int i = 0; i < n; ++i )
+		{
+			tangent_length += (dx_dt[i] * dx_dt[i]);
+		}
+		tangent_length += dp_dt * dp_dt;
+		tangent_length = sqrt(tangent_length); // should be 1
+
+		double displacement_length = 0;
+		for ( int i = 0; i < n; ++i )
+		{
+			displacement_length += (x[i] - xc[i]) * (x[i] - xc[i]);
+		}
+		displacement_length += (p - pc) * (p - pc);
+		displacement_length = sqrt(displacement_length);
+
+		double cos_theta;
+		double inn_product = 0;
+		for ( int i = 0; i < n; ++i )
+		{
+			inn_product += dx_dt[i] * (x[i] - xc[i]);
+		}
+		inn_product += dp_dt * (p - pc);
+		cos_theta = inn_product / (tangent_length * displacement_length);
+
+		//g = (inn_product / tangent_length) - dt;
+		g = (displacement_length * cos_theta) - dt;
+
+		if ( homotopy_param->debug )
+		{
+			printf( "[tangent RHS] cosθ=%.10le θ=%.3g g=%.10le ‖<x-xc,p-pc>‖=%.10le ‖<∂x/∂t,∂p/∂t>‖=%.10le\n", cos_theta, acos(cos_theta) / M_PI * 180, g, displacement_length, tangent_length );
+		}
 	}
-	g += (p - pc) * (p - pc);
-	g -= dt * dt;
+	else if ( homotopy_param->arc_length_constrain_type == HOMOTOPY_ARC_LENGTH_CONSTRAINT_CIRCLE )
+	{
+		// g(x,p) = (‖x-xc‖² + ‖p-pc‖²) - Δt² --> this will cause backtrace
+		double displacement_length = 0;
+		for ( int i = 0; i < n; ++i )
+		{
+			displacement_length += (x[i] - xc[i]) * (x[i] - xc[i]);
+		}
+		displacement_length += (p - pc) * (p - pc);
+		g = displacement_length - dt * dt;
+
+		if ( homotopy_param->debug )
+		{
+			printf( "[circle RHS] g=%.10le ‖<x-xc,p-pc>‖=%.10le\n", g, displacement_length );
+		}
+	}
+	else
+	{
+		fprintf( stderr, "[Error] unknown arc length constrain type %d\n", homotopy_param->arc_length_constrain_type );
+		exit(1);
+	}
+
+
 	return g;
+}
+
+static void load_arc_length_constrain_jacobian ( homotopy_param_t *homotopy_param, int n, double *dg_dx, double *dg_dp, double *dx_dt, double dp_dt, double *x, double *xc, double p, double pc, double dt )
+{
+	if ( homotopy_param->arc_length_constrain_type == HOMOTOPY_ARC_LENGTH_CONSTRAINT_TANGENT )
+	{
+		// g(x,p) = <[∂x/∂t,∂p/∂t]),[x-xc,p-pc]>/sqrt(‖∂x/∂t‖²+‖∂p/∂t‖²) - Δt --> force along arc length tangent direction (will not cause backtrace)
+		double tangent_length = 0;
+		for ( int i = 0; i < n; ++i )
+		{
+			tangent_length += (dx_dt[i] * dx_dt[i]);
+		}
+		tangent_length += dp_dt * dp_dt;
+		tangent_length = sqrt(tangent_length);
+
+		for ( int i = 0; i < n; ++i )
+		{
+			dg_dx[i] = dx_dt[i] * x[i] / tangent_length;
+		}
+		*dg_dp = dp_dt * p / tangent_length;
+
+		if ( homotopy_param->debug )
+		{
+			printf( "[tangent J] ∂g/∂p=%.10le p=%.10le ∂p/∂t=%.10le\n", *dg_dp, p, dp_dt );
+		}
+	}
+	else if ( homotopy_param->arc_length_constrain_type == HOMOTOPY_ARC_LENGTH_CONSTRAINT_CIRCLE )
+	{
+		// g(x,p) = (‖x-xc‖² + ‖p-pc‖²) - Δt² --> this will cause backtrace
+		for ( int i = 0; i < n; ++i )
+		{
+			dg_dx[i] = 2 * (x[i] - xc[i]);
+		}
+		*dg_dp = 2 * (p - pc);
+	}
+	else
+	{
+		fprintf( stderr, "[Error] unknown arc length constrain type %d\n", homotopy_param->arc_length_constrain_type );
+		exit(1);
+	}
 }
