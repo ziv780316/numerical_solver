@@ -15,7 +15,7 @@ SHELL=/bin/bash
 CC         = gcc
 LINKER     = $(CC)
 DEFINES    = 
-BUILD_TYPE = -g3
+BUILD_TYPE = -O2 -g
 CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -Wextra -Wenum-compare -std=gnu99 -fPIC -Wno-unused-parameter -Wno-unused-variable
 MAT_SOLVER_PATH = /home/lintu/baba/numerical/matrix_solver/lib
 NEWTON_SOLVER_PATH = /home/lintu/baba/numerical/newton/lib
@@ -65,7 +65,7 @@ homotopy_solver: create_dir $(OBJS) make_test_functions
 	$(MOVE) $@ ../$(BIN_DIR)
 
 make_test_functions: 
-	$(MAKE) -C $(TEST_FUNCTION_DIR) OPTS=$(BUILD_TYPE) 
+	$(MAKE) -C $(TEST_FUNCTION_DIR) OPTS="$(BUILD_TYPE)"
 
 debug: BUILD_TYPE:=-g3 
 debug: default

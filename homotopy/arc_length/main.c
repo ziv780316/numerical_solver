@@ -129,6 +129,7 @@ int main ( int argc, char **argv )
 		// use to output raw data for plot and analysis converge issue
 		char *debug_file = g_opts.output_file;
 		FILE *fout_debug = NULL;
+		FILE *fout_debug_tangent = NULL;
 		if ( g_opts.homotopy_param.debug && debug_file )
 		{
 			char debug_file_name[BUFSIZ] = {0};
@@ -153,6 +154,14 @@ int main ( int argc, char **argv )
 				fprintf( fout_debug, "s0_%d ", i );
 			}
 			fprintf( fout_debug, "\n" );
+
+			sprintf( debug_file_name, "%s.tangent", debug_file );
+			fout_debug_tangent = fopen( debug_file_name, "w" );
+			if ( !fout_debug_tangent )
+			{
+				fprintf( stderr, "[Error] open debug file %s fail --> %s\n", debug_file_name, strerror(errno) );
+				exit(1);
+			}
 		}
 
 		newton_param_t *newton_param = &(g_opts.newton_param);
@@ -164,8 +173,8 @@ int main ( int argc, char **argv )
 		double *f_result = (double *) malloc ( sizeof(double) * n );
 		double *f_delta = (double *) malloc ( sizeof(double) * n );
 		double *df_dp = (double *) malloc ( sizeof(double) * n );
-		double dp_dt;
-		double dp_dt_difference;
+		double dp_dt = NAN;
+		double dp_dt_difference = NAN;
 		double *dx_dp = (double *) malloc ( sizeof(double) * n );
 		double *dx_dp_0 = (double *) malloc ( sizeof(double) * n );
 		double *dx_dt_difference = (double *) malloc ( sizeof(double) * n );
@@ -174,7 +183,7 @@ int main ( int argc, char **argv )
 		double *s1 = (double *) malloc ( sizeof(double) * n );
 		double *s_extrapolate = (double *) malloc ( sizeof(double) * n );
 		double *s_extrapolate_difference = (double *) malloc ( sizeof(double) * n );
-		double p_extrapolate;
+		double p_extrapolate = NAN;
 		double p_init = (pp0 ? *pp0 : 0);
 		double p = p_init;
 		double p0 = NAN;
@@ -182,8 +191,10 @@ int main ( int argc, char **argv )
 		double dt = homotopy_param->arc_length;
 		double dt0 = homotopy_param->arc_length;
 		double dp;
+		bool final_sim = false;
 		bool converge;
 		bool use_extrapolation = false;
+		bool matrix_solve_ok = false;
 
 		// solve initial p0 
 		memset( &(newton_param->nr_stat), 0, sizeof( performance_stat_t ) );
@@ -232,6 +243,24 @@ int main ( int argc, char **argv )
 			memcpy( s1, x_result, sizeof(double) * n );
 			p0 = p;
 			p1 = p0;
+
+			if ( fout_debug )
+			{
+				fprintf( fout_debug, "0 " );
+				for ( int i = 0; i < n; ++i )
+				{
+					fprintf( fout_debug, "%.15le ", x_result[i] );
+				}
+				for ( int i = 0; i < n; ++i )
+				{
+					fprintf( fout_debug, "0 " );
+				}
+				for ( int i = 0; i < n; ++i )
+				{
+					fprintf( fout_debug, "0 " );
+				}
+				fprintf( fout_debug, "\n" );
+			}
 		}
 		else
 		{
@@ -315,7 +344,7 @@ int main ( int argc, char **argv )
 						}
 
 						// solve ∂x/∂p
-						bool matrix_solve_ok = dense_solve ( n, 1, J, dx_dp, perm, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, REAL_NUMBER );
+						matrix_solve_ok = dense_solve ( n, 1, J, dx_dp, perm, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, REAL_NUMBER );
 						++(homotopy_param->hom_stat.n_mat_solve_sensitivity);
 						if ( !matrix_solve_ok )
 						{
@@ -369,7 +398,7 @@ int main ( int argc, char **argv )
 							printf( "\n==================== Sensitivity ====================\n" );
 							for ( int i = 0; i < n; ++i )
 							{
-								printf( "%d: ∂x/∂t=%.10le Δx/Δt=%.10le ∂x/∂p=%.10le ∂f/∂p=%.10le\n", i, dx_dt[i], dx_dt_difference[i], dx_dp[i], df_dp[i] );
+								printf( "%d: ∂x/∂t=%.10le Δx/Δt=%.10le ∂x/∂p=%.10le ∂f/∂p=%.10le tangent_line(p)=%.10le*(p-%.10le)+%.10le\n", i, dx_dt[i], dx_dt_difference[i], dx_dp[i], df_dp[i] , dx_dt[i]/dp_dt, p0, s0[i]);
 							}
 							printf( "%d: ∂p/∂t=%.10le Δp/Δt=%.10le\n", n, dp_dt, dp_dt_difference );
 							printf( "=====================================================\n" );
@@ -383,7 +412,7 @@ int main ( int argc, char **argv )
 						printf( "\n==================== Sensitivity ====================\n" );
 						for ( int i = 0; i < n; ++i )
 						{
-							printf( "%d: ∂x/∂t=%.10le Δx/Δt=%.10le ∂x/∂p=%.10le ∂f/∂p=%.10le\n", i, dx_dt[i], dx_dt_difference[i], dx_dp[i], df_dp[i] );
+							printf( "%d: ∂x/∂t=%.10le Δx/Δt=%.10le ∂x/∂p=%.10le ∂f/∂p=%.10le tangent_line(p)=%.10le*(p-%.10le)+%.10le\n", i, dx_dt[i], dx_dt_difference[i], dx_dp[i], df_dp[i] , dx_dt[i]/dp_dt, p0, s0[i]);
 						}
 						printf( "%d: ∂p/∂t=%.10le Δp/Δt=%.10le\n", n, dp_dt, dp_dt_difference );
 						printf( "=====================================================\n" );
@@ -396,12 +425,6 @@ int main ( int argc, char **argv )
 						s_extrapolate_difference[i] = s0[i] + dx_dt_difference[i] * dt;
 					}
 					p_extrapolate = p0 + dp_dt * dt;
-				}
-
-				if ( p_extrapolate > 1 )
-				{
-					printf( "cut ppred from %.15le to 1\n", p_extrapolate );
-					p_extrapolate = 1;
 				}
 
 				memcpy( x_init, s_extrapolate, sizeof(double) * n );
@@ -421,30 +444,63 @@ int main ( int argc, char **argv )
 
 			memset( &(newton_param->nr_stat), 0, sizeof( performance_stat_t ) );
 
-			p = p_init;
-			printf( "* solve NR λ=%.10le ...\n", p );
-			converge = arc_length_bbd_newton_solve ( 
-					homotopy_param,
-					newton_param,
-					perm, // permuation for matrix ordering
-					J, // jacobian
-					pp,
-					x_init, // initial x
-					NULL,
-					p_init, // initial p
-					dx_dt,
-					dp_dt,
-					x_result, // final x
-					&p, // final p
-					f_result, // final f(x)
-					&g, // final g(x)
-					s0, // xc hyper circle central (xc,pc)
-					p0, // pc hyper circle central (xc,pc)
-					dt, // arc length
-					p_load_f,
-					p_load_df_dp,
-					p_load_jacobian,
-					debug_file );
+			if ( p_init > 1 )
+			{
+				p_init = 1;
+				p = p_init;
+				final_sim = true;
+				printf( "\n* Solve final λ=1 NR ...\n" );
+				converge = arc_length_bbd_newton_solve ( 
+						homotopy_param,
+						newton_param,
+						perm, // permuation for matrix ordering
+						J, // jacobian
+						pp,
+						x_init, // initial x
+						NULL,
+						1, // final p
+						NULL,
+						NAN,
+						x_result, // final x
+						NULL, // final p
+						f_result, // final f(x)
+						NULL, // final g(x)
+						NULL, // hyper circle central (xc,pc)
+						NAN, // hyper circle central (xc,pc)
+						0, // arc length
+						p_load_f,
+						p_load_df_dp,
+						p_load_jacobian,
+						debug_file );
+			}
+			else
+			{
+				final_sim = false;
+				p = p_init;
+				printf( "* Solve NR λ=%.10le ...\n", p_init );
+				converge = arc_length_bbd_newton_solve ( 
+						homotopy_param,
+						newton_param,
+						perm, // permuation for matrix ordering
+						J, // jacobian
+						pp,
+						x_init, // initial x
+						NULL,
+						p_init, // initial p
+						dx_dt,
+						dp_dt,
+						x_result, // final x
+						&p, // final p
+						f_result, // final f(x)
+						&g, // final g(x)
+						s0, // xc hyper circle central (xc,pc)
+						p0, // pc hyper circle central (xc,pc)
+						dt, // arc length
+						p_load_f,
+						p_load_df_dp,
+						p_load_jacobian,
+						debug_file );
+			}
 
 			update_homotopy_stat( homotopy_param, newton_param );
 
@@ -461,6 +517,17 @@ int main ( int argc, char **argv )
 
 			if ( converge )
 			{
+				if ( homotopy_param->debug && fout_debug_tangent )
+				{
+					printf( "\n==================== Tangent Line ====================\n" );
+					for ( int i = 0; i < n; ++i )
+					{
+						fprintf( fout_debug_tangent, "tangent_line_%d_%d(p)=%.10le*(p-%.10le)+%.10le\n", i, homotopy_param->hom_stat.n_success, dx_dt[i]/dp_dt, p0, s0[i]);
+						fprintf( fout_debug_tangent, "delta_line_%d_%d(p)=%.10le*(p-%.10le)+%.10le\n", i, homotopy_param->hom_stat.n_success, (x_result[i]-s0[i])/(p - p0), p0, s0[i]);
+					}
+					printf( "=====================================================\n" );
+				}
+
 				if ( homotopy_param->debug && use_extrapolation )
 				{
 					if ( HOMOTOPY_EXTRAPOLATE_NONE != homotopy_param->extrapolate_type )
@@ -502,12 +569,6 @@ int main ( int argc, char **argv )
 					}
 				}
 
-				if ( p > 1 )
-				{
-					printf( "cut p from %.15le to 1\n", p );
-					p = 1;
-				}
-
 				++homotopy_param->hom_stat.n_success; 
 				memcpy( s1, s0, sizeof(double) * n );
 				memcpy( s0, x_result, sizeof(double) * n );
@@ -536,6 +597,11 @@ int main ( int argc, char **argv )
 					}
 					fprintf( fout_debug, "\n" );
 				}
+
+				if ( final_sim )
+				{
+					break;
+				}
 			}
 			else
 			{
@@ -550,16 +616,24 @@ int main ( int argc, char **argv )
 			}
 		}
 
-		if ( p < 0 )
+		if ( final_sim && converge )
+		{
+			printf( "\n* Homotopy Success on λ=1 with total %d iterations\n", homotopy_param->hom_stat.n_iter );
+			for ( int i = 0; i < n; ++i )
+			{
+				printf( "x[%d]=%.10le  f=%.10le\n", i, x_result[i], f_result[i] );
+			}
+		}
+		else if ( p < 0 )
 		{
 			printf( "\n* Final λ=%.10le < 0, Homotopy Fail (there is no path to λ=1)\n", p );
 		}
 		else
 		{
-			printf( "\n* Final λ=%.10le Homotopy Converge %s in %d Iteration\n", p, (converge ? "Success" : "Fail"), homotopy_param->hom_stat.n_iter );
+			printf( "\n* Homotopy Fail stuck on λ=%.10le with toal %d Iteration\n", p, homotopy_param->hom_stat.n_iter );
 		}
 
-		printf( "* Newton performance summary:\n" );
+		printf( "\n* Newton performance summary:\n" );
 		printf( "n_iter           = %d\n", homotopy_param->hom_stat.n_iter );
 		printf( "n_mat_factor     = %d\n", homotopy_param->hom_stat.n_mat_factor );
 		printf( "n_mat_solve      = %d\n", homotopy_param->hom_stat.n_mat_solve );

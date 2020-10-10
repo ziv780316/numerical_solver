@@ -91,9 +91,9 @@ bool arc_length_bbd_newton_solve (
 	double residual_atol = newton_param->residual_atol;
 	double max_dx = newton_param->max_dx;
 	double jmin = newton_param->jmin;
-	double dp;
-	double p;
-	double g;
+	double dp = NAN;
+	double p = NAN;
+	double g = NAN;
 	bool debug = newton_param->debug;
 	bool random_initial = newton_param->random_initial;
 	performance_stat_t *nr_stat = &(newton_param->nr_stat);
@@ -922,7 +922,10 @@ bool arc_length_bbd_newton_solve (
 			printf( "x[%d]=%.15le  f=%.15le\n", i, x[i], f[i] );
 		}
 		printf( "[norm] dx_norm=%.15le (id=%d), f_norm=%.15le (id=%d)\n", dx_max_norm, max_dx_idx, f_max_norm, max_f_idx );
-		printf( "[norm] dp_norm=%.15le, g_norm=%.15le\n", dp_norm, g_norm );
+		if ( dt > 0 )
+		{
+			printf( "[norm] dp_norm=%.15le, g_norm=%.15le\n", dp_norm, g_norm );
+		}
 	}
 
 	// ---------------------------------
@@ -1465,7 +1468,7 @@ static double load_arc_length_constrain_RHS ( homotopy_param_t *homotopy_param, 
 
 		if ( homotopy_param->debug )
 		{
-			printf( "[tangent RHS] cosθ=%.10le θ=%.3g g=%.10le ‖<x-xc,p-pc>‖=%.10le ‖<∂x/∂t,∂p/∂t>‖=%.10le\n", cos_theta, acos(cos_theta) / M_PI * 180, g, displacement_length, tangent_length );
+			printf( "[tangent RHS] cosθ=%.10le θ=%.3lf g=%.10le ‖<x-xc,p-pc>‖=%.10le ‖<∂x/∂t,∂p/∂t>‖=%.10le\n", cos_theta, acos(cos_theta) / M_PI * 180, g, displacement_length, tangent_length );
 		}
 	}
 	else if ( homotopy_param->arc_length_constrain_type == HOMOTOPY_ARC_LENGTH_CONSTRAINT_CIRCLE )
