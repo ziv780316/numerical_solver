@@ -1509,13 +1509,13 @@ static void load_arc_length_constrain_jacobian ( homotopy_param_t *homotopy_para
 
 		for ( int i = 0; i < n; ++i )
 		{
-			dg_dx[i] = dx_dt[i] * x[i] / tangent_length;
+			dg_dx[i] = dx_dt[i] / tangent_length;
 		}
-		*dg_dp = dp_dt * p / tangent_length;
+		*dg_dp = dp_dt / tangent_length;
 
 		if ( homotopy_param->debug )
 		{
-			printf( "[tangent J] ∂g/∂p=%.10le p=%.10le ∂p/∂t=%.10le\n", *dg_dp, p, dp_dt );
+			printf( "[tangent J] ∂g/∂p=%.10le ∂p/∂t=%.10le\n", *dg_dp, dp_dt );
 		}
 	}
 	else if ( homotopy_param->arc_length_constrain_type == HOMOTOPY_ARC_LENGTH_CONSTRAINT_CIRCLE )

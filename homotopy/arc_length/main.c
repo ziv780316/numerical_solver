@@ -167,6 +167,7 @@ int main ( int argc, char **argv )
 		double dp_dt;
 		double dp_dt_difference;
 		double *dx_dp = (double *) malloc ( sizeof(double) * n );
+		double *dx_dp_0 = (double *) malloc ( sizeof(double) * n );
 		double *dx_dt_difference = (double *) malloc ( sizeof(double) * n );
 		double *dx_dt = (double *) malloc ( sizeof(double) * n );
 		double *s0 = (double *) malloc ( sizeof(double) * n );
@@ -306,6 +307,7 @@ int main ( int argc, char **argv )
 						}
 
 						// prepare right hand side
+						memcpy( dx_dp_0, dx_dp, sizeof(double) * n );
 						memcpy( dx_dp, df_dp, sizeof(double) * n );
 						for ( int i = 0; i < n; ++i )
 						{
@@ -340,6 +342,17 @@ int main ( int argc, char **argv )
 							s_norm_2 += dx_dp[i] * dx_dp[i];
 						}
 						dp_dt = 1 / sqrt(1 + s_norm_2);
+
+						// turnning point reverse sign
+						if ( dp_dt_difference < 0 )
+						{
+							if ( dp_dt > 0 )
+							{
+								printf( "* Turnning point is occured arround λ=%.10le\n", p1 );
+								dp_dt *= -1;
+							}
+						}
+
 						for ( int i = 0; i < n; ++i )
 						{
 							dx_dt[i] = dx_dp[i] * dp_dt;
