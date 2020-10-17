@@ -132,6 +132,8 @@ bool arc_length_bbd_newton_solve (
 	double *A21 = (double *) malloc ( sizeof(double) * n );
 	double *A12 = (double *) malloc ( sizeof(double) * n );
 	double A22;
+	double dp_old[2] = {0};
+	double dp2;
 
 	if ( NULL == J )
 	{
@@ -501,6 +503,21 @@ bool arc_length_bbd_newton_solve (
 			// g(x,p) = (‖x-xc‖² + ‖p-pc‖²) - Δt² --> this will cause backtrace
 			// ---------------------------------
 
+			if ( debug )
+			{
+				// use to estimate converge rate
+				memcpy( dx_old[1], dx_old[0], sizeof(double) * n ); 
+				memcpy( dx_old[0], dx, sizeof(double) * n ); 
+				dp_old[1] = dp_old[0];
+				dp_old[0] = dp;
+
+				if ( 2 == iter ) // use for chord newton rate estimate
+				{
+					memcpy( dx2, dx, sizeof(double) * n ); 
+					dp2 = dp;
+				}
+			}
+
 			// solve Δp = 1/(A₂₂ - A₂₁*A₁₁⁻¹*A₁₂)*(-g + A₂₁*A₁₁⁻¹*f)
 			load_df_dp ( x, A12 ); 
 			load_arc_length_constrain_jacobian( homotopy_param, n, A21, &A22, dx_dt, dp_dt, x, xc, p, pc, dt );
@@ -568,17 +585,6 @@ bool arc_length_bbd_newton_solve (
 			*pp = p;
 
 			// solve Δx = A₁₁⁻¹*(-f - A₁₂*Δp)
-			if ( debug )
-			{
-				// use to estimate converge rate
-				memcpy( dx_old[1], dx_old[0], sizeof(double) * n ); 
-				memcpy( dx_old[0], dx, sizeof(double) * n ); 
-
-				if ( 2 == iter ) // use for chord newton rate estimate
-				{
-					memcpy( dx2, dx, sizeof(double) * n ); 
-				}
-			}
 			for ( int i = 0; i < n; ++i )
 			{
 				bbd_tmp_rhs[i] = -f[i] - A12[i] * dp;
@@ -792,6 +798,11 @@ bool arc_length_bbd_newton_solve (
 				converge_order = fabs(log( fabs(dx[i]) / fabs(dx_old[0][i]) ) / log( fabs(dx_old[0][i]) / fabs(dx_old[1][i]) ));
 				printf( "x%d = %.15le (dx=%.15le dx_old0=%.15le dx_old1=%.15le\n", i, converge_order, dx[i], dx_old[0][i], dx_old[1][i] );
 			}
+			if ( dt > 0 )
+			{
+				converge_order = fabs(log( fabs(dp) / fabs(dp_old[0]) ) / log( fabs(dp_old[0]) / fabs(dp_old[1]) ));
+				printf( "p  = %.15le (dp=%.15le dp_old0=%.15le dp_old1=%.15le\n", converge_order, dp, dp_old[0], dp_old[1] );
+			}
 		}
 
 		if ( debug && (iter > 1) )
@@ -973,6 +984,11 @@ bool arc_length_bbd_newton_solve (
 		free_with_set_null( dx_old[0] );
 		free_with_set_null( dx_old[1] );
 		free_with_set_null( dx2 );
+	}
+
+	if ( fout_debug )
+	{
+		fclose( fout_debug );
 	}
 
 	return nr_converge;
