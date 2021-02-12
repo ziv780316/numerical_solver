@@ -10,6 +10,12 @@ typedef enum {
 } homotopy_arc_length_constrain_type;
 
 typedef enum {
+	HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_NONE,
+	HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_DIFFERENCE,
+	HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_CROSS_PRODUCT,
+} homotopy_arc_length_backtrace_handle_type;
+
+typedef enum {
 	HOMOTOPY_EXTRAPOLATE_NONE,
 	HOMOTOPY_EXTRAPOLATE_DIFFERENCE,
 	HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL,
@@ -41,6 +47,7 @@ typedef struct
 typedef struct
 {
 	homotopy_arc_length_constrain_type arc_length_constrain_type;
+	homotopy_arc_length_backtrace_handle_type arc_length_backtrace_type;;
 	homotopy_extrapolate_type extrapolate_type;
 	homotopy_df_dp_type df_dp_type;
 

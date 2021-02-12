@@ -153,6 +153,7 @@ int main ( int argc, char **argv )
 			{
 				fprintf( fout_debug, "s0_%d ", i );
 			}
+			fprintf( fout_debug, "is_backtrace" );
 			fprintf( fout_debug, "\n" );
 
 			sprintf( debug_file_name, "%s.tangent", debug_file );
@@ -168,12 +169,15 @@ int main ( int argc, char **argv )
 		homotopy_param_t *homotopy_param = &(g_opts.homotopy_param);
 		int *perm = (int *) malloc ( sizeof(int) * n );
 		double *J = (double *) malloc ( sizeof(double) * (n * n) );
+		double *A = (double *) malloc ( sizeof(double) * ((n+1) * (n+1)) );
 		double *x_result = (double *) malloc ( sizeof(double) * n );
 		double g;
+		double det_a;
 		double *f_result = (double *) malloc ( sizeof(double) * n );
 		double *f_delta = (double *) malloc ( sizeof(double) * n );
 		double *df_dp = (double *) malloc ( sizeof(double) * n );
 		double dp_dt = NAN;
+		double dp_dt_last = NAN;
 		double dp_dt_difference = NAN;
 		double *dx_dp = (double *) malloc ( sizeof(double) * n );
 		double *dx_dp_0 = (double *) malloc ( sizeof(double) * n );
@@ -195,6 +199,9 @@ int main ( int argc, char **argv )
 		bool converge;
 		bool use_extrapolation = false;
 		bool matrix_solve_ok = false;
+		bool need_reverse_sign = false;
+		bool is_backtrace = false;
+		double forward_step_cross_product = NAN;
 
 		// solve initial p0 
 		memset( &(newton_param->nr_stat), 0, sizeof( performance_stat_t ) );
@@ -259,6 +266,7 @@ int main ( int argc, char **argv )
 				{
 					fprintf( fout_debug, "0 " );
 				}
+				fprintf( fout_debug, "%d", is_backtrace );
 				fprintf( fout_debug, "\n" );
 			}
 		}
@@ -370,17 +378,7 @@ int main ( int argc, char **argv )
 						{
 							s_norm_2 += dx_dp[i] * dx_dp[i];
 						}
-						dp_dt = 1 / sqrt(1 + s_norm_2);
-
-						// turnning point reverse sign
-						if ( dp_dt_difference < 0 )
-						{
-							if ( dp_dt > 0 )
-							{
-								printf( "* Turnning point is occured arround λ=%.10le\n", p1 );
-								dp_dt *= -1;
-							}
-						}
+						dp_dt = 1 / sqrt(1 + s_norm_2); // be positive, thus need check sign letter
 
 						for ( int i = 0; i < n; ++i )
 						{
@@ -403,6 +401,154 @@ int main ( int argc, char **argv )
 							printf( "%d: ∂p/∂t=%.10le Δp/Δt=%.10le\n", n, dp_dt, dp_dt_difference );
 							printf( "=====================================================\n" );
 						}
+					}
+
+					is_backtrace = false;
+					if ( HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_CROSS_PRODUCT == homotopy_param->arc_length_backtrace_type )
+					{
+						printf( "\n* evaluate λ=%.10le cross product sign ...\n", p0 );
+
+						// A₁₁ = ∂f/∂x = J(x)
+						p_load_jacobian( s0, J );
+						for ( int col = 0; col < n; ++col )
+						{
+							for ( int row = 0; row < n; ++row )
+							{
+								*(A + col*(n+1) + row) = *(J + col*n + row);
+							}
+						}
+
+						// A₁₂ = ∂f/∂p
+						p_load_df_dp( s0, df_dp );
+						for ( int row = 0; row < n; ++row )
+						{
+							*(A + (n)*(n+1) + row) = df_dp[row];
+						}
+
+						// A₂₁ = Δx/Δt
+						if ( HOMOTOPY_EXTRAPOLATE_DIFFERENCE == homotopy_param->extrapolate_type )
+						{
+							for ( int col = 0; col < n; ++col )
+							{
+								*(A + col*(n+1) + n) = dx_dt_difference[col];
+							}
+						}
+						else if ( HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL == homotopy_param->extrapolate_type )
+						{
+							for ( int col = 0; col < n; ++col )
+							{
+								*(A + col*(n+1) + n) = dx_dt[col];
+							}
+						}
+
+						// A₂₂ = Δp/Δt
+						if ( HOMOTOPY_EXTRAPOLATE_DIFFERENCE == homotopy_param->extrapolate_type )
+						{
+							*(A + n*(n+1) + n) = dp_dt_difference;
+						}
+						else if ( HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL == homotopy_param->extrapolate_type )
+						{
+							*(A + n*(n+1) + n) = dp_dt;
+						}
+
+						det_a = dense_eval_det( n, A, FACTOR_LU_RIGHT_LOOKING, REAL_NUMBER );
+
+						if ( homotopy_param->debug )
+						{
+							printf( "|A|=%.10le\n", det_a );
+							printf( "A = \n" );
+							dense_print_matrix( n + 1, n + 1, A, REAL_NUMBER );
+						}
+
+						if ( 1 == homotopy_param->hom_stat.n_success )
+						{
+							forward_step_cross_product = det_a;
+						}
+
+						if ( det_a * forward_step_cross_product < 0 )
+						{
+							is_backtrace = true;
+
+							if ( HOMOTOPY_EXTRAPOLATE_DIFFERENCE == homotopy_param->extrapolate_type )
+							{
+							}
+							else if ( HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL == homotopy_param->extrapolate_type )
+							{
+								dp_dt *= -1; // change tagent line sign
+								for ( int i = 0; i < n; ++i )
+								{
+									dx_dt[i] = dx_dp[i] * dp_dt;
+								}
+
+								if ( homotopy_param->debug )
+								{
+									printf( "\n==================== Modified Sensitivity ====================\n" );
+									for ( int i = 0; i < n; ++i )
+									{
+										printf( "%d: ∂x/∂t=%.10le Δx/Δt=%.10le ∂x/∂p=%.10le ∂f/∂p=%.10le tangent_line(p)=%.10le*(p-%.10le)+%.10le\n", i, dx_dt[i], dx_dt_difference[i], dx_dp[i], df_dp[i] , dx_dt[i]/dp_dt, p0, s0[i]);
+									}
+									printf( "%d: ∂p/∂t=%.10le Δp/Δt=%.10le\n", n, dp_dt, dp_dt_difference );
+									printf( "=====================================================\n" );
+									printf( "\n==================== Modified Extrapolation ====================\n" );
+									for ( int i = 0; i < n; ++i )
+									{
+										printf( "xpred[%d]=%.10le -> %.10le\n", i, s_extrapolate[i], s0[i] + dx_dt[i] * dt );
+									}
+									printf( "ppred=%.10le -> %.10le\n", p_extrapolate, p0 + dp_dt * dt );
+									printf( "=====================================================\n" );
+								}
+								for ( int i = 0; i < n; ++i )
+								{
+									s_extrapolate[i] = s0[i] + dx_dt[i] * dt;
+									s_extrapolate_difference[i] = s0[i] + dx_dt_difference[i] * dt;
+								}
+								p_extrapolate = p0 + dp_dt * dt;
+							}
+						}
+					}
+					else if ( HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_DIFFERENCE == homotopy_param->arc_length_backtrace_type )
+					{
+						// turnning point reverse sign
+						if ( dp_dt_difference < 0 )
+						{
+							if ( dp_dt > 0 )
+							{
+								printf( "* Turnning point is occured arround λ=%.10le\n", p1 );
+								dp_dt *= -1;
+
+								for ( int i = 0; i < n; ++i )
+								{
+									dx_dt[i] = dx_dp[i] * dp_dt;
+								}
+								if ( homotopy_param->debug )
+								{
+									printf( "\n==================== Modified Sensitivity ====================\n" );
+									for ( int i = 0; i < n; ++i )
+									{
+										printf( "%d: ∂x/∂t=%.10le Δx/Δt=%.10le ∂x/∂p=%.10le ∂f/∂p=%.10le tangent_line(p)=%.10le*(p-%.10le)+%.10le\n", i, dx_dt[i], dx_dt_difference[i], dx_dp[i], df_dp[i] , dx_dt[i]/dp_dt, p0, s0[i]);
+									}
+									printf( "%d: ∂p/∂t=%.10le Δp/Δt=%.10le\n", n, dp_dt, dp_dt_difference );
+									printf( "=====================================================\n" );
+									printf( "\n==================== Modified Extrapolation ====================\n" );
+									for ( int i = 0; i < n; ++i )
+									{
+										printf( "xpred[%d]=%.10le -> %.10le\n", i, s_extrapolate[i], s0[i] + dx_dt[i] * dt );
+									}
+									printf( "ppred=%.10le -> %.10le\n", p_extrapolate, p0 + dp_dt * dt );
+									printf( "=====================================================\n" );
+								}
+								for ( int i = 0; i < n; ++i )
+								{
+									s_extrapolate[i] = s0[i] + dx_dt[i] * dt;
+									s_extrapolate_difference[i] = s0[i] + dx_dt_difference[i] * dt;
+								}
+								p_extrapolate = p0 + dp_dt * dt;
+							}
+						}
+					}
+					else
+					{
+						// none
 					}
 				}
 				else
@@ -442,6 +588,15 @@ int main ( int argc, char **argv )
 				}
 			}
 
+			if ( HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL == homotopy_param->extrapolate_type )
+			{
+				if ( dp_dt_last * dp_dt < 0 )
+				{
+					printf( "* Turnning point is occured arround λ=%.10le\n", p1 );
+				}
+				dp_dt_last = dp_dt;
+			}
+
 			memset( &(newton_param->nr_stat), 0, sizeof( performance_stat_t ) );
 
 			if ( p_init > 1 )
@@ -449,7 +604,7 @@ int main ( int argc, char **argv )
 				p_init = 1;
 				p = p_init;
 				final_sim = true;
-				printf( "\n* Solve final λ=1 NR ...\n" );
+				printf( "\n* Solve final λ=1 NR (step=%d) )...\n", homotopy_param->hom_stat.n_step );
 				converge = arc_length_bbd_newton_solve ( 
 						homotopy_param,
 						newton_param,
@@ -477,7 +632,7 @@ int main ( int argc, char **argv )
 			{
 				final_sim = false;
 				p = p_init;
-				printf( "* Solve NR λ=%.10le ...\n", p_init );
+				printf( "* Solve NR λ=%.10le (step=%d backtrace=%s) ...\n", p_init, homotopy_param->hom_stat.n_step, (is_backtrace? "yes" : "no") );
 				converge = arc_length_bbd_newton_solve ( 
 						homotopy_param,
 						newton_param,
@@ -595,6 +750,7 @@ int main ( int argc, char **argv )
 					{
 						fprintf( fout_debug, "%.15le ", s0[i] );
 					}
+					fprintf( fout_debug, "%d", is_backtrace );
 					fprintf( fout_debug, "\n" );
 				}
 

@@ -16,6 +16,7 @@ opt_t g_opts = {
 	.homotopy_param = 
 	{
 		.arc_length_constrain_type = HOMOTOPY_ARC_LENGTH_CONSTRAINT_TANGENT,
+		.arc_length_backtrace_type = HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_CROSS_PRODUCT,
 		.extrapolate_type = HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL,
 		.df_dp_type = HOMOTOPY_DF_DP_FORWARD,
 		.lamda_start = 0,
@@ -151,6 +152,7 @@ void parse_cmd_options ( int argc, char **argv )
 			{"delta_atol", required_argument, 0, 'a'},
 			{"residual_rtol", required_argument, 0, 'g'},
 			{"residual_atol", required_argument, 0, 'u'},
+			{"backtrace_handle", required_argument, 0, 's'},
 			{"max_dx", required_argument, 0, 'b'},
 			{"jmin", required_argument, 0, 'j'},
 			{"line_search_tol", required_argument, 0, 'l'},
@@ -301,6 +303,26 @@ void parse_cmd_options ( int argc, char **argv )
 
 			case 'u':
 				g_opts.newton_param.residual_atol = atof( optarg );
+				break;
+
+			case 's':
+				if ( is_str_nocase_match( "none", optarg ) )
+				{
+					g_opts.homotopy_param.arc_length_backtrace_type = HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_NONE;
+				}
+				else if ( is_str_nocase_match( "difference", optarg ) )
+				{
+					g_opts.homotopy_param.arc_length_backtrace_type = HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_DIFFERENCE;
+				}
+				else if ( is_str_nocase_match( "cross_product", optarg ) )
+				{
+					g_opts.homotopy_param.arc_length_backtrace_type = HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_CROSS_PRODUCT;
+				}
+				else
+				{
+					fprintf( stderr, "[Error] unknown backtrace_handle type %s\n", optarg );
+					exit(1);
+				}
 				break;
 
 			case 'b':
