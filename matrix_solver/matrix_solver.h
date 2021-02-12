@@ -74,17 +74,20 @@ int dense_triangular_solve ( int n, double *A, double *x, triangular_type, trans
 // swap vector x and y
 int dense_swap_vector ( int n, double *x, double *y, number_type );
 
-// LU factorization A = P * L * U
-int dense_lu_factor ( int n, double *A, int *p, factorization_type, number_type );
+// LU factorization A = P * L * U = Pinv^-1 * L * U = Pinv' * L * U
+int dense_lu_factor ( int n, double *A, int *pinv, factorization_type, number_type );
 
 // solve A*x = b 
-int dense_solve ( int n, int nrhs, double *A, double *x, int *p, factorization_type, transpose_type transpose, number_type );
+int dense_solve ( int n, int nrhs, double *A, double *x, int *pinv, factorization_type, transpose_type transpose, number_type );
+
+// eval |A|
+double dense_eval_det ( int n, double *A, int *pinv, factorization_type, number_type );
 
 // solve A*x = b with LU factorization
-int dense_factor_and_solve ( int n, int nrhs, double *A, double *x, int *p, factorization_type, transpose_type, number_type );
+int dense_factor_and_solve ( int n, int nrhs, double *A, double *x, int *pinv, factorization_type, transpose_type, number_type );
 
 // A := A^-1, computes inv(A) by solving the system inv(A)*L = inv(U) for inv(A).
-int dense_matrix_inverse ( int n, double *A, int *p, factorization_type, number_type );
+int dense_matrix_inverse ( int n, double *A, int *pinv, factorization_type, number_type );
 
 // |A|_1 = col sum, |A|_max = row sum ...
 int dense_matrix_norm ( int p_norm, int m, int n, double *A, double *val, number_type );
@@ -96,6 +99,10 @@ int dense_print_matrix ( int m, int n, double *A, number_type );
 int dense_print_matrix_perm ( int n, int *p );
 int dense_print_matrix_LU ( int n, double *A, number_type );
 int dense_print_matrix_trig ( int n, double *A, triangular_type, number_type );
+
+extern int g_matrix_print_format;
+#define MATRIX_PRINT_FORMAT_PLAIN 0
+#define MATRIX_PRINT_FORMAT_MATLAB 1
 
 #endif
 

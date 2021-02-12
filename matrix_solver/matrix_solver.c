@@ -7,6 +7,8 @@
 
 #include "matrix_solver.h"
 
+int g_matrix_print_format = MATRIX_PRINT_FORMAT_PLAIN;
+
 static void iswap ( int *x, int *y )
 {
 	// XOR swap does not need buffer
@@ -445,7 +447,7 @@ int dense_matrix_matrix_multiply ( int ma, int na, int mb, int nb, double *alpha
 		if ( na != mb )
 		{
 			fprintf( stderr, "[Error] matrix dimension mismatch (A=%dx%d B=%dx%d)\n", ma, na, mb, nb );
-			abort();
+			exit(1);
 		}
 
 		ldc = ma;
@@ -586,7 +588,7 @@ void zpotrf ( char *uplo, int *n, double *A, int *lda, int *info );
 void dsytrf ( char *uplo, int *n, double *A, int *lda, int *ipiv, double *work, int *lwork, int *info );
 void zsytrf ( char *uplo, int *n, double *A, int *lda, int *ipiv, double *work, int *lwork, int *info );
 
-int dense_lu_factor ( int n, double *A, int *p, factorization_type factor_method, number_type type )
+int dense_lu_factor ( int n, double *A, int *pinv, factorization_type factor_method, number_type type )
 {
 	int lda = n;
 	int info;
@@ -595,11 +597,11 @@ int dense_lu_factor ( int n, double *A, int *p, factorization_type factor_method
 	{
 		if ( REAL_NUMBER == type )
 		{
-			dgetrf( &n, &n, A, &lda, p, &info );
+			dgetrf( &n, &n, A, &lda, pinv, &info );
 		}
 		else
 		{
-			zgetrf( &n, &n, A, &lda, p, &info );
+			zgetrf( &n, &n, A, &lda, pinv, &info );
 		}
 	}
 	else if ( FACTOR_LU_CHOLESKY == factor_method )
@@ -624,11 +626,11 @@ int dense_lu_factor ( int n, double *A, int *p, factorization_type factor_method
 		// query lwork
 		if ( REAL_NUMBER == type )
 		{
-			dsytrf ( &uplo, &n, A, &lda, p, optima_lwork, &lwork, &info );
+			dsytrf ( &uplo, &n, A, &lda, pinv, optima_lwork, &lwork, &info );
 		}
 		else
 		{
-			zsytrf ( &uplo, &n, A, &lda, p, optima_lwork, &lwork, &info );
+			zsytrf ( &uplo, &n, A, &lda, pinv, optima_lwork, &lwork, &info );
 		}
 
 		//fprintf( stderr, "[matrix info] %s: n=%d optima_lwork=%d\n", __func__, n, (int)optima_lwork[0] );
@@ -639,13 +641,13 @@ int dense_lu_factor ( int n, double *A, int *p, factorization_type factor_method
 		{
 			// allocate temperal memory for optimizing performance
 			work = (double *) malloc (sizeof(double) * lwork);
-			dsytrf ( &uplo, &n, A, &lda, p, work, &lwork, &info );
+			dsytrf ( &uplo, &n, A, &lda, pinv, work, &lwork, &info );
 		}
 		else
 		{
 			// allocate temperal memory for optimizing performance
 			work = (double *) malloc (sizeof(double) * 2 * lwork);
-			zsytrf ( &uplo, &n, A, &lda, p, work, &lwork, &info );
+			zsytrf ( &uplo, &n, A, &lda, pinv, work, &lwork, &info );
 		}
 
 		free( work );
@@ -735,16 +737,74 @@ int dense_solve ( int n, int nrhs, double *A, double *x, int *ipiv, factorizatio
 	return (0 == info); // info = 0 means success
 }
 
-int dense_factor_and_solve ( int n, int nrhs, double *A, double *x, int *p, factorization_type factor_method, transpose_type tran, number_type type )
+// eval |A|
+double dense_eval_det ( int n, double *A, int *pinv, factorization_type factor_method, number_type type )
+{
+	double det_a = NAN;
+	if ( REAL_NUMBER == type )
+	{
+		if ( FACTOR_LU_BUNCH_KAUFMAN == factor_method ) // LDL' for all symmetry matrix
+		{
+		}
+		else if ( FACTOR_LU_CHOLESKY == factor_method ) // LL' for postive definite symmetric matrix
+		{
+		}
+		else
+		{
+			// A = P * L * U, |A| = |P| * |L| * |U| = |P| * |U| = -|P'| * |U|
+
+			// |P'|
+			int swap_cnt = 0;
+			double det_p;
+			double det_pinv;
+			for ( int i = 1; i <= n; ++i )
+			{
+				if ( i != pinv[i - 1] ) 
+				{
+					++swap_cnt;
+				}
+			}
+			if ( 1 == (swap_cnt % 2) )
+			{
+				det_pinv = -1;
+				det_p = -1;
+			}
+			else
+			{
+				det_pinv = 1;
+				det_p = 1;
+			}
+
+			// |U|
+			double det_u = 1.0;
+			for ( int i = 0; i < n; ++i )
+			{
+				det_u *= *(A + i*n + i);
+			}
+
+			// |A| = |P| * |U|
+			det_a = det_p * det_u;
+		}
+	}
+	else
+	{
+		fprintf( stderr, "[Error] cannot support evaluate complex matrix |A|\n" );
+		exit(1);
+	}
+
+	return det_a;
+}
+
+int dense_factor_and_solve ( int n, int nrhs, double *A, double *x, int *pinv, factorization_type factor_method, transpose_type tran, number_type type )
 {
 	int success;
 
-	success = dense_lu_factor( n, A, p, factor_method, type );
+	success = dense_lu_factor( n, A, pinv, factor_method, type );
 	if ( !success )
 	{
 		return 0;
 	}
-	success = dense_solve( n, nrhs, A, x, p, factor_method, tran, type );
+	success = dense_solve( n, nrhs, A, x, pinv, factor_method, tran, type );
 	if ( !success )
 	{
 		return 0;
@@ -764,7 +824,7 @@ void zpotri ( char *uplo, int *n, double *A, int *lda, int *info );
 void dsytri ( char *uplo, int *n, double *A, int *lda, int *ipiv, double *work, int *info );
 void zsytri ( char *uplo, int *n, double *A, int *lda, int *ipiv, double *work, int *info );
 
-int dense_matrix_inverse ( int n, double *A, int *p, factorization_type factor_method, number_type type )
+int dense_matrix_inverse ( int n, double *A, int *pinv, factorization_type factor_method, number_type type )
 {
 	int lda = n;
 	int lwork = -1;
@@ -774,7 +834,7 @@ int dense_matrix_inverse ( int n, double *A, int *p, factorization_type factor_m
 	bool success;
 
 	// need factorization before invese
-	success = dense_lu_factor( n, A, p, factor_method, type );
+	success = dense_lu_factor( n, A, pinv, factor_method, type );
 	if ( !success )
 	{
 		return 0;
@@ -785,11 +845,11 @@ int dense_matrix_inverse ( int n, double *A, int *p, factorization_type factor_m
 		// query suitable worksapce size first, lwork = -1 means query optima workspace size (store in optima_lwork[0])
 		if ( REAL_NUMBER == type )
 		{
-			dgetri( &n, A, &lda, p, optima_lwork, &lwork, &info );
+			dgetri( &n, A, &lda, pinv, optima_lwork, &lwork, &info );
 		}
 		else
 		{
-			zgetri( &n, A, &lda, p, optima_lwork, &lwork, &info );
+			zgetri( &n, A, &lda, pinv, optima_lwork, &lwork, &info );
 		}
 		//fprintf( stderr, "[matrix info] %s: n=%d optima_lwork=%d\n", __func__, n, (int)optima_lwork[0] );
 
@@ -799,12 +859,12 @@ int dense_matrix_inverse ( int n, double *A, int *p, factorization_type factor_m
 		{
 			// allocate temperal memory for optimizing performance
 			work = (double *) malloc (sizeof(double) * lwork);
-			dgetri( &n, A, &lda, p, work, &lwork, &info );
+			dgetri( &n, A, &lda, pinv, work, &lwork, &info );
 		}
 		else
 		{
 			work = (double *) malloc (sizeof(double) * 2 * lwork);
-			zgetri( &n, A, &lda, p, work, &lwork, &info );
+			zgetri( &n, A, &lda, pinv, work, &lwork, &info );
 		}
 
 		free( work );
@@ -838,12 +898,12 @@ int dense_matrix_inverse ( int n, double *A, int *p, factorization_type factor_m
 		if ( REAL_NUMBER == type )
 		{
 			work = (double *) malloc (sizeof(double) * n );
-			dsytri( &uplo, &n, A, &lda, p, work, &info );
+			dsytri( &uplo, &n, A, &lda, pinv, work, &info );
 		}
 		else
 		{
 			work = (double *) malloc (sizeof(double) * 2 * n );
-			zsytri( &uplo, &n, A, &lda, p, work, &info );
+			zsytri( &uplo, &n, A, &lda, pinv, work, &info );
 		}
 
 		free( work );
@@ -889,14 +949,14 @@ int dense_matrix_norm ( int p_norm, int n, int m, double *A, double *val, number
 			case 2:
 			default:
 				fprintf( stderr, "[Error] cannot support matrix %d norm\n", p_norm );
-				abort();
+				exit(1);
 				break;
 		}
 	}
 	else
 	{
 		fprintf( stderr, "[Error] cannot support complex matrix norm\n" );
-		abort();
+		exit(1);
 	}
 
 
@@ -905,19 +965,27 @@ int dense_matrix_norm ( int p_norm, int n, int m, double *A, double *val, number
 
 int dense_print_vector ( int n, double *x, number_type type )
 {
+	if ( MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format )
+	{
+		printf( "[...\n" );
+	}
 	if ( REAL_NUMBER == type )
 	{
 		for ( int i = 0; i < n; ++i )
 		{
-			printf( "%.10e\n", x[i] );
+			printf( "%.10e%s\n", x[i], ((MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format) ? ";..." : "") );
 		}
 	}
 	else
 	{
 		for ( int i = 0; i < 2 * n; i += 2 )
 		{
-			printf( "%.10e + i*%.10e\n", x[i], x[i + 1] );
+			printf( "%.10e + i*%.10e%s\n", x[i], x[i + 1], ((MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format) ? ";..." : "") );
 		}
+	}
+	if ( MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format )
+	{
+		printf( "];\n" );
 	}
 
 	return true;
@@ -925,9 +993,17 @@ int dense_print_vector ( int n, double *x, number_type type )
 
 int dense_print_vector_i ( int n, int *x )
 {
+	if ( MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format )
+	{
+		printf( "[..." );
+	}
 	for ( int i = 0; i < n; ++i )
 	{
-		printf( "%d\n", x[i] );
+		printf( "%d%s\n", x[i], ((MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format) ? ";..." : "") );
+	}
+	if ( MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format )
+	{
+		printf( "];\n" );
 	}
 
 	return true;
@@ -936,6 +1012,10 @@ int dense_print_vector_i ( int n, int *x )
 
 int dense_print_matrix ( int m, int n, double *A, number_type type )
 {
+	if ( MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format )
+	{
+		printf( "[...\n" );
+	}
 	if ( REAL_NUMBER == type )
 	{
 		for ( int i = 0; i < m; ++i )
@@ -944,7 +1024,7 @@ int dense_print_matrix ( int m, int n, double *A, number_type type )
 			{
 				printf( "%.10e ", *(A + j*m + i) );
 			}
-			printf( "\n" );
+			printf( "%s\n", ((MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format) ? ";..." : "") );
 		}
 	}
 	else
@@ -956,16 +1036,24 @@ int dense_print_matrix ( int m, int n, double *A, number_type type )
 			{
 				printf( "%.10e+i*%.10e ", *(A + j*col_incr + i), *(A + j*col_incr + i + 1) );
 			}
-			printf( "\n" );
+			printf( "%s\n", ((MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format) ? ";..." : "") );
 		}
 	}
-
+	if ( MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format )
+	{
+		printf( "];\n" );
+	}
 
 	return true;
 }
 
 int dense_print_matrix_perm ( int n, int *p )
 {
+	if ( MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format )
+	{
+		printf( "[...\n" );
+	}
+
 	int *idx = (int *) malloc ( sizeof(int) * (n + 1) );
 	for ( int i = 1; i <= n; ++i )
 	{
@@ -1000,7 +1088,12 @@ int dense_print_matrix_perm ( int n, int *p )
 				printf( "0 ");
 			}
 		}
-		printf( "\n" );
+		printf( "%s\n", ((MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format) ? ";..." : "") );
+	}
+
+	if ( MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format )
+	{
+		printf( "];\n" );
 	}
 
 	free( idx );

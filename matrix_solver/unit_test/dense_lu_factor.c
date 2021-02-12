@@ -7,6 +7,7 @@
 
 int main ( int argc, char **argv )
 {
+	g_matrix_print_format = MATRIX_PRINT_FORMAT_MATLAB;
 	number_type type = REAL_NUMBER;
 	double A[9] = {1, 2, 3, 4, 5, 6, 7, 8, 10}; 
 	double x[3] = {2, 1, 3};
@@ -15,6 +16,7 @@ int main ( int argc, char **argv )
 	double w[6] = {1, -2, 1, 4, 1, 6};
 	double B[9] = {14, 23, 16, 0, 38, 26, 0, 0, 35};
 	double C[9] = {14, 23, 16, 0, 38, 26, 0, 0, 35};
+	double det_a;
 	int p[3] = {0};
 	int n = 3;
 	int nrhs = 1;
@@ -41,6 +43,8 @@ int main ( int argc, char **argv )
 	dense_print_vector_i( n, p );
 	printf( "\nP=\n" );
 	dense_print_matrix_perm( n, p );
+	det_a = dense_eval_det( n, A, p, FACTOR_LU_RIGHT_LOOKING, type );
+	printf( "\n|A|=%.10le\n", det_a );
 
 	dense_solve( n, nrhs, A, x, p, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, type );
 	printf( "\nsolve x=\n" );
