@@ -24,6 +24,9 @@ OPTS    = -O2 -frecursive
 DRVOPTS = $(OPTS)
 NOOPT   = -O0 -frecursive 
 
+%.o:%.f
+	$(FORTRAN) -c $< -o $@ $(OPTS) -fno-underscoring
+
 #  Define LOADER and LOADOPTS to refer to the loader and desired
 #  load options for your machine.
 #

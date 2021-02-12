@@ -516,6 +516,7 @@ all: ../$(LAPACKLIB)
 
 ../$(LAPACKLIB): $(ALLOBJ) $(ALLXOBJ) $(DEPRECATED)
 	$(ARCH) $(ARCHFLAGS) $@ $^
+	gcc -shared -o ../$(LAPACKLIB:.a=.so) $^
 	$(RANLIB) $@
 
 single: $(SLASRC) $(DSLASRC) $(SXLASRC) $(SCLAUX) $(ALLAUX)

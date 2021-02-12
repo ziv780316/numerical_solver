@@ -17,10 +17,10 @@ LINKER     = $(CC)
 DEFINES    = 
 BUILD_TYPE = -O2 -g
 CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -Wextra -Wenum-compare -std=gnu99 -fPIC -Wno-unused-parameter -Wno-unused-variable
-MAT_SOLVER_PATH = /home/lintu/baba/numerical/matrix_solver/lib
-NEWTON_SOLVER_PATH = /home/lintu/baba/numerical/newton/lib
-NEWTON_SOLVER_INC = /home/lintu/baba/numerical/newton
-MAT_SOLVER_INC = /home/lintu/baba/numerical/matrix_solver
+MAT_SOLVER_PATH = ${DEVELOP_ROOT_DIR}/numerical_solver/matrix_solver/lib
+NEWTON_SOLVER_PATH = ${DEVELOP_ROOT_DIR}/numerical_solver/newton/lib
+NEWTON_SOLVER_INC = ${DEVELOP_ROOT_DIR}/numerical_solver/newton
+MAT_SOLVER_INC = ${DEVELOP_ROOT_DIR}/numerical_solver/matrix_solver
 LIBS       = -L$(NEWTON_SOLVER_PATH) -lnewton -L$(MAT_SOLVER_PATH) -lmatrix_solver -llapack -lblas -lgfortran -lm -ldl 
 INCLUDE    = -I$(MAT_SOLVER_INC) -I$(NEWTON_SOLVER_INC) -I. 
 MOVE       = mv -f

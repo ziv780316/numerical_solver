@@ -102,15 +102,18 @@ verbose_info:
 $(BLAS_TARGET): 
 	$(MAKE) -C $(BLAS_VERSION) OPTS="$(BUILD_TYPE) -fno-underscoring" double complex16
 	cd lib; ln -sf ../$(BLAS_VERSION)/$(BLAS_TARGET) $(BLAS_TARGET)
+	cd lib; ln -sf ../$(BLAS_VERSION)/$(BLAS_TARGET:.a=.so) $(BLAS_TARGET:.a=.so)
 
 $(LAPACK_TARGET): 
 	$(MAKE) -C $(LAPACK_VERSION) OPTS="$(BUILD_TYPE) -fno-underscoring" TARGET="all" NOOPT="-fno-underscoring"
 	cd lib; ln -sf ../$(LAPACK_VERSION)/$(LAPACK_TARGET) $(LAPACK_TARGET)
+	cd lib; ln -sf ../$(LAPACK_VERSION)/$(LAPACK_TARGET:.a=.so) $(LAPACK_TARGET:.a=.so)
 
 $(MATRIX_SOLVER_TARGET): verbose_info create_dir $(BLAS_TARGET) $(LAPACK_TARGET) $(MATRIX_SOLVER_OBJ)
 		cd $(LIBRARY_DIR);\
 		$(ARCH) $(ARCHFLAGS) $@ $(MATRIX_SOLVER_OBJ);\
-		$(MOVE) $@ ../$(BIN_DIR)
+		gcc -shared -o $(MATRIX_SOLVER_TARGET:.a=.so) ${MATRIX_SOLVER_OBJ};\
+		$(MOVE) $()$@ ../$(BIN_DIR)
 
 clean:
 	rm -f dependency.mk

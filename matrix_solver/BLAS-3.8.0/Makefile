@@ -141,6 +141,7 @@ ALLOBJ=$(SBLAS1) $(SBLAS2) $(SBLAS3) $(DBLAS1) $(DBLAS2) $(DBLAS3)	\
 
 $(BLASLIB): $(ALLOBJ)
 	$(ARCH) $(ARCHFLAGS) $@ $(ALLOBJ)
+	gcc -shared -o $(BLASLIB:.a=.so) $(ALLOBJ)
 	$(RANLIB) $@
 
 $(BLASLIB_SO): $(ALLOBJ)
