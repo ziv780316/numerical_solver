@@ -738,7 +738,7 @@ int dense_solve ( int n, int nrhs, double *A, double *x, int *ipiv, factorizatio
 }
 
 // eval |A|
-double dense_eval_det ( int n, double *A, int *pinv, factorization_type factor_method, number_type type )
+double dense_eval_factor_det ( int n, double *A, int *pinv, factorization_type factor_method, number_type type )
 {
 	double det_a = NAN;
 	if ( REAL_NUMBER == type )
@@ -793,6 +793,24 @@ double dense_eval_det ( int n, double *A, int *pinv, factorization_type factor_m
 	}
 
 	return det_a;
+}
+
+double dense_eval_det ( int n, double *A, factorization_type factor_method, number_type type )
+{
+	bool success;
+	double det_a = NAN;
+	int *pinv = (int *) calloc ( n, sizeof(int) );
+
+	success = dense_lu_factor( n, A, pinv, factor_method, type );
+	if ( !success )
+	{
+		return NAN;
+	}
+
+	det_a = dense_eval_factor_det( n, A, pinv, factor_method, type );
+
+	free(pinv);
+	return det_a;;
 }
 
 int dense_factor_and_solve ( int n, int nrhs, double *A, double *x, int *pinv, factorization_type factor_method, transpose_type tran, number_type type )

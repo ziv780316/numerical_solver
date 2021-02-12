@@ -23,6 +23,8 @@ int main ( int argc, char **argv )
 
 	printf( "A=\n" );
 	dense_print_matrix( n, n, A, type );
+	det_a = dense_eval_det( n, A, FACTOR_LU_RIGHT_LOOKING, type );
+	printf( "\n|A|=%.10le\n", det_a );
 	printf( "\nx=\n" );
 	dense_print_vector( n, x, type );
 	printf( "\ny=\n" );
@@ -43,7 +45,7 @@ int main ( int argc, char **argv )
 	dense_print_vector_i( n, p );
 	printf( "\nP=\n" );
 	dense_print_matrix_perm( n, p );
-	det_a = dense_eval_det( n, A, p, FACTOR_LU_RIGHT_LOOKING, type );
+	det_a = dense_eval_factor_det( n, A, p, FACTOR_LU_RIGHT_LOOKING, type );
 	printf( "\n|A|=%.10le\n", det_a );
 
 	dense_solve( n, nrhs, A, x, p, FACTOR_LU_RIGHT_LOOKING, TRANS_NONE, type );

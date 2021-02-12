@@ -81,7 +81,8 @@ int dense_lu_factor ( int n, double *A, int *pinv, factorization_type, number_ty
 int dense_solve ( int n, int nrhs, double *A, double *x, int *pinv, factorization_type, transpose_type transpose, number_type );
 
 // eval |A|
-double dense_eval_det ( int n, double *A, int *pinv, factorization_type, number_type );
+double dense_eval_factor_det ( int n, double *A, int *pinv, factorization_type, number_type );
+double dense_eval_det ( int n, double *A, factorization_type, number_type );
 
 // solve A*x = b with LU factorization
 int dense_factor_and_solve ( int n, int nrhs, double *A, double *x, int *pinv, factorization_type, transpose_type, number_type );
