@@ -314,6 +314,7 @@ bool newton_solve ( newton_param_t *newton_param,
 			if ( (NEWTON_DIFF_JACOBIAN  == diff_type) && load_jacobian )
 			{
 				// use user pre-define jacobian 
+				memset( J, 0, sizeof(double) * J_size );
 				load_jacobian( x, J );
 				++(nr_stat->n_jac_load);
 			}

@@ -1,3 +1,4 @@
+// test homotopy arc-length method to trace equilibrium path H(x,λ)=0
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -168,11 +169,12 @@ int main ( int argc, char **argv )
 		newton_param_t *newton_param = &(g_opts.newton_param);
 		homotopy_param_t *homotopy_param = &(g_opts.homotopy_param);
 		int *perm = (int *) malloc ( sizeof(int) * n );
-		double *J = (double *) malloc ( sizeof(double) * (n * n) );
+		int J_size = n*n;
+		double *J = (double *) malloc ( sizeof(double) * J_size );
 		double *A = (double *) malloc ( sizeof(double) * ((n+1) * (n+1)) );
 		double *x_result = (double *) malloc ( sizeof(double) * n );
 		double g;
-		double det_a;
+		double det_a = NAN;
 		double *f_result = (double *) malloc ( sizeof(double) * n );
 		double *f_delta = (double *) malloc ( sizeof(double) * n );
 		double *df_dp = (double *) malloc ( sizeof(double) * n );
@@ -202,6 +204,14 @@ int main ( int argc, char **argv )
 		bool need_reverse_sign = false;
 		bool is_backtrace = false;
 		double forward_step_cross_product = NAN;
+		bool *var_backtrace_status = (bool *) malloc ( sizeof(bool) * n );
+		double *var_forward_det = (double *) malloc ( sizeof(double) * J_size );
+		double *var_det = (double *) malloc ( sizeof(double) * J_size );
+		double Asub[2][2];
+		int *var_det_violate_cnt = (int *) malloc ( sizeof(int) * n );
+		int total_var_det_violate_cnt;
+		double violate_thr;
+		double violate_ratio;
 
 		// solve initial p0 
 		memset( &(newton_param->nr_stat), 0, sizeof( performance_stat_t ) );
@@ -301,6 +311,7 @@ int main ( int argc, char **argv )
 					}
 					dp_dt_difference = (p0 - p1) / dt0;
 
+					// do extrapolation
 					if ( HOMOTOPY_EXTRAPOLATE_DIFFERENCE == homotopy_param->extrapolate_type )
 					{
 						for ( int i = 0; i < n; ++i )
@@ -378,7 +389,7 @@ int main ( int argc, char **argv )
 						{
 							s_norm_2 += dx_dp[i] * dx_dp[i];
 						}
-						dp_dt = 1 / sqrt(1 + s_norm_2); // be positive, thus need check sign letter
+						dp_dt = 1 / sqrt(1 + s_norm_2); // XXX mustbe positive, it's necessary to check sign later 
 
 						for ( int i = 0; i < n; ++i )
 						{
@@ -403,12 +414,17 @@ int main ( int argc, char **argv )
 						}
 					}
 
-					is_backtrace = false;
-					if ( HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_CROSS_PRODUCT == homotopy_param->arc_length_backtrace_type )
+					// backtrace handling
+					if ( 0 == homotopy_param->hom_stat.n_success )
+					{
+						// do nothing
+					}
+					else if ( HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_CROSS_PRODUCT == homotopy_param->arc_length_backtrace_type )
 					{
 						printf( "\n* evaluate λ=%.10le cross product sign ...\n", p0 );
 
 						// A₁₁ = ∂f/∂x = J(x)
+						memset( J, 0, sizeof(double) * J_size );
 						p_load_jacobian( s0, J );
 						for ( int col = 0; col < n; ++col )
 						{
@@ -425,7 +441,7 @@ int main ( int argc, char **argv )
 							*(A + (n)*(n+1) + row) = df_dp[row];
 						}
 
-						// A₂₁ = Δx/Δt
+						// A₂₁ = ∂x/∂t
 						if ( HOMOTOPY_EXTRAPOLATE_DIFFERENCE == homotopy_param->extrapolate_type )
 						{
 							for ( int col = 0; col < n; ++col )
@@ -441,7 +457,7 @@ int main ( int argc, char **argv )
 							}
 						}
 
-						// A₂₂ = Δp/Δt
+						// A₂₂ = ∂p/∂t
 						if ( HOMOTOPY_EXTRAPOLATE_DIFFERENCE == homotopy_param->extrapolate_type )
 						{
 							*(A + n*(n+1) + n) = dp_dt_difference;
@@ -451,28 +467,180 @@ int main ( int argc, char **argv )
 							*(A + n*(n+1) + n) = dp_dt;
 						}
 
-						det_a = dense_eval_det( n, A, FACTOR_LU_RIGHT_LOOKING, REAL_NUMBER );
 
 						if ( homotopy_param->debug )
 						{
-							printf( "|A|=%.10le\n", det_a );
 							printf( "A = \n" );
 							dense_print_matrix( n + 1, n + 1, A, REAL_NUMBER );
+							printf( "|A|=%.10le\n", det_a );
+							det_a = dense_eval_det( n + 1, A, FACTOR_LU_RIGHT_LOOKING, REAL_NUMBER );
 						}
 
 						if ( 1 == homotopy_param->hom_stat.n_success )
 						{
 							forward_step_cross_product = det_a;
 						}
-
-						if ( det_a * forward_step_cross_product < 0 )
+						else
 						{
-							is_backtrace = true;
-
-							if ( HOMOTOPY_EXTRAPOLATE_DIFFERENCE == homotopy_param->extrapolate_type )
+							if ( det_a * forward_step_cross_product < 0 )
 							{
+								if ( HOMOTOPY_EXTRAPOLATE_DIFFERENCE == homotopy_param->extrapolate_type )
+								{
+								}
+								else if ( HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL == homotopy_param->extrapolate_type )
+								{
+									dp_dt *= -1; // change tagent line sign
+									for ( int i = 0; i < n; ++i )
+									{
+										dx_dt[i] = dx_dp[i] * dp_dt;
+									}
+
+									if ( homotopy_param->debug )
+									{
+										printf( "\n==================== Modified Sensitivity ====================\n" );
+										for ( int i = 0; i < n; ++i )
+										{
+											printf( "%d: ∂x/∂t=%.10le Δx/Δt=%.10le ∂x/∂p=%.10le ∂f/∂p=%.10le tangent_line(p)=%.10le*(p-%.10le)+%.10le\n", i, dx_dt[i], dx_dt_difference[i], dx_dp[i], df_dp[i] , dx_dt[i]/dp_dt, p0, s0[i]);
+										}
+										printf( "%d: ∂p/∂t=%.10le Δp/Δt=%.10le\n", n, dp_dt, dp_dt_difference );
+										printf( "=====================================================\n" );
+										printf( "\n==================== Modified Extrapolation ====================\n" );
+										for ( int i = 0; i < n; ++i )
+										{
+											printf( "xpred[%d]=%.10le -> %.10le\n", i, s_extrapolate[i], s0[i] + dx_dt[i] * dt );
+										}
+										printf( "ppred=%.10le -> %.10le\n", p_extrapolate, p0 + dp_dt * dt );
+										printf( "=====================================================\n" );
+									}
+									for ( int i = 0; i < n; ++i )
+									{
+										s_extrapolate[i] = s0[i] + dx_dt[i] * dt;
+										s_extrapolate_difference[i] = s0[i] + dx_dt_difference[i] * dt;
+									}
+									p_extrapolate = p0 + dp_dt * dt;
+								}
 							}
-							else if ( HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL == homotopy_param->extrapolate_type )
+						}
+					}
+					else if ( (HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_SUB_CROSS_PRODUCT == homotopy_param->arc_length_backtrace_type) || 
+						  (HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_DIAG_CROSS_PRODUCT == homotopy_param->arc_length_backtrace_type) )
+					{
+						memset( var_backtrace_status, 0, sizeof(bool) * n );
+						memset( var_det_violate_cnt, 0, sizeof(int) * n );
+						total_var_det_violate_cnt = 0;
+
+						printf( "\n* evaluate λ=%.10le sub cross product sign ...\n", p0 );
+
+						// Asub₂₁ = ∂x/∂t
+						// Asub₂₂ = ∂p/∂t
+						// find |Asub| for each variable and F
+						p_load_jacobian( s0, J );
+						p_load_df_dp( s0, df_dp );
+						for ( int col = 0; col < n; ++col )
+						{
+							for ( int row = 0; row < n; ++row )
+							{
+						  		if ( HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_DIAG_CROSS_PRODUCT == homotopy_param->arc_length_backtrace_type )
+								{
+									if ( col != row )
+									{
+										continue;
+									}
+								}
+
+								// Asub₁₁ = ∂f/∂x 
+								Asub[0][0] = *(J + col*n + row);
+
+								// Asub₁₂ = ∂f/∂p
+								Asub[1][0] = df_dp[row];
+
+								// Asub₂₁ = ∂x/∂t
+								if ( HOMOTOPY_EXTRAPOLATE_DIFFERENCE == homotopy_param->extrapolate_type )
+								{
+									Asub[0][1] = dx_dt_difference[col];
+								}
+								else if ( HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL == homotopy_param->extrapolate_type )
+								{
+									Asub[0][1] = dx_dt[col];
+								}
+								else
+								{
+									Asub[0][1] = NAN;
+								}
+
+								// Asub₂₂ = ∂p/∂t
+								if ( HOMOTOPY_EXTRAPOLATE_DIFFERENCE == homotopy_param->extrapolate_type )
+								{
+									Asub[1][1] = dp_dt_difference;
+								}
+								else if ( HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL == homotopy_param->extrapolate_type )
+								{
+									Asub[1][1] = dp_dt;
+								}
+								else
+								{
+									Asub[1][1] = NAN;
+								}
+
+								*(var_det + col*n + row) = (Asub[0][0]*Asub[1][1]) - (Asub[1][0]*Asub[0][1]);
+
+								if ( homotopy_param->debug )
+								{
+									printf( "A%d%d = \n", row, col );
+									printf( "%.10le %.10le\n", Asub[0][0], Asub[1][0] );
+									printf( "%.10le %.10le\n", Asub[0][1], Asub[1][1] );
+									printf( "|A%d%d|=%.10le\n", row, col, *(var_det + col*n + row) );
+								}
+							}
+						}
+
+						if ( 1 == homotopy_param->hom_stat.n_success )
+						{
+							memcpy( var_forward_det, var_det, sizeof(double) * J_size );
+						}
+						else
+						{
+							for ( int col = 0; col < n; ++col )
+							{
+								for ( int row = 0; row < n; ++row )
+								{
+									if ( HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_DIAG_CROSS_PRODUCT == homotopy_param->arc_length_backtrace_type )
+									{
+										if ( col != row )
+										{
+											continue;
+										}
+									}
+									if ( *(var_det + col*n + row) * *(var_forward_det + col*n + row) < 0 )
+									{
+										var_det_violate_cnt[col] += 1;
+										total_var_det_violate_cnt += 1;
+									}
+								}
+							}
+
+							violate_thr = 0.5;
+							if ( HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_DIAG_CROSS_PRODUCT == homotopy_param->arc_length_backtrace_type )
+							{
+								violate_ratio = total_var_det_violate_cnt/(double)n;
+							}
+							else
+							{
+								violate_ratio = total_var_det_violate_cnt/(double)J_size;
+							}
+							if ( homotopy_param->debug )
+							{
+								if ( HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_DIAG_CROSS_PRODUCT == homotopy_param->arc_length_backtrace_type )
+								{
+									printf( "total %d/%d (%.3lf%%) |Asub| violation, thr=%.3lf%%\n", total_var_det_violate_cnt, n, violate_ratio, violate_thr );
+								}
+								else
+								{
+									printf( "total %d/%d (%.3lf%%) |Asub| violation, thr=%.3lf%%\n", total_var_det_violate_cnt, n*n, violate_ratio, violate_thr );
+								}
+							}
+
+							if ( violate_ratio >= violate_thr )
 							{
 								dp_dt *= -1; // change tagent line sign
 								for ( int i = 0; i < n; ++i )
@@ -632,6 +800,7 @@ int main ( int argc, char **argv )
 			{
 				final_sim = false;
 				p = p_init;
+				is_backtrace = (p < p0);
 				printf( "* Solve NR λ=%.10le (step=%d backtrace=%s) ...\n", p_init, homotopy_param->hom_stat.n_step, (is_backtrace? "yes" : "no") );
 				converge = arc_length_bbd_newton_solve ( 
 						homotopy_param,

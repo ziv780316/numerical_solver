@@ -318,6 +318,14 @@ void parse_cmd_options ( int argc, char **argv )
 				{
 					g_opts.homotopy_param.arc_length_backtrace_type = HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_CROSS_PRODUCT;
 				}
+				else if ( is_str_nocase_match( "sub_cross_product", optarg ) )
+				{
+					g_opts.homotopy_param.arc_length_backtrace_type = HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_SUB_CROSS_PRODUCT;
+				}
+				else if ( is_str_nocase_match( "diag_cross_product", optarg ) )
+				{
+					g_opts.homotopy_param.arc_length_backtrace_type = HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_DIAG_CROSS_PRODUCT;
+				}
 				else
 				{
 					fprintf( stderr, "[Error] unknown backtrace_handle type %s\n", optarg );

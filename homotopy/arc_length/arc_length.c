@@ -131,7 +131,7 @@ bool arc_length_bbd_newton_solve (
 	double bbd_ext_f;
 	double *A21 = (double *) malloc ( sizeof(double) * n );
 	double *A12 = (double *) malloc ( sizeof(double) * n );
-	double A22;
+	double A22 = NAN;
 	double dp_old[2] = {0};
 	double dp2;
 
@@ -367,6 +367,7 @@ bool arc_length_bbd_newton_solve (
 			if ( (NEWTON_DIFF_JACOBIAN  == diff_type) && load_jacobian )
 			{
 				// use user pre-define jacobian 
+				memset( J, 0, sizeof(double) * J_size );
 				load_jacobian( x, J );
 				++(nr_stat->n_jac_load);
 			}
