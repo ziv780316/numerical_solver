@@ -472,8 +472,8 @@ int main ( int argc, char **argv )
 						{
 							printf( "A = \n" );
 							dense_print_matrix( n + 1, n + 1, A, REAL_NUMBER );
-							printf( "|A|=%.10le\n", det_a );
 							det_a = dense_eval_det( n + 1, A, FACTOR_LU_RIGHT_LOOKING, REAL_NUMBER );
+							printf( "|A|=%.10le\n", det_a );
 						}
 
 						if ( 1 == homotopy_param->hom_stat.n_success )

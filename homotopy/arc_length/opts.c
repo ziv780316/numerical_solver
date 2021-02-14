@@ -16,7 +16,7 @@ opt_t g_opts = {
 	.homotopy_param = 
 	{
 		.arc_length_constrain_type = HOMOTOPY_ARC_LENGTH_CONSTRAINT_TANGENT,
-		.arc_length_backtrace_type = HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_CROSS_PRODUCT,
+		.arc_length_backtrace_type = HOMOTOPY_ARC_LENGTH_BACKTRACE_HANDLE_DIAG_CROSS_PRODUCT,
 		.extrapolate_type = HOMOTOPY_EXTRAPOLATE_DIFFERENTIAL,
 		.df_dp_type = HOMOTOPY_DF_DP_FORWARD,
 		.lamda_start = 0,
