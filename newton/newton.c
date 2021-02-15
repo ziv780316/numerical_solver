@@ -5,19 +5,13 @@
 #include <float.h>
 #include <math.h>
 #include <errno.h>
+#include <limits.h>
 
 #include "newton.h"
 #include "matrix_solver.h"
 
 // prevent double-free crash
-__attribute__((always_inline)) inline void free_with_set_null ( void *ptr )
-{
-	if ( ptr )
-	{
-		free( ptr );
-		ptr = NULL;
-	}
-}
+#define FREE_WITH_SET_NULL(ptr) free(ptr); ptr = NULL;
 
 static void check_user_define_args ( double *x0,
 				     void (load_f) (double *x, double*f),
@@ -740,41 +734,41 @@ bool newton_solve ( newton_param_t *newton_param,
 	// ---------------------------------
 	// release memory
 	// ---------------------------------
-	free_with_set_null( x );
-	free_with_set_null( dx );
-	free_with_set_null( f );
-	free_with_set_null( f_old );
-	free_with_set_null( df );
-	free_with_set_null( rhs );
+	FREE_WITH_SET_NULL( x );
+	FREE_WITH_SET_NULL( dx );
+	FREE_WITH_SET_NULL( f );
+	FREE_WITH_SET_NULL( f_old );
+	FREE_WITH_SET_NULL( df );
+	FREE_WITH_SET_NULL( rhs );
 	if ( diff_type != NEWTON_DIFF_JACOBIAN )
 	{
-		free_with_set_null( f_delta_forward  );
+		FREE_WITH_SET_NULL( f_delta_forward  );
 		if ( diff_type == NEWTON_DIFF_CENTRAL )
 		{
-			free_with_set_null( f_delta_backward );
+			FREE_WITH_SET_NULL( f_delta_backward );
 		}
 	}
 
 	if ( NEWTON_BROYDEN == iterative_type )
 	{
-		free_with_set_null( J_old );
+		FREE_WITH_SET_NULL( J_old );
 	}
 	else if ( (NEWTON_CHORD == iterative_type) ||
 		  (NEWTON_CHORD_WITH_BYPASS_CHECK == iterative_type) )
 	{
-		free_with_set_null( dx_old[0] );
-		free_with_set_null( dx_old[1] );
+		FREE_WITH_SET_NULL( dx_old[0] );
+		FREE_WITH_SET_NULL( dx_old[1] );
 	}
 	else if ( NEWTON_JACOBI == iterative_type )
 	{
-		free_with_set_null( D );
+		FREE_WITH_SET_NULL( D );
 	}
 
 	if ( debug )
 	{
-		free_with_set_null( dx_old[0] );
-		free_with_set_null( dx_old[1] );
-		free_with_set_null( dx2 );
+		FREE_WITH_SET_NULL( dx_old[0] );
+		FREE_WITH_SET_NULL( dx_old[1] );
+		FREE_WITH_SET_NULL( dx2 );
 	}
 
 	return nr_converge;
@@ -881,6 +875,7 @@ static void broyden_update_sherman_morrison ( int n, double *J, double *df, doub
 	free( work2 );
 }
 
+// this more accurate than chord_newton_converge_predict_approximate
 static void chord_newton_converge_predict_iterative ( double rate, double x, double xref, double rtol, double atol, int *predict_iter, double *predict_norm )
 {
 	double norm;
@@ -889,7 +884,7 @@ static void chord_newton_converge_predict_iterative ( double rate, double x, dou
 
 	if ( rate >= 1 )
 	{
-		*predict_iter = 0xffffffff; // INT_MAX
+		*predict_iter = INT_MAX;
 		*predict_norm = NAN; 
 		return;
 	}
@@ -903,6 +898,10 @@ static void chord_newton_converge_predict_iterative ( double rate, double x, dou
 	{
 		xref = x;
 	}
+
+	// xₖ₊₁ = xₖ * |rate|
+	// xₖ₊ₙ = xₖ * |rate|ⁿ
+	// ‖xₖ₊ₙ ‖ ≤ 1
 	norm = eval_local_norm( x, xref, rtol, atol );
 	while ( norm > 1 )
 	{
@@ -921,7 +920,7 @@ static void chord_newton_converge_predict_iterative ( double rate, double x, dou
 
 static void chord_newton_converge_predict_approximate ( double rate, double norm, int *predict_iter, double *predict_norm )
 {
-	// ‖f‖ * |rate|ⁿ ≤ 1
+	// ‖f‖ * |rate|ⁿ ≤ 1 
 	*predict_iter = (int) ceil( log(1.0 / norm) / log(rate) );
 	*predict_norm = norm * exp( *predict_iter * log( rate ) );
 }
