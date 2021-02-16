@@ -1,4 +1,4 @@
-###QA_TAG homotopy arc_length
+###QA_TAG newton
 ###QA_GOLDEN_FILE run.log
 ###QA_GOLDEN_FILE run.log.nr
 
