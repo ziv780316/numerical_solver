@@ -34,8 +34,8 @@ ifneq ($(GPU_CONFIG),)
 	( cd GPUQREngine && $(MAKE) )
 endif
 	( cd SPQR && $(MAKE) )
-	( cd GraphBLAS && $(MAKE) JOBS=$(JOBS) CMAKE_OPTIONS='$(CMAKE_OPTIONS)' )
 	( cd SLIP_LU && $(MAKE) )
+#	( cd GraphBLAS && $(MAKE) JOBS=$(JOBS) CMAKE_OPTIONS='$(CMAKE_OPTIONS)' )
 #	( cd PIRO_BAND && $(MAKE) )
 #	( cd SKYLINE_SVD && $(MAKE) )
 
@@ -63,7 +63,7 @@ ifneq (,$(GPU_CONFIG))
 	( cd GPUQREngine && $(MAKE) install )
 endif
 	( cd SPQR && $(MAKE) install )
-	( cd GraphBLAS && $(MAKE) JOBS=$(JOBS) CMAKE_OPTIONS='$(CMAKE_OPTIONS)' install )
+#	( cd GraphBLAS && $(MAKE) JOBS=$(JOBS) CMAKE_OPTIONS='$(CMAKE_OPTIONS)' install )
 #	( cd PIRO_BAND && $(MAKE) install )
 #	( cd SKYLINE_SVD && $(MAKE) install )
 	( cd SLIP_LU && $(MAKE) install )
@@ -93,7 +93,6 @@ uninstall:
 	$(RM) $(INSTALL_DOC)/SuiteSparse_README.md
 	( cd SuiteSparse_config && $(MAKE) uninstall )
 	- ( cd metis-5.1.0 && $(MAKE) uninstall )
-	- ( cd GraphBLAS && $(MAKE) uninstall )
 	- ( cd Mongoose  && $(MAKE) uninstall )
 	( cd AMD && $(MAKE) uninstall )
 	( cd CAMD && $(MAKE) uninstall )
@@ -111,6 +110,7 @@ uninstall:
 	( cd GPUQREngine && $(MAKE) uninstall )
 	( cd SPQR && $(MAKE) uninstall )
 	( cd SLIP_LU && $(MAKE) uninstall )
+#	( cd GraphBLAS && $(MAKE) uninstall )
 #	( cd PIRO_BAND && $(MAKE) uninstall )
 #	( cd SKYLINE_SVD && $(MAKE) uninstall )
 ifeq (,$(MY_METIS_LIB))
@@ -144,8 +144,8 @@ ifneq (,$(GPU_CONFIG))
 	( cd GPUQREngine && $(MAKE) library )
 endif
 	( cd SPQR && $(MAKE) library )
-	( cd GraphBLAS && $(MAKE) JOBS=$(JOBS) CMAKE_OPTIONS='$(CMAKE_OPTIONS)' library )
 	( cd SLIP_LU && $(MAKE) library )
+#	( cd GraphBLAS && $(MAKE) JOBS=$(JOBS) CMAKE_OPTIONS='$(CMAKE_OPTIONS)' library )
 #	( cd PIRO_BAND && $(MAKE) library )
 #	( cd SKYLINE_SVD && $(MAKE) library )
 
@@ -172,8 +172,8 @@ ifneq (,$(GPU_CONFIG))
 	( cd GPUQREngine && $(MAKE) static )
 endif
 	( cd SPQR && $(MAKE) static )
-	( cd GraphBLAS && $(MAKE) JOBS=$(JOBS) CMAKE_OPTIONS='$(CMAKE_OPTIONS)' static )
 	( cd SLIP_LU && $(MAKE) static )
+#	( cd GraphBLAS && $(MAKE) JOBS=$(JOBS) CMAKE_OPTIONS='$(CMAKE_OPTIONS)' static )
 #	( cd PIRO_BAND && $(MAKE) static )
 #	( cd SKYLINE_SVD && $(MAKE) static )
 
@@ -210,7 +210,6 @@ purge:
 clean:
 	- ( cd SuiteSparse_config && $(MAKE) clean )
 	- ( cd metis-5.1.0 && $(MAKE) clean )
-	- ( cd GraphBLAS && $(MAKE) clean )
 	- ( cd Mongoose  && $(MAKE) clean )
 	- ( cd AMD && $(MAKE) clean )
 	- ( cd CAMD && $(MAKE) clean )
@@ -228,12 +227,12 @@ clean:
 	- ( cd GPUQREngine && $(MAKE) clean )
 	- ( cd SPQR && $(MAKE) clean )
 	- ( cd SLIP_LU && $(MAKE) clean )
+# 	- ( cd GraphBLAS && $(MAKE) clean )
 #	- ( cd PIRO_BAND && $(MAKE) clean )
 #	- ( cd SKYLINE_SVD && $(MAKE) clean )
 
 # Create the PDF documentation
 docs:
-	( cd GraphBLAS && $(MAKE) docs )
 	( cd Mongoose  && $(MAKE) docs )
 	( cd AMD && $(MAKE) docs )
 	( cd CAMD && $(MAKE) docs )
@@ -242,6 +241,7 @@ docs:
 	( cd UMFPACK && $(MAKE) docs )
 	( cd CHOLMOD && $(MAKE) docs )
 	( cd SPQR && $(MAKE) docs )
+#	( cd GraphBLAS && $(MAKE) docs )
 #	( cd PIRO_BAND && $(MAKE) docs )
 #	( cd SKYLINE_SVD && $(MAKE) docs )
 

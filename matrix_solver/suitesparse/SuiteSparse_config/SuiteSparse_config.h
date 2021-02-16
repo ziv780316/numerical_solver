@@ -38,6 +38,10 @@
 #ifndef SUITESPARSE_CONFIG_H
 #define SUITESPARSE_CONFIG_H
 
+///#START, 2021/02/16, ziv, integration with self LAPACK
+#define BLAS_NO_UNDERSCORE
+///#END, 2021/02/16, ziv
+
 #ifdef __cplusplus
 extern "C" {
 #endif
