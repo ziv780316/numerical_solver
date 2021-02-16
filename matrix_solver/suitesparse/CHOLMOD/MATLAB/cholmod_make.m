@@ -85,12 +85,14 @@ if (pc)
     else
         lapack = '-lmwlapack -lmwblas' ;
     end
+    lapack = sprintf( '-L%s%s%s', getenv('DEVELOP_ROOT_DIR'), '/numerical_solver/matrix_solver/lib -llapack -lblas ', lapack )
 else
     if (verLessThan ('matlab', '7.5'))
         lapack = '-lmwlapack' ;
     else
         lapack = '-lmwlapack -lmwblas' ;
     end
+    lapack = sprintf( '-L%s%s%s', getenv('DEVELOP_ROOT_DIR'), '/numerical_solver/matrix_solver/lib -llapack -lblas ', lapack )
 end
 
 if (is64 && ~verLessThan ('matlab', '7.8'))
