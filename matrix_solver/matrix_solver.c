@@ -4,6 +4,7 @@
 #include <math.h>
 #include <string.h>
 #include <float.h>
+#include <errno.h>
 
 #include "matrix_solver.h"
 
@@ -16,6 +17,10 @@ static void iswap ( int *x, int *y )
 	*y = *x ^ *y;
 	*x = *x ^ *y;
 }
+
+// ----------------------------------------------------------------------
+// Dense Matrix Operation (Column Major))
+// ----------------------------------------------------------------------
 
 // ============== BLAS and LAPACK Fortran API (column-major array) ============== 
 // real matrix
@@ -1314,5 +1319,81 @@ int dense_print_matrix_trig ( int n, double *A, triangular_type trig, number_typ
 			}
 		}
 	}
+	return true;
+}
+
+// ----------------------------------------------------------------------
+// Sparse Matrix Operation (CSC)
+// ----------------------------------------------------------------------
+sparse_float *sparse_to_full_matrix ( sparse_csc_t *A )
+{
+	sparse_int m_row = A->m;
+	sparse_int n_col = A->n;
+	sparse_int *Ap = A->Ap;
+	sparse_int *Ai = A->Ai;
+	sparse_float *Ax = A->Ax;
+
+	sparse_float *A_full = (sparse_float *) calloc ( (m_row*n_col), sizeof(sparse_float) );
+	if ( !A_full )
+	{
+		fprintf( stderr, "[Error] calloc fail --> %s\n", strerror(errno) );
+		exit(1);
+	}
+
+	sparse_int row;
+	sparse_float x;
+	for ( sparse_int i = 0; i < n_col; ++i )
+	{
+		for ( sparse_int p = Ap[i]; p < Ap[i + 1]; ++p )
+		{
+			row = Ai[p];
+			x   = Ax[p];
+			*(A_full + (i*m_row) + row) = x;
+		}
+	}
+
+	return A_full;
+}
+
+int sparse_print_full_matrix ( sparse_csc_t *A_sparse )
+{
+	sparse_float *A = sparse_to_full_matrix ( A_sparse );
+
+	if ( MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format )
+	{
+		printf( "[...\n" );
+	}
+
+	sparse_int m = A_sparse->m; 
+	sparse_int n = A_sparse->n; 
+	if ( REAL_NUMBER == A_sparse->xtype )
+	{
+		for ( sparse_int i = 0; i < m; ++i )
+		{
+			for ( sparse_int j = 0; j < n; ++j )
+			{
+				printf( "%.10e ", *(A + j*m + i) );
+			}
+			printf( "%s\n", ((MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format) ? ";..." : "") );
+		}
+	}
+	else
+	{
+		sparse_int col_incr = 2 * m;
+		for ( sparse_int i = 0; i < col_incr; i += 2 )
+		{
+			for ( sparse_int j = 0; j < n; ++j )
+			{
+				printf( "%.10e+i*%.10e ", *(A + j*col_incr + i), *(A + j*col_incr + i + 1) );
+			}
+			printf( "%s\n", ((MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format) ? ";..." : "") );
+		}
+	}
+	if ( MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format )
+	{
+		printf( "];\n" );
+	}
+
+	free( A );
 	return true;
 }

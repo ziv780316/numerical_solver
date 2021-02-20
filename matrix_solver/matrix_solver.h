@@ -38,6 +38,10 @@ typedef struct
 	double imag;
 } complex_t;
 
+// ----------------------------------------------------------------------
+// Dense Matrix Operation (Column Major))
+// ----------------------------------------------------------------------
+
 // x := alpha*x
 int dense_vector_scale ( int n, double *x, double *alpha, number_type );
 
@@ -101,6 +105,34 @@ int dense_print_matrix_perm ( int n, int *p );
 int dense_print_matrix_LU ( int n, double *A, number_type );
 int dense_print_matrix_trig ( int n, double *A, triangular_type, number_type );
 
+// ----------------------------------------------------------------------
+// Sparse Matrix Operation (CSC)
+// ----------------------------------------------------------------------
+typedef long sparse_int; 
+typedef double sparse_float; 
+typedef struct
+{
+	sparse_int nz;
+	sparse_int m;
+	sparse_int n;
+	sparse_int *Ap;
+	sparse_int *Ai;
+	sparse_float *Ax;
+
+	number_type xtype;
+} sparse_csc_t;
+
+// A := alpha*A
+int sparse_matrix_scale ( sparse_csc_t *csc, sparse_float *alpha );
+
+// print matrix
+sparse_float *sparse_to_full_matrix ( sparse_csc_t *A );
+int sparse_print_full_matrix ( sparse_csc_t *A );
+
+
+// ----------------------------------------------------------------------
+// Debug with MATLAB
+// ----------------------------------------------------------------------
 extern int g_matrix_print_format;
 #define MATRIX_PRINT_FORMAT_PLAIN 0
 #define MATRIX_PRINT_FORMAT_MATLAB 1
