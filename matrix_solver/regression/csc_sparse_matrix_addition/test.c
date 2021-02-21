@@ -45,39 +45,39 @@ int main ( int argc, char **argv )
 	printf( "A = " );
 	sparse_print_csc_full_matrix ( &A );
 
+
 	sparse_triplet_t B;
-	B.nz = 9;
+	B.nz = 6;
 	B.m = 4;
 	B.n = 3;
 	B.elements = (sparse_element_t *) calloc ( B.nz, sizeof(sparse_element_t) ) ;
-	B.elements[0].row = 0;
-	B.elements[0].col = 0;
-	B.elements[0].x = 4.1;
-	B.elements[1].row = 1;
+	B.elements[0].row = 2;
+	B.elements[0].col = 2;
+	B.elements[0].x = 3.1;
+	B.elements[1].row = 0;
 	B.elements[1].col = 0;
-	B.elements[1].x = 3.2;
-	B.elements[2].row = 2;
-	B.elements[2].col = 0;
-	B.elements[2].x = 2.3;
-	B.elements[3].row = 3;
-	B.elements[3].col = 0;
-	B.elements[3].x = 1.4;
+	B.elements[1].x = 1.2;
+	B.elements[2].row = 0;
+	B.elements[2].col = 1;
+	B.elements[2].x = 100;
+	B.elements[3].row = 2;
+	B.elements[3].col = 1;
+	B.elements[3].x = 200;
 	B.elements[4].row = 1;
-	B.elements[4].col = 1;
-	B.elements[4].x = 0.2;
+	B.elements[4].col = 2;
+	B.elements[4].x = 300;
 	B.elements[5].row = 3;
 	B.elements[5].col = 1;
-	B.elements[5].x = 0.1;
-	B.elements[6].row = 0;
-	B.elements[6].col = 2;
-	B.elements[6].x = -1;
-	B.elements[7].row = 2;
-	B.elements[7].col = 2;
-	B.elements[7].x = -2;
-	B.elements[8].row = 3;
-	B.elements[8].col = 2;
-	B.elements[8].x = -3;
+	B.elements[5].x = -10;
 	printf( "B = " );
-	sparse_print_triplet_full_matrix ( &B );
+
+	sparse_csc_t *B_csc = sparse_convert_triplet_to_CSC( &B );
+	sparse_print_csc_full_matrix ( B_csc );
+	sparse_csc_t *C = sparse_matrix_addition ( &A, B_csc, 3.0, 2.0 );
+
+	printf( "C = " );
+	sparse_print_csc_full_matrix ( C );
+
+	return EXIT_SUCCESS;
 }
 

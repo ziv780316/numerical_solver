@@ -114,6 +114,21 @@ typedef long sparse_int;
 typedef double sparse_float; 
 typedef struct
 {
+	sparse_int row;
+	sparse_int col;
+	sparse_float x;
+} sparse_element_t;
+
+typedef struct
+{
+	sparse_int nz;
+	sparse_int m;
+	sparse_int n;
+	sparse_element_t *elements;
+} sparse_triplet_t;
+
+typedef struct
+{
 	sparse_int nz;
 	sparse_int m;
 	sparse_int n;
@@ -124,11 +139,19 @@ typedef struct
 	number_type xtype;
 } sparse_csc_t;
 
+
 // basic
 void delete_sparse ( sparse_csc_t *A );
 sparse_csc_t *copy_sparse ( sparse_csc_t *A );
 void copy_csc_to_CXSparseCSC ( sparse_csc_t *A, cs_dl *B );
 void copy_CXSparseCSC_to_csc ( cs_dl *A, sparse_csc_t *B );
+sparse_csc_t *sparse_convert_triplet_to_CSC ( sparse_triplet_t *A );
+
+// addition, C = alpha*A + beta*B
+sparse_csc_t *sparse_matrix_addition ( sparse_csc_t *A, sparse_csc_t *B, sparse_float alpha, sparse_float beta );
+
+// Ax = b
+void sparse_matrix_multiply_vector ( sparse_csc_t *A, sparse_float *x, sparse_float *b );
 
 // tranpose 
 int sparse_matrix_transpose ( sparse_csc_t *A );
@@ -142,7 +165,8 @@ int sparse_matrix_delete_row ( sparse_csc_t *A, sparse_int row );
 
 // print matrix
 sparse_float *sparse_to_full_matrix ( sparse_csc_t *A );
-int sparse_print_full_matrix ( sparse_csc_t *A );
+int sparse_print_csc_full_matrix ( sparse_csc_t *A );
+int sparse_print_triplet_full_matrix ( sparse_triplet_t *A_triplet );
 
 
 // ----------------------------------------------------------------------

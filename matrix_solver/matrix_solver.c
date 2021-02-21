@@ -1371,6 +1371,77 @@ void copy_CXSparseCSC_to_csc ( cs_dl *A, sparse_csc_t *B )
 	B->Ax = A->x;
 }
 
+sparse_csc_t *sparse_convert_triplet_to_CSC ( sparse_triplet_t *A )
+{
+	cs_dl A_cxs_triplet;	
+	A_cxs_triplet.nz = A->nz;
+
+	sparse_int *rows = (sparse_int *) calloc( A->nz, sizeof(sparse_int) );
+	sparse_int *cols = (sparse_int *) calloc( A->nz, sizeof(sparse_int) );
+	sparse_float *x = (sparse_float *) calloc( A->nz, sizeof(sparse_float) );
+	for ( sparse_int i = 0; i < A->nz; ++i )
+	{
+		rows[i] = A->elements[i].row;
+		cols[i] = A->elements[i].col;
+		x[i] = A->elements[i].x;
+	}
+
+	A_cxs_triplet.m = A->m;
+	A_cxs_triplet.n = A->n;
+	A_cxs_triplet.i = rows;
+	A_cxs_triplet.p = cols;
+	A_cxs_triplet.x = x;
+
+	cs_dl *A_cxs_csc = cs_dl_compress( &A_cxs_triplet );
+	if ( !A_cxs_csc )
+	{
+		return NULL;	
+	}
+
+	sparse_csc_t *B = (sparse_csc_t *) calloc ( 1, sizeof(sparse_csc_t) );
+	copy_CXSparseCSC_to_csc( A_cxs_csc, B );
+	return B;
+}
+
+sparse_csc_t *sparse_matrix_addition ( sparse_csc_t *A, sparse_csc_t *B, sparse_float alpha, sparse_float beta )
+{
+	cs_dl A_cxs;
+	cs_dl B_cxs;
+	copy_csc_to_CXSparseCSC( A, &A_cxs );
+	copy_csc_to_CXSparseCSC( B, &B_cxs );
+	cs_dl *C_cxs = cs_dl_add( &A_cxs, &B_cxs, alpha, beta );
+	sparse_csc_t *C = (sparse_csc_t *) calloc ( 1, sizeof(sparse_csc_t) );
+	copy_CXSparseCSC_to_csc( C_cxs, C );
+	if ( C_cxs )
+	{
+		return C;
+	}
+	else
+	{
+		return NULL;
+	}
+}
+
+void sparse_matrix_multiply_vector ( sparse_csc_t *A, sparse_float *x, sparse_float *b )
+{
+	sparse_int m_row = A->m;
+	sparse_int n_col = A->n;
+	sparse_int *Ap = A->Ap;
+	sparse_int *Ai = A->Ai;
+	sparse_float *Ax = A->Ax;
+
+	sparse_int multi;
+	memset( b, 0, m_row * sizeof(sparse_float) );
+	for ( sparse_int i = 0; i < n_col; ++i )
+	{
+		multi = x[i];
+		for ( sparse_int p = Ap[i]; p < Ap[i + 1]; ++p )
+		{
+			b[ Ai[p] ] += multi * Ax[p];
+		}
+	}
+}
+
 int sparse_matrix_transpose ( sparse_csc_t *A )
 {
 	cs_dl B;
@@ -1477,7 +1548,7 @@ sparse_float *sparse_to_full_matrix ( sparse_csc_t *A )
 	return A_full;
 }
 
-int sparse_print_full_matrix ( sparse_csc_t *A_sparse )
+int sparse_print_csc_full_matrix ( sparse_csc_t *A_sparse )
 {
 	sparse_float *A = sparse_to_full_matrix ( A_sparse );
 
@@ -1517,5 +1588,17 @@ int sparse_print_full_matrix ( sparse_csc_t *A_sparse )
 	}
 
 	FREE_WITH_SET_NULL( A );
+	return true;
+}
+
+int sparse_print_triplet_full_matrix ( sparse_triplet_t *A_triplet )
+{
+	sparse_csc_t *A_csc = sparse_convert_triplet_to_CSC( A_triplet );
+	if ( !A_csc )
+	{
+		return false;
+	}
+
+	sparse_print_csc_full_matrix( A_csc );
 	return true;
 }
