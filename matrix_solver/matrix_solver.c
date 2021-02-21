@@ -1337,6 +1337,19 @@ void delete_sparse ( sparse_csc_t *A )
 	FREE_WITH_SET_NULL( A->Ax );
 }
 
+sparse_csc_t *copy_sparse ( sparse_csc_t *A )
+{
+	sparse_csc_t *B = (sparse_csc_t *) calloc ( 1, sizeof(sparse_csc_t) );
+	memcpy( B, A, sizeof(sparse_csc_t) );
+	B->Ap = (sparse_int *) calloc ( B->n + 1, sizeof(sparse_int) );
+	B->Ai = (sparse_int *) calloc ( B->nz, sizeof(sparse_int) );
+	B->Ax = (sparse_float *) calloc ( B->nz, sizeof(sparse_float) );
+	memcpy( B->Ap, A->Ap, (A->n + 1) * sizeof(sparse_int) );
+	memcpy( B->Ai, A->Ai, A->nz * sizeof(sparse_int) );
+	memcpy( B->Ax, A->Ax, A->nz * sizeof(sparse_float) );
+	return B;
+}
+
 void copy_csc_to_CXSparseCSC ( sparse_csc_t *A, cs_dl *B )
 {
 	B->nzmax = A->nz;
@@ -1376,20 +1389,62 @@ int sparse_matrix_transpose ( sparse_csc_t *A )
 	return true;
 }
 
-int sparse_matrix_csc_to_csr ( sparse_csc_t *A, sparse_csc_t *B )
+int sparse_matrix_csc_to_csr ( sparse_csc_t *A )
 {
-	B->nz = A->nz;
-	B->m = A->m;
-	B->n = A->n;
-	B->Ap = (sparse_int *) calloc ( B->m + 1, sizeof(sparse_int) );
-	B->Ai = (sparse_int *) calloc ( B->nz, sizeof(sparse_int) );
-	B->Ax = (sparse_float *) calloc ( B->nz, sizeof(sparse_float) );
+	return sparse_matrix_transpose( A );
+}
+
+int sparse_matrix_delete_col ( sparse_csc_t *A, sparse_int delete_col )
+{
+	if ( delete_col >= A->n )
+	{
+		return false;
+	}
+
+	sparse_csc_t *B = copy_sparse( A );
+	delete_sparse( A );
+	A->nz = B->nz - (B->Ap[delete_col + 1] - B->Ap[delete_col]);
+	A->m = B->m;
+	A->n = B->n - 1;
+	A->Ap = (sparse_int *) calloc ( A->n + 1, sizeof(sparse_int) );
+	A->Ai = (sparse_int *) calloc ( A->nz, sizeof(sparse_int) );
+	A->Ax = (sparse_float *) calloc ( A->nz, sizeof(sparse_float) );
+
+	sparse_int col_cnt = 0;
+	sparse_int nz_cnt = 0;
+	A->Ap[0] = 0;
+	for ( sparse_int i = 0; i < B->n; ++i )
+	{
+		if ( i == delete_col )
+		{
+			continue;
+		}
+		for ( sparse_int p = B->Ap[i]; p < B->Ap[i + 1]; ++p )
+		{
+			A->Ai[nz_cnt] = B->Ai[p];
+			A->Ax[nz_cnt] = B->Ax[p];
+			++nz_cnt;
+		}
+		++col_cnt;
+		A->Ap[col_cnt] = nz_cnt;
+	}
+
+	delete_sparse( B );
+
 	return true;
 }
 
 int sparse_matrix_delete_row ( sparse_csc_t *A, sparse_int delete_row )
 {
-	return true;
+	if ( !sparse_matrix_csc_to_csr( A ) )
+	{
+		return false;
+	}
+	if ( !sparse_matrix_delete_col( A, delete_row ) )
+	{
+		return false;
+	}
+	return sparse_matrix_transpose( A );
 }
 
 sparse_float *sparse_to_full_matrix ( sparse_csc_t *A )

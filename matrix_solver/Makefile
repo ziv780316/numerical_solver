@@ -79,7 +79,7 @@ SUITESPARSE_TARGET:= libcxsparse.so libklu.so libcholmod.so
 #=================================================
 # Target rules
 #=================================================
-default: ut
+default: $(MATRIX_SOLVER_TARGET)
 
 all: ut
 

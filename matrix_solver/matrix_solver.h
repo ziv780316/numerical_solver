@@ -41,7 +41,7 @@ typedef struct
 } complex_t;
 
 // ----------------------------------------------------------------------
-// Dense Matrix Operation (Column Major))
+// Dense Matrix Operation (Column Major, 0-base)
 // ----------------------------------------------------------------------
 
 // x := alpha*x
@@ -108,7 +108,7 @@ int dense_print_matrix_LU ( int n, double *A, number_type );
 int dense_print_matrix_trig ( int n, double *A, triangular_type, number_type );
 
 // ----------------------------------------------------------------------
-// Sparse Matrix Operation (CSC)
+// Sparse Matrix Operation (CSC, 0-base)
 // ----------------------------------------------------------------------
 typedef long sparse_int; 
 typedef double sparse_float; 
@@ -126,19 +126,19 @@ typedef struct
 
 // basic
 void delete_sparse ( sparse_csc_t *A );
+sparse_csc_t *copy_sparse ( sparse_csc_t *A );
 void copy_csc_to_CXSparseCSC ( sparse_csc_t *A, cs_dl *B );
 void copy_CXSparseCSC_to_csc ( cs_dl *A, sparse_csc_t *B );
 
-// tranpose
+// tranpose 
 int sparse_matrix_transpose ( sparse_csc_t *A );
 
-// convert ot other form (A = csc convert to B csr)
-int sparse_matrix_csc_to_csr ( sparse_csc_t *A, sparse_csc_t *B );
-
+// convert CSC A to CSR A
+int sparse_matrix_csc_to_csr ( sparse_csc_t *A );
 
 // delete row or col 
-int sparse_matrix_delete_row ( sparse_csc_t *A, sparse_int row );
 int sparse_matrix_delete_col ( sparse_csc_t *A, sparse_int col );
+int sparse_matrix_delete_row ( sparse_csc_t *A, sparse_int row );
 
 // print matrix
 sparse_float *sparse_to_full_matrix ( sparse_csc_t *A );
