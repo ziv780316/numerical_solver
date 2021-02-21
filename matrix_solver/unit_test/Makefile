@@ -18,8 +18,8 @@ DEFINES    =
 BUILD_TYPE = -O3
 MATRIX_SOLVER_LIB = ../lib/libmatrix_solver.a
 CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -std=gnu99 -fPIC 
-LIBS       = -L${DEVELOP_ROOT_DIR}/numerical_solver/matrix_solver/lib -lmatrix_solver -llapack -lblas -lgfortran -lm
-INCLUDE    = -I.. -I.
+LIBS       = -L${DEVELOP_ROOT_DIR}/numerical_solver/matrix_solver/lib -lmatrix_solver -llapack -lblas -lgfortran -lm -lcxsparse
+INCLUDE    = -I. -I${DEVELOP_ROOT_DIR}/numerical_solver/matrix_solver -I${DEVELOP_ROOT_DIR}/numerical_solver/matrix_solver/suitesparse/include
 MOVE       = mv -f
 
 #=================================================

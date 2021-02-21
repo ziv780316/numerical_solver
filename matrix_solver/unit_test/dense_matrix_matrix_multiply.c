@@ -13,7 +13,7 @@ int main ( int argc, char **argv )
 	double C[6] = {0.1, 0.3, 0.5, 0.2, 0.4, 0.6};
 	double D[6] = {1, 2, 3, 4, 5, 6};
 	double E[4] = {1, 2, 3, 4};
-	double I[4] = {1, 0, 0, 1};
+	double G[4] = {1, 0, 0, 1};
 
 	transpose_type a_transpose;
 	transpose_type b_transpose;
@@ -58,9 +58,9 @@ int main ( int argc, char **argv )
 	b_transpose = TRANS_NORMAL;
 	alpha = 1.0;
 	beta = 1.0;
-	dense_matrix_matrix_multiply ( 3, 2, 2, 3, &alpha, A, D, &beta, I, a_transpose, b_transpose, type );
-	printf( "\nE = (A**T)*(D2**T) + I\n" );
-	dense_print_matrix( 2, 2, I, type );
+	dense_matrix_matrix_multiply ( 3, 2, 2, 3, &alpha, A, D, &beta, G, a_transpose, b_transpose, type );
+	printf( "\nE = (A**T)*(D2**T) + G\n" );
+	dense_print_matrix( 2, 2, G, type );
 
 	return EXIT_SUCCESS;
 }

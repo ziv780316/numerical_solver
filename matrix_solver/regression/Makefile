@@ -13,8 +13,8 @@ LINKER     = $(CC)
 DEFINES    = 
 BUILD_TYPE = -O3
 CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -std=gnu99 -fPIC 
-LIBS       = -L${DEVELOP_ROOT_DIR}/numerical_solver/matrix_solver/lib -lmatrix_solver -llapack -lblas -lgfortran -lm
-INCLUDE    = -I${DEVELOP_ROOT_DIR}/numerical_solver/matrix_solver
+LIBS       = -L${DEVELOP_ROOT_DIR}/numerical_solver/matrix_solver/lib -lmatrix_solver -llapack -lblas -lgfortran -lm -L${DEVELOP_ROOT_DIR}/numerical_solver/matrix_solver/suitesparse/lib -lcxsparse 
+INCLUDE    = -I${DEVELOP_ROOT_DIR}/numerical_solver/matrix_solver -I${DEVELOP_ROOT_DIR}/numerical_solver/matrix_solver/suitesparse/include
 MOVE       = mv -f
 
 #=================================================

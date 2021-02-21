@@ -26,8 +26,7 @@ BLAS_VERSION = BLAS-3.8.0
 LAPACK_VERSION = lapack-3.8.0
 CFLAGS     = $(BUILD_TYPE) -Wfatal-errors -Wall -Wextra -std=gnu99 -fPIC 
 CXXFLAGS   = $(BUILD_TYPE) -Wfatal-errors -Wall -Wextra -std=c++11 -fPIC
-LIBS       = -Llib -lblas -llapack -lgfortran -lm
-INCLUDE    = -I./include -I.
+INCLUDE    = -I./include -I. -Isuitesparse/include
 MOVE       = mv -f
 ARCH       = ar
 ARCHFLAGS  = cr
@@ -44,6 +43,7 @@ UNIT_TEST_OBJ     := dense_matrix_vector_multiply.o
 MATRIX_SOLVER_TARGET := libmatrix_solver.a
 BLAS_TARGET 	  := libblas.a
 LAPACK_TARGET     := liblapack.a
+SUITESPARSE_TARGET:= libcxsparse.so libklu.so libcholmod.so
 
 #=================================================
 # Compile implicit rules
@@ -109,7 +109,11 @@ $(LAPACK_TARGET):
 	cd lib; ln -sf ../$(LAPACK_VERSION)/$(LAPACK_TARGET) $(LAPACK_TARGET)
 	cd lib; ln -sf ../$(LAPACK_VERSION)/$(LAPACK_TARGET:.a=.so) $(LAPACK_TARGET:.a=.so)
 
-$(MATRIX_SOLVER_TARGET): verbose_info create_dir $(BLAS_TARGET) $(LAPACK_TARGET) $(MATRIX_SOLVER_OBJ)
+$(SUITESPARSE_TARGET): 
+	cd suitesparse; bash build.sh
+	cd lib; for sparse_lib in $(SUITESPARSE_TARGET); do ln -sf ../suitesparse/lib/$$sparse_lib $$sparse_lib; done
+
+$(MATRIX_SOLVER_TARGET): verbose_info create_dir $(BLAS_TARGET) $(LAPACK_TARGET) $(SUITESPARSE_TARGET) $(MATRIX_SOLVER_OBJ)
 		cd $(LIBRARY_DIR);\
 		$(ARCH) $(ARCHFLAGS) $@ $(MATRIX_SOLVER_OBJ);\
 		gcc -shared -o $(MATRIX_SOLVER_TARGET:.a=.so) ${MATRIX_SOLVER_OBJ};\

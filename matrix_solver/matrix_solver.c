@@ -8,6 +8,8 @@
 
 #include "matrix_solver.h"
 
+#define FREE_WITH_SET_NULL(ptr) free(ptr); ptr = NULL;
+
 int g_matrix_print_format = MATRIX_PRINT_FORMAT_PLAIN;
 
 static void iswap ( int *x, int *y )
@@ -655,7 +657,7 @@ int dense_lu_factor ( int n, double *A, int *pinv, factorization_type factor_met
 			zsytrf ( &uplo, &n, A, &lda, pinv, work, &lwork, &info );
 		}
 
-		free( work );
+		FREE_WITH_SET_NULL( work );
 	}
 
 	return (0 == info); // info = 0 means success
@@ -814,7 +816,7 @@ double dense_eval_det ( int n, double *A, factorization_type factor_method, numb
 
 	det_a = dense_eval_factor_det( n, A, pinv, factor_method, type );
 
-	free(pinv);
+	FREE_WITH_SET_NULL(pinv);
 	return det_a;;
 }
 
@@ -890,7 +892,7 @@ int dense_matrix_inverse ( int n, double *A, int *pinv, factorization_type facto
 			zgetri( &n, A, &lda, pinv, work, &lwork, &info );
 		}
 
-		free( work );
+		FREE_WITH_SET_NULL( work );
 	}
 	else if ( FACTOR_LU_CHOLESKY == factor_method )
 	{
@@ -929,7 +931,7 @@ int dense_matrix_inverse ( int n, double *A, int *pinv, factorization_type facto
 			zsytri( &uplo, &n, A, &lda, pinv, work, &info );
 		}
 
-		free( work );
+		FREE_WITH_SET_NULL( work );
 
 		// only inverse lower triangle, so add upper manual
 		for ( int j = 0; j < n; ++j )
@@ -1119,7 +1121,7 @@ int dense_print_matrix_perm ( int n, int *p )
 		printf( "];\n" );
 	}
 
-	free( idx );
+	FREE_WITH_SET_NULL( idx );
 	return true;
 }
 
@@ -1325,6 +1327,71 @@ int dense_print_matrix_trig ( int n, double *A, triangular_type trig, number_typ
 // ----------------------------------------------------------------------
 // Sparse Matrix Operation (CSC)
 // ----------------------------------------------------------------------
+void delete_sparse ( sparse_csc_t *A )
+{
+	A->nz = 0;
+	A->m = 0;
+	A->n = 0;
+	FREE_WITH_SET_NULL( A->Ap );
+	FREE_WITH_SET_NULL( A->Ai );
+	FREE_WITH_SET_NULL( A->Ax );
+}
+
+void copy_csc_to_CXSparseCSC ( sparse_csc_t *A, cs_dl *B )
+{
+	B->nzmax = A->nz;
+	B->m = A->m;
+	B->n = A->n;
+	B->p = A->Ap;
+	B->i = A->Ai;
+	B->x = A->Ax;
+	B->nz = -1; // means use CSC instead of triplet form
+}
+
+void copy_CXSparseCSC_to_csc ( cs_dl *A, sparse_csc_t *B )
+{
+	B->nz = A->nzmax;
+	B->m = A->m;
+	B->n = A->n;
+	B->Ap = A->p;
+	B->Ai = A->i;
+	B->Ax = A->x;
+}
+
+int sparse_matrix_transpose ( sparse_csc_t *A )
+{
+	cs_dl B;
+	copy_csc_to_CXSparseCSC( A, &B );
+
+	cs_dl *C = cs_dl_transpose( &B, 1 ); // 1 means also manipulate value in Ax
+	if ( !C )
+	{
+		// transpose fail
+		return false;
+	}
+
+	delete_sparse( A );
+	copy_CXSparseCSC_to_csc( C, A );
+
+	return true;
+}
+
+int sparse_matrix_csc_to_csr ( sparse_csc_t *A, sparse_csc_t *B )
+{
+	B->nz = A->nz;
+	B->m = A->m;
+	B->n = A->n;
+	B->Ap = (sparse_int *) calloc ( B->m + 1, sizeof(sparse_int) );
+	B->Ai = (sparse_int *) calloc ( B->nz, sizeof(sparse_int) );
+	B->Ax = (sparse_float *) calloc ( B->nz, sizeof(sparse_float) );
+	return true;
+}
+
+int sparse_matrix_delete_row ( sparse_csc_t *A, sparse_int delete_row )
+{
+	return true;
+}
+
 sparse_float *sparse_to_full_matrix ( sparse_csc_t *A )
 {
 	sparse_int m_row = A->m;
@@ -1394,6 +1461,6 @@ int sparse_print_full_matrix ( sparse_csc_t *A_sparse )
 		printf( "];\n" );
 	}
 
-	free( A );
+	FREE_WITH_SET_NULL( A );
 	return true;
 }

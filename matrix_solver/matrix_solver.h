@@ -1,6 +1,8 @@
 #ifndef MATRIX_SOLVER_H
 #define MATRIX_SOLVER_H
 
+#include  "cs.h"
+
 typedef enum
 {
 	REAL_NUMBER,
@@ -122,8 +124,21 @@ typedef struct
 	number_type xtype;
 } sparse_csc_t;
 
-// A := alpha*A
-int sparse_matrix_scale ( sparse_csc_t *csc, sparse_float *alpha );
+// basic
+void delete_sparse ( sparse_csc_t *A );
+void copy_csc_to_CXSparseCSC ( sparse_csc_t *A, cs_dl *B );
+void copy_CXSparseCSC_to_csc ( cs_dl *A, sparse_csc_t *B );
+
+// tranpose
+int sparse_matrix_transpose ( sparse_csc_t *A );
+
+// convert ot other form (A = csc convert to B csr)
+int sparse_matrix_csc_to_csr ( sparse_csc_t *A, sparse_csc_t *B );
+
+
+// delete row or col 
+int sparse_matrix_delete_row ( sparse_csc_t *A, sparse_int row );
+int sparse_matrix_delete_col ( sparse_csc_t *A, sparse_int col );
 
 // print matrix
 sparse_float *sparse_to_full_matrix ( sparse_csc_t *A );
