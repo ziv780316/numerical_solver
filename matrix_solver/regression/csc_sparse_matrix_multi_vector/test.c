@@ -49,7 +49,8 @@ int main ( int argc, char **argv )
 	printf( "x = " );
 	dense_print_vector ( 3, x, REAL_NUMBER );
 
-	sparse_float *b = sparse_matrix_multiply_vector ( &A, x );
+	sparse_float b[4];
+	sparse_matrix_multiply_vector ( &A, x, b );
 	printf( "b = " );
 	dense_print_vector ( 4, b, REAL_NUMBER );
 

@@ -150,6 +150,9 @@ sparse_csc_t *sparse_convert_triplet_to_CSC ( sparse_triplet_t *A );
 // addition, C = alpha*A + beta*B
 sparse_csc_t *sparse_matrix_addition ( sparse_csc_t *A, sparse_csc_t *B, sparse_float alpha, sparse_float beta );
 
+// addition, C = A * B
+sparse_csc_t *sparse_matrix_matrix_multiply ( sparse_csc_t *A, sparse_csc_t *B );
+
 // Ax = b
 void sparse_matrix_multiply_vector ( sparse_csc_t *A, sparse_float *x, sparse_float *b );
 

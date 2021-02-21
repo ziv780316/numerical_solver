@@ -1422,6 +1422,25 @@ sparse_csc_t *sparse_matrix_addition ( sparse_csc_t *A, sparse_csc_t *B, sparse_
 	}
 }
 
+sparse_csc_t *sparse_matrix_matrix_multiply ( sparse_csc_t *A, sparse_csc_t *B )
+{
+	cs_dl A_cxs;
+	cs_dl B_cxs;
+	copy_csc_to_CXSparseCSC( A, &A_cxs );
+	copy_csc_to_CXSparseCSC( B, &B_cxs );
+	cs_dl *C_cxs = cs_dl_multiply( &A_cxs, &B_cxs );
+	sparse_csc_t *C = (sparse_csc_t *) calloc ( 1, sizeof(sparse_csc_t) );
+	copy_CXSparseCSC_to_csc( C_cxs, C );
+	if ( C_cxs )
+	{
+		return C;
+	}
+	else
+	{
+		return NULL;
+	}
+}
+
 void sparse_matrix_multiply_vector ( sparse_csc_t *A, sparse_float *x, sparse_float *b )
 {
 	sparse_int m_row = A->m;
