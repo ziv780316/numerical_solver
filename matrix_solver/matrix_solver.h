@@ -2,6 +2,7 @@
 #define MATRIX_SOLVER_H
 
 #include  "cs.h"
+#include  "klu.h"
 
 typedef enum
 {
@@ -135,17 +136,23 @@ typedef struct
 	sparse_int *Ap;
 	sparse_int *Ai;
 	sparse_float *Ax;
-
-	number_type xtype;
 } sparse_csc_t;
 
+typedef enum
+{
+	SPARSE_LU_DECOMPOSITION_KLU,
+} sparse_lu_method;
 
 // basic
 void delete_sparse ( sparse_csc_t *A );
+void alloc_sparse ( sparse_csc_t *A );
 sparse_csc_t *copy_sparse ( sparse_csc_t *A );
 void copy_csc_to_CXSparseCSC ( sparse_csc_t *A, cs_dl *B );
 void copy_CXSparseCSC_to_csc ( cs_dl *A, sparse_csc_t *B );
 sparse_csc_t *sparse_convert_triplet_to_CSC ( sparse_triplet_t *A );
+
+// scale, A = A*alpha
+void sparse_matrix_scale ( sparse_csc_t *A, sparse_float alpha );
 
 // addition, C = alpha*A + beta*B
 sparse_csc_t *sparse_matrix_addition ( sparse_csc_t *A, sparse_csc_t *B, sparse_float alpha, sparse_float beta );
@@ -155,6 +162,9 @@ sparse_csc_t *sparse_matrix_matrix_multiply ( sparse_csc_t *A, sparse_csc_t *B )
 
 // Ax = b
 void sparse_matrix_multiply_vector ( sparse_csc_t *A, sparse_float *x, sparse_float *b );
+
+// A = inv(P)*R*L*U*Q
+int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, sparse_csc_t *L, sparse_csc_t *U, sparse_csc_t *Pinv, sparse_csc_t *Q, sparse_csc_t *R );
 
 // tranpose 
 int sparse_matrix_transpose ( sparse_csc_t *A );
@@ -178,6 +188,11 @@ int sparse_print_triplet_full_matrix ( sparse_triplet_t *A_triplet );
 extern int g_matrix_print_format;
 #define MATRIX_PRINT_FORMAT_PLAIN 0
 #define MATRIX_PRINT_FORMAT_MATLAB 1
+
+// ----------------------------------------------------------------------
+// Debug Flags
+// ----------------------------------------------------------------------
+extern int g_debug_sparse_lu_decomposition;
 
 #endif
 

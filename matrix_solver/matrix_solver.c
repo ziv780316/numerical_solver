@@ -11,6 +11,7 @@
 #define FREE_WITH_SET_NULL(ptr) free(ptr); ptr = NULL;
 
 int g_matrix_print_format = MATRIX_PRINT_FORMAT_PLAIN;
+int g_debug_sparse_lu_decomposition = false;
 
 static void iswap ( int *x, int *y )
 {
@@ -1337,6 +1338,13 @@ void delete_sparse ( sparse_csc_t *A )
 	FREE_WITH_SET_NULL( A->Ax );
 }
 
+void alloc_sparse ( sparse_csc_t *A )
+{
+	A->Ap = (sparse_int *) calloc ( A->n + 1, sizeof(sparse_int) );
+	A->Ai = (sparse_int *) calloc ( A->nz, sizeof(sparse_int) );
+	A->Ax = (sparse_float *) calloc ( A->nz, sizeof(sparse_float) );
+}
+
 sparse_csc_t *copy_sparse ( sparse_csc_t *A )
 {
 	sparse_csc_t *B = (sparse_csc_t *) calloc ( 1, sizeof(sparse_csc_t) );
@@ -1403,6 +1411,21 @@ sparse_csc_t *sparse_convert_triplet_to_CSC ( sparse_triplet_t *A )
 	return B;
 }
 
+void sparse_matrix_scale ( sparse_csc_t *A, sparse_float alpha )
+{
+	sparse_int n_col = A->n;
+	sparse_int *Ap = A->Ap;
+	sparse_float *Ax = A->Ax;
+
+	for ( sparse_int i = 0; i < n_col; ++i )
+	{
+		for ( sparse_int p = Ap[i]; p < Ap[i + 1]; ++p )
+		{
+			Ax[p] *= alpha;
+		}
+	}
+}
+
 sparse_csc_t *sparse_matrix_addition ( sparse_csc_t *A, sparse_csc_t *B, sparse_float alpha, sparse_float beta )
 {
 	cs_dl A_cxs;
@@ -1459,6 +1482,215 @@ void sparse_matrix_multiply_vector ( sparse_csc_t *A, sparse_float *x, sparse_fl
 			b[ Ai[p] ] += multi * Ax[p];
 		}
 	}
+}
+
+int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, sparse_csc_t *L, sparse_csc_t *U, sparse_csc_t *Pinv, sparse_csc_t *Qinv, sparse_csc_t *R )
+{
+	if ( A->m != A->n )
+	{
+		fprintf( stderr, "[Error] A is not square matrix cannot do LU decomposition (A->n=%ld A->m=%ld)\n", A->m, A->n );
+		exit(1);
+	}
+
+	if ( SPARSE_LU_DECOMPOSITION_KLU == method )
+	{
+		sparse_int n = A->n;
+		sparse_int *Ap = A->Ap;
+		sparse_int *Ai = A->Ai;
+		sparse_float *Ax = A->Ax;
+
+		klu_l_symbolic *symbolic;
+		klu_l_numeric *numeric;
+		klu_l_common common;
+		klu_l_defaults( &common );
+
+		// pivtol, pivot tolerance for diagonal
+		common.tol = 0.001;      
+
+		// use BTF pre-ordering, or not 
+		//common.btf = false;
+
+		// scale
+		// -1: none, and do not check for errors in the input matrix in KLU_refactor
+		// 0: but check for error
+		// 1: sum
+		// 2: max
+		common.scale = 2; // (1/Rs)*I*Ax = (1/Rs)*I*b
+
+		// quick halt if matrix is singular
+		common.halt_if_singular = true ;   
+
+		// choose pre-ordering
+		// 0: AMD
+		// 1: COLAMD
+		// 2: user-provided P, Q (if not provide, then use natural ordering)
+		// 3: user-provided function
+		common.ordering = 0; 
+
+		if ( 2 == common.ordering )
+		{
+			// use for debug
+			//sparse_int *P_user = (sparse_int *) calloc (n, sizeof(sparse_int));
+			//sparse_int *Q_user = (sparse_int *) calloc (n, sizeof(sparse_int));
+			//P_user[0] = 2;
+			//P_user[1] = 0;
+			//P_user[2] = 1;
+			//P_user[3] = 3;
+			//Q_user[0] = 1;
+			//Q_user[1] = 3;
+			//Q_user[2] = 2;
+			//Q_user[3] = 0;
+			//symbolic = klu_l_analyze_given( n, Ap, Ai, P_user, Q_user, &common );
+			symbolic = klu_l_analyze_given( n, Ap, Ai, NULL, NULL, &common ); // natural ordering
+			if ( common.status != KLU_OK )
+			{
+				switch ( common.status )
+				{
+					case KLU_OUT_OF_MEMORY:
+						fprintf( stderr, "[Error] KLU analyze fail due to out of memory\n" );
+						return false;
+					case KLU_INVALID:
+						fprintf( stderr, "[Error] KLU analyze fail due to invalid setting\n" );
+						return false;
+					default: 
+						fprintf( stderr, "[Error] KLU analyze fail due to unknown error (%ld)\n", common.status );
+						return false;
+				}
+			}
+		}
+		else
+		{
+			symbolic = klu_l_analyze ( n, Ap, Ai, &common );
+			if ( common.status != KLU_OK )
+			{
+				switch ( common.status )
+				{
+					case KLU_OUT_OF_MEMORY:
+						fprintf( stderr, "[Error] KLU analyze fail due to out of memory\n" );
+						return false;
+					case KLU_INVALID:
+						fprintf( stderr, "[Error] KLU analyze fail due to invalid setting\n" );
+						return false;
+					default: 
+						fprintf( stderr, "[Error] KLU analyze fail due to unknown error (%ld)\n", common.status );
+						return false;
+				}
+			}
+		}
+
+		numeric = klu_l_factor ( Ap, Ai, Ax, symbolic, &common );
+		if ( common.status != KLU_OK )
+		{
+			switch ( common.status )
+			{
+				case KLU_SINGULAR:
+					fprintf( stderr, "[Error] KLU decomposition fail due singular on col=%ld\n", common.singular_col );
+					return false;
+				case KLU_TOO_LARGE:
+					fprintf( stderr, "[Error] KLU analyze fail due to integer overflow\n" );
+					return false;
+				case KLU_OUT_OF_MEMORY:
+					fprintf( stderr, "[Error] KLU analyze fail due to out of memory\n" );
+					return false;
+				case KLU_INVALID:
+					fprintf( stderr, "[Error] KLU analyze fail due to invalid setting\n" );
+					return false;
+				default: 
+					fprintf( stderr, "[Error] KLU analyze fail due to unknown error (%ld)\n", common.status );
+					return false;
+			}
+		}
+
+		// allocate matrix 
+		sparse_csc_t P_buf;
+		sparse_csc_t Q_buf;
+		sparse_csc_t *P = &P_buf;
+		sparse_csc_t *Q = &Q_buf ;
+		R->m = R->n = R->nz = n;
+		alloc_sparse( R );
+		P->m = P->n = P->nz = n;
+		alloc_sparse( P );
+		Q->m = Q->n = Q->nz = n;
+		alloc_sparse( Q );
+		L->m = L->n = n;
+		L->nz = numeric->lnz;
+		alloc_sparse( L );
+		U->m = U->n = n;
+		U->nz = numeric->unz;
+		alloc_sparse( U );
+
+		// L * U is decomposition of ((1/R) * P * A * Q) 
+		// A = inv(P) * R * L * U * Q
+		// solve A * x = b 
+		//   -> (inv(P) * R * L * U * Q) * x = b 
+		//   -> (L * U * Q) * x = (1/R) * P * b 
+		//   -> Q * x = (L * U) \ ((1/R) * P * b)
+		//   -> x = inv(Q) * ((L * U) \ ((1/R) * P * b))
+		sparse_float *Rs_klu = (sparse_float *) calloc ( n, sizeof(sparse_float) );
+		sparse_int *P_klu = (sparse_int *) calloc ( n, sizeof(sparse_int) );
+		sparse_int *Q_klu = (sparse_int *) calloc ( n, sizeof(sparse_int) );
+		if ( !klu_l_extract( numeric, symbolic, 
+				     L->Ap, L->Ai, L->Ax, 
+				     U->Ap, U->Ai, U->Ax, 
+				     NULL, NULL, NULL,
+				     P_klu, // P
+				     Q_klu, // Qinv
+				     Rs_klu, 
+				     NULL, &common ) )
+		{
+			fprintf( stderr, "[Error] KLU A=PLUQ extraction fail\n" );
+			exit(1);
+		}
+
+		// convert Rs to CSC
+		for ( sparse_int i = 0; i < n; ++i )
+		{
+			R->Ai[i] = i;
+			R->Ax[i] = Rs_klu[i];
+			R->Ap[i + 1] = i + 1;
+		}
+
+		// convert P to CSC, klu_l_factor will pivoting and change pre-ordering symbolic->P to numeric->Pnum
+		for ( sparse_int i = 0; i < n; ++i )
+		{
+			P->Ai[P_klu[i]] = i;
+			P->Ax[P_klu[i]] = 1;
+			P->Ap[i + 1] = i + 1;
+		}
+		if ( !sparse_matrix_transpose( P ) ) // P -> inv(P)
+		{
+			fprintf( stderr, "[Error] P -> inv(P) fail\n" );
+			exit(1);
+			
+		}
+		*Pinv = *P;
+
+		// convert Q to CSC,  determined in pre-ordering in klu_l_analyze
+		for ( sparse_int i = 0; i < n; ++i )
+		{
+			Q->Ai[Q_klu[i]] = i;
+			Q->Ax[Q_klu[i]] = 1;
+			Q->Ap[i + 1] = i + 1;
+		}
+		*Qinv = *Q;
+
+		if ( g_debug_sparse_lu_decomposition )
+		{
+			fprintf( stderr, "[DEBUG] A_origin_nz=%ld A_numerical_nz=%ld\n", A->nz, numeric->lnz + numeric->unz );
+		}
+
+		free( Rs_klu );
+		free( P_klu );
+		free( Q_klu );
+		klu_l_free_symbolic ( &symbolic, &common );
+		klu_l_free_numeric ( &numeric, &common );
+	}
+	else
+	{
+		return false;
+	}
+
+	return true;
 }
 
 int sparse_matrix_transpose ( sparse_csc_t *A )
@@ -1578,28 +1810,13 @@ int sparse_print_csc_full_matrix ( sparse_csc_t *A_sparse )
 
 	sparse_int m = A_sparse->m; 
 	sparse_int n = A_sparse->n; 
-	if ( REAL_NUMBER == A_sparse->xtype )
+	for ( sparse_int i = 0; i < m; ++i )
 	{
-		for ( sparse_int i = 0; i < m; ++i )
+		for ( sparse_int j = 0; j < n; ++j )
 		{
-			for ( sparse_int j = 0; j < n; ++j )
-			{
-				printf( "%.10e ", *(A + j*m + i) );
-			}
-			printf( "%s\n", ((MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format) ? ";..." : "") );
+			printf( "%.10e ", *(A + j*m + i) );
 		}
-	}
-	else
-	{
-		sparse_int col_incr = 2 * m;
-		for ( sparse_int i = 0; i < col_incr; i += 2 )
-		{
-			for ( sparse_int j = 0; j < n; ++j )
-			{
-				printf( "%.10e+i*%.10e ", *(A + j*col_incr + i), *(A + j*col_incr + i + 1) );
-			}
-			printf( "%s\n", ((MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format) ? ";..." : "") );
-		}
+		printf( "%s\n", ((MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format) ? ";..." : "") );
 	}
 	if ( MATRIX_PRINT_FORMAT_MATLAB == g_matrix_print_format )
 	{

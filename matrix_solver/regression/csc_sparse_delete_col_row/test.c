@@ -15,7 +15,6 @@ int main ( int argc, char **argv )
 	A.Ap = (sparse_int *) calloc ( A.n + 1, sizeof(sparse_int) );
 	A.Ai = (sparse_int *) calloc ( A.nz, sizeof(sparse_int) );
 	A.Ax = (sparse_float *) calloc ( A.nz, sizeof(sparse_float) );
-	A.xtype = REAL_NUMBER;
 
 	A.Ap[0] = 0;
 	A.Ai[0] = 0;
@@ -43,7 +42,7 @@ int main ( int argc, char **argv )
 	A.Ap[3] = 9;
 
 	printf( "A  = " );
-	sparse_print_full_matrix ( &A );
+	sparse_print_csc_full_matrix ( &A );
 	sparse_csc_t *B = copy_sparse( &A );
 
 	if ( !sparse_matrix_delete_col ( &A, 1 ) )
@@ -52,7 +51,7 @@ int main ( int argc, char **argv )
 		exit(1);
 	}
 	printf( "A_delete_col_2 = " );
-	sparse_print_full_matrix ( &A );
+	sparse_print_csc_full_matrix ( &A );
 
 	if ( !sparse_matrix_delete_row ( B, 3 ) )
 	{
@@ -60,7 +59,7 @@ int main ( int argc, char **argv )
 		exit(1);
 	}
 	printf( "A_delete_row_4 = " );
-	sparse_print_full_matrix ( B );
+	sparse_print_csc_full_matrix ( B );
 
 	return EXIT_SUCCESS;
 }

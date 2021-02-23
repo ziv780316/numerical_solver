@@ -15,7 +15,6 @@ int main ( int argc, char **argv )
 	A.Ap = (sparse_int *) calloc ( A.n + 1, sizeof(sparse_int) );
 	A.Ai = (sparse_int *) calloc ( A.nz, sizeof(sparse_int) );
 	A.Ax = (sparse_float *) calloc ( A.nz, sizeof(sparse_float) );
-	A.xtype = REAL_NUMBER;
 
 	A.Ap[0] = 0;
 	A.Ai[0] = 0;
@@ -43,7 +42,7 @@ int main ( int argc, char **argv )
 	A.Ap[3] = 9;
 
 	printf( "A = " );
-	sparse_print_full_matrix ( &A );
+	sparse_print_csc_full_matrix ( &A );
 
 	sparse_float x[3] = { 1, 2, 3 };
 	printf( "x = " );
