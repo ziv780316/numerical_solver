@@ -58,34 +58,44 @@ int main ( int argc, char **argv )
 	sparse_csc_t *A_csc = sparse_convert_triplet_to_CSC( &A );
 	sparse_print_csc_full_matrix ( A_csc );
 
-	sparse_csc_t inv_P, L, U, inv_Q, R;
-	if ( !sparse_matrix_lu_decomposition ( A_csc, SPARSE_LU_DECOMPOSITION_KLU, &L, &U, &inv_P, &inv_Q, &R) )
+	sparse_csc_t *P, *L, *U, *Q, *R;
+	sparse_float *r;
+	sparse_int *p, *q;
+	if ( !sparse_matrix_lu_decomposition ( A_csc, SPARSE_LU_DECOMPOSITION_KLU, &L, &U, &P, &Q, &R, &p, &q, &r) )
 	{
 		fprintf( stderr, "[Error] KLU decomposition fail\n" );
 		exit(1);
 	}
 
 	printf( "R = " );
-	sparse_print_csc_full_matrix ( &R );
+	sparse_print_csc_full_matrix ( R );
 
-	printf( "inv_P = " );
-	sparse_print_csc_full_matrix ( &inv_P );
+	printf( "P = " );
+	sparse_print_csc_full_matrix ( P );
 
 	printf( "L = " );
-	sparse_print_csc_full_matrix ( &L );
+	sparse_print_csc_full_matrix ( L );
 
 	printf( "U = " );
-	sparse_print_csc_full_matrix ( &U );
+	sparse_print_csc_full_matrix ( U );
 
-	printf( "inv_Q = " );
-	sparse_print_csc_full_matrix ( &inv_Q );
+	printf( "Q = " );
+	sparse_print_csc_full_matrix ( Q );
+
+	printf( "Pinv = " );
+	sparse_matrix_transpose ( P );
+	sparse_print_csc_full_matrix ( P );
+
+	printf( "Qinv = " );
+	sparse_matrix_transpose ( Q );
+	sparse_print_csc_full_matrix ( Q );
 
 	printf( "inv_P_R_L_U_inv_Q = " );
 	sparse_csc_t *inv_P_R_L_U_inv_Q;
-	inv_P_R_L_U_inv_Q = sparse_matrix_matrix_multiply ( &inv_P, &R );
-	inv_P_R_L_U_inv_Q = sparse_matrix_matrix_multiply ( inv_P_R_L_U_inv_Q, &L );
-	inv_P_R_L_U_inv_Q = sparse_matrix_matrix_multiply ( inv_P_R_L_U_inv_Q, &U );
-	inv_P_R_L_U_inv_Q = sparse_matrix_matrix_multiply ( inv_P_R_L_U_inv_Q, &inv_Q );
+	inv_P_R_L_U_inv_Q = sparse_matrix_matrix_multiply ( P, R );
+	inv_P_R_L_U_inv_Q = sparse_matrix_matrix_multiply ( inv_P_R_L_U_inv_Q, L );
+	inv_P_R_L_U_inv_Q = sparse_matrix_matrix_multiply ( inv_P_R_L_U_inv_Q, U );
+	inv_P_R_L_U_inv_Q = sparse_matrix_matrix_multiply ( inv_P_R_L_U_inv_Q, Q );
 	sparse_print_csc_full_matrix ( inv_P_R_L_U_inv_Q );
 
 	return EXIT_SUCCESS;

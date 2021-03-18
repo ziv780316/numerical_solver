@@ -1484,7 +1484,7 @@ void sparse_matrix_multiply_vector ( sparse_csc_t *A, sparse_float *x, sparse_fl
 	}
 }
 
-int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, sparse_csc_t *L, sparse_csc_t *U, sparse_csc_t *Pinv, sparse_csc_t *Qinv, sparse_csc_t *R )
+int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, sparse_csc_t **pL, sparse_csc_t **pU, sparse_csc_t **pP, sparse_csc_t **pQ, sparse_csc_t **pR, sparse_int **p, sparse_int **q, sparse_float **r )
 {
 	if ( A->m != A->n )
 	{
@@ -1602,10 +1602,11 @@ int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, s
 		}
 
 		// allocate matrix 
-		sparse_csc_t P_buf;
-		sparse_csc_t Q_buf;
-		sparse_csc_t *P = &P_buf;
-		sparse_csc_t *Q = &Q_buf ;
+		sparse_csc_t *R = (sparse_csc_t *) calloc (1, sizeof(sparse_csc_t));
+		sparse_csc_t *P = (sparse_csc_t *) calloc (1, sizeof(sparse_csc_t));
+		sparse_csc_t *Q = (sparse_csc_t *) calloc (1, sizeof(sparse_csc_t));
+		sparse_csc_t *L = (sparse_csc_t *) calloc (1, sizeof(sparse_csc_t));
+		sparse_csc_t *U = (sparse_csc_t *) calloc (1, sizeof(sparse_csc_t));
 		R->m = R->n = R->nz = n;
 		alloc_sparse( R );
 		P->m = P->n = P->nz = n;
@@ -1619,13 +1620,16 @@ int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, s
 		U->nz = numeric->unz;
 		alloc_sparse( U );
 
-		// L * U is decomposition of ((1/R) * P * A * Q) 
-		// A = inv(P) * R * L * U * Q
+		// L * U is decomposition of (R * P * A * Q) 
+		// R = 1 / numeric->Rs
+		// P = numeric->Pnum
+		// Q = inv(symbolic->Q)
 		// solve A * x = b 
-		//   -> (inv(P) * R * L * U * Q) * x = b 
-		//   -> (L * U * Q) * x = (1/R) * P * b 
-		//   -> Q * x = (L * U) \ ((1/R) * P * b)
-		//   -> x = inv(Q) * ((L * U) \ ((1/R) * P * b))
+		// A = inv(P) * inv(R) * L * U * inv(Q)
+		//   -> (inv(P) * R * L * U * inv(Q) * x = b 
+		//   -> (L * U * inv(Q)) * x = R * P * b 
+		//   -> inv(Q) * x = (L * U) \ (R * P * b)
+		//   -> x = Q * ((L * U) \ (R * P * b))
 		sparse_float *Rs_klu = (sparse_float *) calloc ( n, sizeof(sparse_float) );
 		sparse_int *P_klu = (sparse_int *) calloc ( n, sizeof(sparse_int) );
 		sparse_int *Q_klu = (sparse_int *) calloc ( n, sizeof(sparse_int) );
@@ -1634,8 +1638,8 @@ int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, s
 				     U->Ap, U->Ai, U->Ax, 
 				     NULL, NULL, NULL,
 				     P_klu, // P
-				     Q_klu, // Qinv
-				     Rs_klu, 
+				     Q_klu, // inv(Q)
+				     Rs_klu,  // R
 				     NULL, &common ) )
 		{
 			fprintf( stderr, "[Error] KLU A=PLUQ extraction fail\n" );
@@ -1649,36 +1653,44 @@ int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, s
 			R->Ax[i] = Rs_klu[i];
 			R->Ap[i + 1] = i + 1;
 		}
+		*pR = R;
 
 		// convert P to CSC, klu_l_factor will pivoting and change pre-ordering symbolic->P to numeric->Pnum
+		// [0 0 1] [row1; row2; row3]' means permute row1 to row3
 		for ( sparse_int i = 0; i < n; ++i )
 		{
 			P->Ai[P_klu[i]] = i;
-			P->Ax[P_klu[i]] = 1;
+			P->Ax[i] = 1;
 			P->Ap[i + 1] = i + 1;
 		}
-		if ( !sparse_matrix_transpose( P ) ) // P -> inv(P)
-		{
-			fprintf( stderr, "[Error] P -> inv(P) fail\n" );
-			exit(1);
-			
-		}
-		*Pinv = *P;
+		*pP = P;
 
-		// convert Q to CSC,  determined in pre-ordering in klu_l_analyze
+		// convert inv(Q) to Q CSC,  determined in pre-ordering in klu_l_analyze
 		for ( sparse_int i = 0; i < n; ++i )
 		{
-			Q->Ai[Q_klu[i]] = i;
-			Q->Ax[Q_klu[i]] = 1;
+			Q->Ai[i] = Q_klu[i];
+			Q->Ax[i] = 1;
 			Q->Ap[i + 1] = i + 1;
 		}
-		*Qinv = *Q;
+		*pQ = Q;
+
+		// L U
+		*pL = L;
+		*pU = U;
 
 		if ( g_debug_sparse_lu_decomposition )
 		{
 			fprintf( stderr, "[DEBUG] A_origin_nz=%ld A_numerical_nz=%ld\n", A->nz, numeric->lnz + numeric->unz );
 		}
 
+		// permutation and scale vector	
+		*r = Rs_klu;
+		*p = P_klu;
+		*q = (sparse_int *) calloc( n, sizeof(sparse_int) );
+		for ( sparse_int i = 0; i < n; ++i )
+		{
+			(*q)[Q_klu[i]] = i; // inv(Q) -> Q
+		}
 		free( Rs_klu );
 		free( P_klu );
 		free( Q_klu );

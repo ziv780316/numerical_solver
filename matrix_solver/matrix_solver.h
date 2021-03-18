@@ -163,8 +163,8 @@ sparse_csc_t *sparse_matrix_matrix_multiply ( sparse_csc_t *A, sparse_csc_t *B )
 // Ax = b
 void sparse_matrix_multiply_vector ( sparse_csc_t *A, sparse_float *x, sparse_float *b );
 
-// A = inv(P)*R*L*U*Q
-int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, sparse_csc_t *L, sparse_csc_t *U, sparse_csc_t *Pinv, sparse_csc_t *Q, sparse_csc_t *R );
+// P*R*A*Q = L*U
+int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, sparse_csc_t **pL, sparse_csc_t **pU, sparse_csc_t **pP, sparse_csc_t **pQ, sparse_csc_t **pR, sparse_int **p, sparse_int **q, sparse_float **r );
 
 // tranpose 
 int sparse_matrix_transpose ( sparse_csc_t *A );
