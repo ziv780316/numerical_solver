@@ -9,7 +9,6 @@ m = floor(max(size(c))/2);
 k = -m:1:m;
 f = k * fs;
 
-figure;
 stem( f, abs(c)', 'bo', 'MarkerSize', 6 );
 grid on;
 xlabel( 'Frequency (Hz)' );
