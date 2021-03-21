@@ -62,7 +62,7 @@ x = transpose( f(t(1:n)) ); % f(0), f(T/n), ..., f((n-1)*(T/n))
 A = zeros( 2*m+1, n ); 
 for k = -m:1:m
 	for i = 1:1:n
-		A(k+m+1,i) = exp(-j*2*pi*k*(i-1)/n);
+		A(k+m+1,i) = exp(-1j*2*pi*k*(i-1)/n);
 	end
 end
 

@@ -30,7 +30,7 @@ t_len = max(size(t));
 A_inv = zeros( t_len, 2*m+1 ); 
 for i = 1:1:t_len
 	for k = -m:1:m
-		A_inv(i, k+m+1) = exp(j*2*pi*k*t(i)/T);
+		A_inv(i, k+m+1) = exp(1j*2*pi*k*t(i)/T);
 	end
 end
 
