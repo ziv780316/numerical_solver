@@ -2,7 +2,7 @@
 clear;
 format long e;
 r = 1;
-Y = [1 -1;-1 1];
+Y = [1/r -1/r;-1/r 1/r];
 Z0 = 1;
 Zo = Z0 * eye(2);
 [S,v,i] = y2s(Y, Zo, true);

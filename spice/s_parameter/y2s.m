@@ -14,13 +14,16 @@ function [S,v,i] = y2s( Y, Zo, debug_power )
 % v = -i / Y = E / (I + Y*Zo)
 % V⁻ = (v + Zo * i)*0.5 
 % V⁺ = (v - Zo * i)*0.5 = (E0/2) = Vav in stimulus port
-% S = V⁻ / (E0/2) = (v + Zo * i) / E0
+% S = V⁻ / V⁺ = (v + Zo * i)*0.5 / (E0/2) = (v + Zo * i)  ->  independent to input source value
 %
 % ------------------------------------------
-% S-parameter related to power:
+% S-parameter definition is related to power:
 %
-% S₁₁ = (Zin₁ - Zo₁) / (Zin₁ + Zo₁) = V₁₁⁻ / Vav
-% S₂₁ = V₂/(E/2) = V₂₂⁻ / Vav
+% Vav = E0 / 2 -> load voltage when maximum power transfer (Zin = Zo* has maximum power transfer and voltage is E0 / 2)
+% V⁺ = Vav -> maximum power wave
+% V⁻ = V - V⁺ -> voltage difference to voltage of maximum power transfer (return loss voltage, reflect voltage)
+% S₁₁ = V₁₁⁻ / V₁₁⁺ = [E0*(Zin₁/(Zin₁ + Zo₁)) - (E0/2)] / (E0/2) = 2*Zin₁/(Zin₁ + Zo₁) - 1 = (Zin₁ - Zo₁)/(Zin₁ + Zo₁) = Γ₁₁ 
+% S₂₁ = V₂₁⁻/ V₁₁⁺  = V₂₁⁻ / (E0/2)
 % |S₁₁|²= (Pav - P₁)/Pav
 % |S₂₁|²= (P₂)/Pav
 % 
@@ -38,7 +41,7 @@ function [S,v,i] = y2s( Y, Zo, debug_power )
 E0 = 1;
 n = size(Y, 1);
 I = eye( n );
-E = E0 * I;
+E = E0 .* I;
 if 1 == nargin 
 	Zo = 50 .* I;
 end
@@ -46,11 +49,11 @@ if nargin < 3
 	debug_power = false;
 end
 
-i = (-Y*E) / (I + Y*Zo);
-v = E / (I + Y*Zo);
+i = (I + Y*Zo) \ (-Y*E);
+v = (I + Y*Zo) \ E;
 
-%S = (I - Zo*Y) / (I + Zo*Y);
-S = (v + Zo * i) / E0;
+%S = (I + Zo*Y) \ (I - Zo*Y);
+S = E0 \ (v + Zo * i);
 
 if debug_power && (n > 1)
 	% analysis feed stimulus on port 1 
@@ -76,16 +79,27 @@ if debug_power && (n > 1)
 	fprintf( 'Ploss = %.10e\n', Ploss );
 	V_neg = (v + Zo * i)*0.5;
 	V_pos = (v - Zo * i)*0.5;
-	fprintf( 'Vneg =\n' );
+	fprintf( 'V⁻ =\n' );
 	disp( V_neg );
-	fprintf( 'Vpos =\n' );
+	fprintf( 'V⁺ =\n' );
 	disp( V_pos );
 	P_Vneg = real(conj(V_neg) .* (V_neg/Zo) * 0.5);
-	fprintf( 'P_Vneg =\n' );
+	fprintf( 'P⁻ =\n' );
 	disp( P_Vneg );
 	P_Vpos = real(conj(V_pos) .* (V_pos/Zo) * 0.5);
-	fprintf( 'P_Vpos =\n' );
+	fprintf( 'P⁺ =\n' );
 	disp( P_Vpos );
+	fprintf( 'V₁₁ - V⁺₁₁ = %.10e\n', v(1,1) - V_pos(1,1) );
+	Pin_max = 2*Pav;
+	fprintf( 'Pin_max = %.10e\n', Pin_max );
+	Pin = real(E0*is*0.5);
+	fprintf( 'Pin = %.10e\n', Pin );
+	fprintf( 'Pin_max - Pin = %.10e\n', Pin_max - Pin );
+	Zin11 = v(1,1) / is;
+	fprintf( 'Zin₁₁ = %.10e %.10e\n', real(Zin11), imag(Zin11) );
+	gamma11 = (Zin11 - Zo(1)) / (Zin11 + Zo(1));
+	fprintf( 'Γ₁₁ = %.10e %.10e\n', real(gamma11), imag(gamma11) );
+	fprintf( 'V₂₁/(E0/2) = %.10e %.10e\n', real(v(2,1)/(E0/2)), imag(v(2,1)/(E0/2)) );
 end
 
 end % end of function y2s
