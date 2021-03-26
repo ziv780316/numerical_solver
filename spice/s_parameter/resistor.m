@@ -13,8 +13,8 @@ disp( v );
 fprintf( 'i=\n' );
 disp( i );
 
-i = abs(i(1,1));
-vr = i*r;
-Pr = i*vr*0.5;
+is = abs(i(1,1));
+vr = is*r;
+Pr = is*vr*0.5;
 fprintf( 'Pr = %.10e\n', Pr );
 
