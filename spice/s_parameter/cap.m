@@ -3,7 +3,7 @@ clear;
 format long e;
 f = 1/(2*pi);
 c = 1;
-Y = [1j*f*c  -1j*f*c; -1j*f*c 1j*f*c];
+Y = [1j*2*pi*f*c  -1j*2*pi*f*c; -1j*2*pi*f*c 1j*2*pi*f*c];
 Zo = 1 * eye(2);
 [S,v,i] = y2s(Y, Zo, true);
 fprintf( 'S=\n' );

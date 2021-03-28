@@ -17,17 +17,22 @@ function [S,v,i] = y2s( Y, Zo, debug_power )
 % S = V⁻ / V⁺ = (v + Zo * i)*0.5 / (E0/2) = (v + Zo * i)  ->  independent to input source value
 %
 % ------------------------------------------
-% S-parameter definition is related to power:
+% S-parameter definition is related to maximum power transfer:
 %
 % Vav = E0 / 2 -> load voltage when maximum power transfer (Zin = Zo* has maximum power transfer and voltage is E0 / 2)
-% V⁺ = Vav -> maximum power wave
-% V⁻ = V - V⁺ -> voltage difference to voltage of maximum power transfer (return loss voltage, reflect voltage)
-% S₁₁ = V₁₁⁻ / V₁₁⁺ = [E0*(Zin₁/(Zin₁ + Zo₁)) - (E0/2)] / (E0/2) = 2*Zin₁/(Zin₁ + Zo₁) - 1 = (Zin₁ - Zo₁)/(Zin₁ + Zo₁) = Γ₁₁ 
-% S₂₁ = V₂₁⁻/ V₁₁⁺  = V₂₁⁻ / (E0/2)
-% |S₁₁|²= (Pav - P₁)/Pav
-% |S₂₁|²= (P₂)/Pav
+% V⁺ = Vav = E0 / 2 -> maximum power wave
+% V⁻ = V - V⁺ = V - (E0 / 2) -> voltage difference to voltage of maximum power transfer (return loss voltage, reflect voltage)
+% S₁₁ = V₁₁⁻ / V₁₁⁺ = (V₁ - (E0/2)) / (E0/2) 
+%                   = [E0*(Zin₁/(Zin₁ + Zo₁)) - (E0/2)] / (E0/2) 
+%                   = 2*Zin₁/(Zin₁ + Zo₁) - 1 
+%                   = (Zin₁ - Zo₁)/(Zin₁ + Zo₁) = Γ₁₁ 
+% S₂₁ = V₂₁⁻ / V₁₁⁺ = V₂₁⁻ / (E0/2) = V₂ / (E0/2)
+% |S₁₁|²= |(P₁ - Pav)/Pav| = (Pav - P₁)/Pav
+% |S₂₁|²= |(P₂)/Pav|
 % 
-% lossless network P₁ = P₂ thus |S₁₁|² + |S₂₁|² = (Pav + P₂ - P₁)/Pav = 1
+% ------------------------------------------
+% S-parameter matrix property:
+% lossless network P₁ = P₂ thus |S₁₁|² + |S₂₁|² = (Pav - P₁)/Pav + |P₂/Pav| = 1 - P₁/Pav + |P₂/Pav| = 1
 % reciprocal network S₁₁ = S₂₂ and S₂₁ = S₁₂
 % 
 % Sᴴ*S = 
@@ -89,7 +94,8 @@ if debug_power && (n > 1)
 	P_Vpos = real(conj(V_pos) .* (V_pos/Zo) * 0.5);
 	fprintf( 'P⁺ =\n' );
 	disp( P_Vpos );
-	fprintf( 'V₁₁ - V⁺₁₁ = %.10e\n', v(1,1) - V_pos(1,1) );
+	fprintf( 'V⁻₁₁ = V₁₁ - V⁺₁₁ = %.10e\n', v(1,1) - V_pos(1,1) );
+	fprintf( 'V⁻₁₁ = V₁₁ - (E0/2) = %.10e\n', v(1,1) - (E0/2) );
 	Pin_max = 2*Pav;
 	fprintf( 'Pin_max = %.10e\n', Pin_max );
 	Pin = real(E0*is*0.5);
