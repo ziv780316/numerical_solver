@@ -55,10 +55,11 @@ if nargin < 3
 end
 
 i = (I + Y*Zo) \ (-Y*E);
-v = (I + Y*Zo) \ E;
+v = I + (Zo * i);
 
-%S = (I + Zo*Y) \ (I - Zo*Y);
-S = E0 \ (v + Zo * i);
+row_Z_scale = (inv(Zo)*(real(Zo).^0.5));
+col_Z_scale = (real(Zo).^0.5);
+S = row_Z_scale * (E0 \ (v + Zo * i)) * col_Z_scale;
 
 if debug_power && (n > 1)
 	% analysis feed stimulus on port 1 
@@ -73,6 +74,10 @@ if debug_power && (n > 1)
 	Ploss = abs(((conj(S11)*S11 + conj(S21)*S21)*Pav - Pav));
 	vz1 = is*Zo(1);
 	Pz1 = real(conj(vz1)*is*0.5);
+	fprintf( 'row_Z_scale =\n' );
+	disp( row_Z_scale );
+	fprintf( 'col_Z_scale =\n' );
+	disp( col_Z_scale );
 	fprintf( 'Pav = %.10e\n', Pav );
 	fprintf( 'Preturn = %.10e\n', Pav-P1 );
 	fprintf( 'Pz1 = %.10e\n', Pz1 );
