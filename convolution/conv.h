@@ -11,6 +11,7 @@ typedef struct
 	double *f_interp;
 	complex *H;
 	complex *H_interp;
+	double *H_mag_interp;
 
 	int n_time_point;
 	double *t;

@@ -96,6 +96,7 @@ void conv_interp_H (conv_db_t *conv_db )
 	{
 		conv_db->f_interp = (double *) calloc ( conv_db->n, sizeof(double) );
 		conv_db->H_interp = (complex *) calloc ( conv_db->n, sizeof(complex) );
+		conv_db->H_mag_interp = (double *) calloc ( conv_db->n, sizeof(double) );
 		bool find_interval;
 		int k = 1;
 		complex Hp;
@@ -221,6 +222,7 @@ void conv_interp_H (conv_db_t *conv_db )
 
 			conv_db->f_interp[i] = fp;
 			conv_db->H_interp[i] = Hp;
+			conv_db->H_mag_interp[i] = cabs(Hp);
 		}
 	}
 	else
@@ -280,10 +282,18 @@ void conv_get_impulse_response ( conv_db_t *conv_db )
 		python_init( 0 ); // debug = 0
 		python_create_list( "t", conv_db->t_interp, conv_db->n, C_PYTHON_VALUE_TYPE_FLOAT_64 );
 		python_create_list( "h", conv_db->h, conv_db->n, C_PYTHON_VALUE_TYPE_FLOAT_64 );
+		python_create_list( "f", conv_db->f_interp, conv_db->n_sample + 1, C_PYTHON_VALUE_TYPE_FLOAT_64 );
+		python_create_list( "H", conv_db->H_mag_interp, conv_db->n_sample + 1, C_PYTHON_VALUE_TYPE_FLOAT_64 );
 		python_eval_string( 
 			"fig, axs = plt.subplots(2,2,figsize=(12,8));" // figsize unit is monitor inches
 			"fig.suptitle('impulse response h(t)');"
-			"axs[0,0].plot(t,h,'b-',markersize=1);"
+			"axs[0,0].plot(f,H,'bo-',markersize=3);"
+			"axs[0,0].set_ylabel('H(f)');"
+			"axs[0,0].set_xlabel('Hz');"
+			"axs[0,0].set_xscale('log');"
+			"axs[0,1].plot(t,h,'b-',markersize=1);"
+			"axs[0,1].set_ylabel('h(t)');"
+			"axs[0,1].set_xlabel('t');"
 			"plt.show();" 
 		);
 		python_close();
