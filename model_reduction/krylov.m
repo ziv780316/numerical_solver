@@ -1,5 +1,5 @@
 rng(1);
-m = 100;
+m = 3;
 A = rand(m,m) + eye(m,m);
 b = rand(m,1);
 
@@ -23,22 +23,24 @@ for n=1:1:m
 	r1 = norm(b - A*x1);
 	r2 = norm(b - A*x2);
 	r3 = norm(b - A*x3);
-	%fprintf( 'r1=%e\n', r1 );
-	%fprintf( 'x1=\n' );
-	%disp(x1);
-	%fprintf( 'r2=%e\n', r2 );
-	%fprintf( 'x2=\n' );
-	%disp(x2);
-	%fprintf( 'r3=%e\n', r3 );
-	%fprintf( 'x3=\n' );
-	%disp(x3);
+	fprintf( 'r1=%e\n', r1 );
+	fprintf( 'x1=\n' );
+	disp(x1);
+	fprintf( 'r2=%e\n', r2 );
+	fprintf( 'x2=\n' );
+	disp(x2);
+	fprintf( 'r3=%e\n', r3 );
+	fprintf( 'x3=\n' );
+	disp(x3);
 
 	fprintf( 'r%d=%e\n', n, r3 );
 
 	% restart for better numerical condition
-	if 0 == mod(n,2) 
+	if 0 == mod(n,10) && 0
 		b = b - A*x3;
 		x_appr = x_appr + x3;
+	else
+		x_appr = x3;
 	end
 end
 
