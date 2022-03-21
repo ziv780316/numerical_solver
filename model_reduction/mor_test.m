@@ -1,6 +1,11 @@
 rng(1);
-m = 10;
-A = rand(m,m) + eye(m,m);
+m = 3;
+A = [...
+0 -2 -2;...
+1  3  1;...
+0  0  2;...
+]; % minimum polynomial degree is 2
+%m = minpoly(A);
 b = rand(m,1);
 
 D = diag(diag(A));
@@ -10,25 +15,13 @@ P = eye(m,m);
 
 A = P\A;
 b = P\b;
-n = 8;
+n = 2;
 [Q1, Q2, H] = arnoldi_mgs( A, b, n );
 
-H_appr = H(1:n,:);
+H_sub = H(1:n,:);
 x = A\b;
-
-% chord newton
-iter_max = 10;
-x_appr = zeros(m,1);
-for i =1:1:iter_max
-  f = A*x_appr - b;
-  y = H_appr\(Q1'*f);
-  dx = -Q1*y;
-  %y = H\(Q2'*f);
-  %dx = -Q1*y;
-  x_appr = x_appr + dx;
-  fprintf( '|f%d|=%e\n', i, norm(f) );
-  fprintf( '|dx%d|=%e\n', i, norm(dx) );
-end
+y = H_sub\(Q1'*b);
+x_appr = Q1*y;
 
 fprintf( 'x=\n' );
 disp(x);
