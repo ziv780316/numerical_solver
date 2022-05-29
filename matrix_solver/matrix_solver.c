@@ -1484,7 +1484,7 @@ void sparse_matrix_multiply_vector ( sparse_csc_t *A, sparse_float *x, sparse_fl
 	}
 }
 
-int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, sparse_csc_t **pL, sparse_csc_t **pU, sparse_csc_t **pP, sparse_csc_t **pQ, sparse_csc_t **pR, sparse_int **p, sparse_int **q, sparse_float **r )
+int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, sparse_csc_t **pL, sparse_csc_t **pU, sparse_csc_t **pP, sparse_csc_t **pQ, sparse_csc_t **pR, sparse_int **p, sparse_int **pinv, sparse_int **q, sparse_float **r, sparse_int *p_user, sparse_int *q_user, int use_symbolic_ordering, int use_numerical_pivot )
 {
 	if ( A->m != A->n )
 	{
@@ -1505,10 +1505,17 @@ int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, s
 		klu_l_defaults( &common );
 
 		// pivtol, pivot tolerance for diagonal
-		common.tol = 0.001;      
+		if ( use_numerical_pivot )
+		{
+			common.tol = 1;
+		}
+		else
+		{
+			common.tol = 0;
+		}
 
 		// use BTF pre-ordering, or not 
-		//common.btf = false;
+		common.btf = false;
 
 		// scale
 		// -1: none, and do not check for errors in the input matrix in KLU_refactor
@@ -1525,7 +1532,14 @@ int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, s
 		// 1: COLAMD
 		// 2: user-provided P, Q (if not provide, then use natural ordering)
 		// 3: user-provided function
-		common.ordering = 0; 
+		if ( use_symbolic_ordering )
+		{
+			common.ordering = 0; 
+		}
+		else
+		{
+			common.ordering = 2; 
+		}
 
 		if ( 2 == common.ordering )
 		{
@@ -1541,7 +1555,7 @@ int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, s
 			//Q_user[2] = 2;
 			//Q_user[3] = 0;
 			//symbolic = klu_l_analyze_given( n, Ap, Ai, P_user, Q_user, &common );
-			symbolic = klu_l_analyze_given( n, Ap, Ai, NULL, NULL, &common ); // natural ordering
+			symbolic = klu_l_analyze_given( n, Ap, Ai, p_user, q_user, &common );
 			if ( common.status != KLU_OK )
 			{
 				switch ( common.status )
@@ -1620,16 +1634,16 @@ int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, s
 		U->nz = numeric->unz;
 		alloc_sparse( U );
 
-		// L * U is decomposition of (R * P * A * Q) 
+		// L * U is decomposition of (P * R * A * Q) 
 		// R = 1 / numeric->Rs
 		// P = numeric->Pnum
 		// Q = inv(symbolic->Q)
 		// solve A * x = b 
-		// A = inv(P) * inv(R) * L * U * inv(Q)
-		//   -> (inv(P) * R * L * U * inv(Q) * x = b 
-		//   -> (L * U * inv(Q)) * x = R * P * b 
-		//   -> inv(Q) * x = (L * U) \ (R * P * b)
-		//   -> x = Q * ((L * U) \ (R * P * b))
+		// A = inv(R) * inv(P) * L * U * inv(Q)
+		//   -> (inv(R) * inv(P) * L * U * inv(Q) * x = b 
+		//   -> (L * U * inv(Q)) * x = P * R * b 
+		//   -> inv(Q) * x = (L * U) \ (P * R * b)
+		//   -> x = Q * ((L * U) \ (P * R * b))
 		sparse_float *Rs_klu = (sparse_float *) calloc ( n, sizeof(sparse_float) );
 		sparse_int *P_klu = (sparse_int *) calloc ( n, sizeof(sparse_int) );
 		sparse_int *Q_klu = (sparse_int *) calloc ( n, sizeof(sparse_int) );
@@ -1650,7 +1664,7 @@ int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, s
 		for ( sparse_int i = 0; i < n; ++i )
 		{
 			R->Ai[i] = i;
-			R->Ax[i] = Rs_klu[i];
+			R->Ax[i] = 1 / Rs_klu[numeric->Pinv[i]];
 			R->Ap[i + 1] = i + 1;
 		}
 		*pR = R;
@@ -1684,15 +1698,23 @@ int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, s
 		}
 
 		// permutation and scale vector	
-		*r = Rs_klu;
+		*r = (sparse_float *) malloc( n * sizeof(sparse_float) );
+		for ( sparse_int i = 0; i < n; ++i )
+		{
+			(*r)[i] = 1 / Rs_klu[i];
+		}
 		*p = P_klu;
+		*pinv = (sparse_int *) malloc( n * sizeof(sparse_int) );
+		for ( sparse_int i = 0; i < n; ++i )
+		{
+			(*pinv)[i] = numeric->Pinv[i];
+		}
 		*q = (sparse_int *) calloc( n, sizeof(sparse_int) );
 		for ( sparse_int i = 0; i < n; ++i )
 		{
 			(*q)[Q_klu[i]] = i; // inv(Q) -> Q
 		}
 		free( Rs_klu );
-		free( P_klu );
 		free( Q_klu );
 		klu_l_free_symbolic ( &symbolic, &common );
 		klu_l_free_numeric ( &numeric, &common );
@@ -1700,6 +1722,35 @@ int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, s
 	else
 	{
 		return false;
+	}
+
+	return true;
+}
+
+int sparse_matrix_bad_pivot_detect ( sparse_csc_t *A, sparse_csc_t *L, sparse_csc_t *U, sparse_int *p, sparse_int *q, sparse_float *r, double pivrel, double pivtol )
+{
+	// check |A - inv(R)*inv(P)*L*U*inv(Q)|
+	sparse_csc_t *LU = sparse_matrix_matrix_multiply ( L, U );
+
+
+
+	free( LU );
+}
+
+int sparse_matrix_diagonal_inverse ( sparse_csc_t *A )
+{
+	sparse_int m_row = A->m;
+	sparse_int n_col = A->n;
+	sparse_int *Ap = A->Ap;
+	sparse_int *Ai = A->Ai;
+	sparse_float *Ax = A->Ax;
+
+	for ( sparse_int i = 0; i < n_col; ++i )
+	{
+		for ( sparse_int p = Ap[i]; p < Ap[i + 1]; ++p )
+		{
+			Ax[p] = 1 / Ax[p];
+		}
 	}
 
 	return true;

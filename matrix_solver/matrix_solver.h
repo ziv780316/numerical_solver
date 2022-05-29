@@ -164,7 +164,13 @@ sparse_csc_t *sparse_matrix_matrix_multiply ( sparse_csc_t *A, sparse_csc_t *B )
 void sparse_matrix_multiply_vector ( sparse_csc_t *A, sparse_float *x, sparse_float *b );
 
 // P*R*A*Q = L*U
-int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, sparse_csc_t **pL, sparse_csc_t **pU, sparse_csc_t **pP, sparse_csc_t **pQ, sparse_csc_t **pR, sparse_int **p, sparse_int **q, sparse_float **r );
+int sparse_matrix_lu_decomposition ( sparse_csc_t *A, sparse_lu_method method, sparse_csc_t **pL, sparse_csc_t **pU, sparse_csc_t **pP, sparse_csc_t **pQ, sparse_csc_t **pR, sparse_int **p, sparse_int **pinv, sparse_int **q, sparse_float **r, sparse_int *p_user, sparse_int *q_user, int use_symbolic_ordering, int use_numerical_pivot );
+
+// check |A - inv(R)*inv(P)*L*U*inv(Q)|
+int sparse_matrix_bad_pivot_detect ( sparse_csc_t *A, sparse_csc_t *L, sparse_csc_t *U, sparse_int *p, sparse_int *q, sparse_float *r, double pivrel, double pivtol );
+
+// D[i] = 1/D[i]
+int sparse_matrix_diagonal_inverse ( sparse_csc_t *A );
 
 // tranpose 
 int sparse_matrix_transpose ( sparse_csc_t *A );
