@@ -5,9 +5,9 @@
 #include "lfsr.h"
 
 // convert state to string format
-// str[0] -> str[15]
-// bit1 -> bit16
-// LSB     MSB
+// str[15] -> str[0]
+// bit16 -> bit1
+// MSB     LSB
 char *lfsr_state2str ( lfsr_t *lfsr, uint16_t state )
 {
 	char *str = (char *) calloc( lfsr->m + 1, 1 ); // + 1 is to store'\0'
@@ -16,7 +16,7 @@ char *lfsr_state2str ( lfsr_t *lfsr, uint16_t state )
 	for ( int i = 0; i < lfsr->m; ++i )
 	{
 		bit = (state >> i) & 0x1;
-		str[i] = bit + '0';
+		str[lfsr->m - 1 - i] = bit + '0';
 	}
 
 	if ( lfsr->sanity_check )
@@ -36,10 +36,10 @@ char *lfsr_state2str ( lfsr_t *lfsr, uint16_t state )
 	return str;
 }
 
-// convert strint to state format (uint16_t))
-// str[0] -> str[15]
-// bit1 -> bit16
-// LSB     MSB
+// convert state to string format
+// str[15] -> str[0]
+// bit16 -> bit1
+// MSB     LSB
 uint16_t lfsr_str2state ( lfsr_t *lfsr, char *str )
 {
 	uint16_t state = 0; 
@@ -49,7 +49,7 @@ uint16_t lfsr_str2state ( lfsr_t *lfsr, char *str )
 	{
 		if ( '1' == str[i] )
 		{
-			state |= (1 << i);
+			state |= (1 << lfsr->m - 1 - i);
 		}
 	}
 
@@ -78,6 +78,15 @@ lfsr_t *init_lfsr ( char *taps_str, char *seed_str, lfsr_type_e type, bool debug
 	lfsr->debug = debug;
 	lfsr->sanity_check = sanity_check;
 
+	// assert first tap bit must be MSB 
+	if ( '1' != taps_str[0] )
+	{
+		fprintf( stderr, "[ERROR] taps_str[0] should be '1'\n" );
+		exit(1);
+	}
+	lfsr->m = strlen( taps_str );
+	lfsr->possible_longest_period = (1 << lfsr->m) - 1;
+
 	// parse taps
 	taps_t taps = { .n_taps = 0 };
 	for ( int i = 0; taps_str[i]; ++i )
@@ -97,18 +106,17 @@ lfsr_t *init_lfsr ( char *taps_str, char *seed_str, lfsr_type_e type, bool debug
 	taps.tap_pos = (int *) calloc ( taps.n_taps, sizeof(int) );
 	taps.shift_expr = (uint16_t *) calloc ( taps.n_taps, sizeof(uint16_t) );
 
+	// record tap from MSB to LSB
 	int cnt = 0;
 	for ( int i = 0; taps_str[i]; ++i )
 	{
 		if ( '1' == taps_str[i] )
 		{
-			taps.tap_pos[cnt] = i + 1;
+			taps.tap_pos[cnt] = lfsr->m - i;;
 			++cnt;
 		}
 	}
 
-	lfsr->m = taps.tap_pos[taps.n_taps - 1];
-	lfsr->possible_longest_period = (1 << lfsr->m) - 1;
 	lfsr->taps = taps;
 
 	// parse seed
@@ -177,6 +185,8 @@ uint16_t lfsr_get_next_state( lfsr_t *lfsr, uint16_t state )
 	{
 		int output_bit = 0;
 		int shift;
+
+		// evaluate shift operatorfrom MSB to LSB
 		for ( int i = 0; i < (lfsr->taps).n_taps; ++i )
 		{
 			shift = (lfsr->m - (lfsr->taps).tap_pos[i]);

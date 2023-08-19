@@ -12,7 +12,7 @@ typedef enum {
 typedef struct
 {
 	int n_taps;
-	int *tap_pos; // 1-base index
+	int *tap_pos; // 1-base index, record from MSB to LSB
 	uint16_t *shift_expr;
 } taps_t;
 
