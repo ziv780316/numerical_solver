@@ -201,6 +201,7 @@ uint16_t lfsr_get_next_state( lfsr_t *lfsr, uint16_t state )
 		output_bit = xor_expr & 0x1; // mod 2
 
 		state_next = (state >> 1) | (output_bit << (lfsr->m - 1));
+		//state_next = ((state & ~(1 << (lfsr->m - 1))) << 1) | output_bit;
 
 		if ( lfsr->debug )
 		{

@@ -21,6 +21,19 @@ int main ( int argc, char **argv )
 		printf( "period = %d (2^%d - 1 = %d)\n", period, lfsr->m, (1 << lfsr->m) - 1 );
 	}
 
+	// x^4 + x^3 + 1
+	{
+		// bit1 -> bit16
+		// LSB     MSB
+		char *seed3_str = "1111";
+		char *taps3_str = "1100";
+
+		lfsr_t *lfsr = init_lfsr ( taps3_str, seed3_str, LFSR_TYPE_FIBONACCI_XOR, true, true );
+
+		int period = lfsr_get_period( lfsr );
+		printf( "period = %d (2^%d - 1 = %d)\n", period, lfsr->m, (1 << lfsr->m) - 1 );
+	}
+
 	// x^10 + x^7 + 1
 	{
 		// bit1 -> bit16
