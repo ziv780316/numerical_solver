@@ -15,12 +15,31 @@ typedef enum
 typedef struct 
 {
 	char *name;
-	char *node_p;
-	char *node_n;
+	int id;
+	bool is_branch;
+} node_t;
+
+typedef struct 
+{
+	char *name;
+	node_t node_p;
+	node_t node_n;
+	node_t node_branch;
 	char *expr;
 
-	int node_p_id;
-	int node_n_id;
+	int type; 
+#define SRC_TYPE_V 0
+#define SRC_TYPE_I 1
+
+	double dc;
+} src_t;
+
+typedef struct 
+{
+	char *name;
+	node_t node_p;
+	node_t node_n;
+	char *expr;
 
 	double r;
 } res_t;
@@ -28,12 +47,9 @@ typedef struct
 typedef struct 
 {
 	char *name;
-	char *node_p;
-	char *node_n;
+	node_t node_p;
+	node_t node_n;
 	char *expr;
-
-	int node_p_id;
-	int node_n_id;
 
 	double c;
 } cap_t;
@@ -49,14 +65,22 @@ typedef struct
 	double res_min;
 
 	// RC db
+	node_t *node_vec;
 	cap_t *cap_vec;
 	res_t *res_vec;
+	src_t *src_vec;
 	int n_node; // exclude gnd
 	int n_res;
 	int n_cap;
+	int n_src;
+	int n_vsrc;
+	int n_isrc;
 	int n_cpl_cap;
 	int n_gnd_cap;
 	int n_decpl_cap;
+	int n_r_node;
+	int n_non_r_node;
+	int n_only_r_node;
 
 	// IO
 	FILE *fout;
@@ -65,7 +89,9 @@ typedef struct
 } rcr_t;
 
 rcr_t *rcr_parse_netlist_spice3 ( char *netlist_in ); 
+void rcr_r_reduction ( rcr_t *rcr );
 void rcr_dump_db ( rcr_t *rcr );
+bool is_gnd ( char *node );
 
 
 #endif
